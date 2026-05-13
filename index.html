@@ -1,474 +1,448 @@
 <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="shortcut icon" href="assets/img/favicon.png" type="image/png">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <title>MGT | MgucaTech Solutions — Ubuntu in Tech</title>
+</head>
+<body>
 
-        <link rel="shortcut icon" href="assets/img/favicon.png" type="image/png">
+<!-- ════════════════════════════════ HEADER ════════════════════════════════ -->
+<header class="header" id="header">
+  <nav class="nav">
+    <a href="#home" class="nav__brand">
+      <img src="assets/img/mgt-logo.svg" alt="MGT" class="nav__logo">
+    </a>
 
-        <!--=============== REMIXICONS ===============-->
-        <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
-        
-        <!--=============== SWIPER CSS ===============-->
-        <link rel="stylesheet" href="assets/css/swiper-bundle.min.css">
+    <ul class="nav__list" id="nav-list">
+      <li><a href="#home"     class="nav__link active-link">Home</a></li>
+      <li><a href="#about"    class="nav__link">About</a></li>
+      <li><a href="#services" class="nav__link">Services</a></li>
+      <li><a href="#sectors"  class="nav__link">Sectors</a></li>
+      <li><a href="#contact"  class="nav__link">Contact</a></li>
+      <li><a href="chatbot.html" class="nav__link nav__cta">Chatbot ↗</a></li>
+    </ul>
 
-        <!--=============== CSS ===============-->
-        <link rel="stylesheet" href="assets/css/styles.css">
+    <div class="nav__right">
+      <button type="button" class="ri-moon-line nav__theme" id="theme-button" aria-label="Use light theme" title="Use light theme"></button>
+      <button type="button" class="nav__burger" id="nav-toggle" aria-label="Open menu" aria-controls="nav-list" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+</header>
 
-        <title>Responsive Website Travel</title>
-    </head>
-    <body>
-        <header class="header" id="header">
-            <nav class="nav container">
-                <a href="#" class="nav__logo">Travel</a>
+<main>
 
-                <div class="nav__menu" id="nav-menu">
-                    <ul class="nav__list">
-                        <li class="nav__item">
-                            <a href="#home" class="nav__link active-link">Home</a>
-                        </li>
-                        <li class="nav__item">
-                            <a href="#about" class="nav__link">About</a>
-                        </li>
-                        <li class="nav__item">
-                            <a href="#discover" class="nav__link">Discover</a>
-                        </li>
-                        <li class="nav__item">
-                            <a href="#place" class="nav__link">Places</a>
-                        </li>
-                    </ul>
+<!-- ════════════════════════════════ HERO ════════════════════════════════ -->
+<section class="hero" id="home">
+  <div class="hero__bg">
+    <img src="assets/img/background.jpg" alt="" class="hero__photo">
+    <div class="hero__overlay"></div>
+    <div class="hero__grid-pattern"></div>
+  </div>
 
-                    <div class="nav__dark">
-                        <!-- Theme change button -->
-                        <span class="change-theme-name">Dark mode</span>
-                        <i class="ri-moon-line change-theme" id="theme-button"></i>
-                    </div>
+  <div class="hero__body container">
+    <div class="hero__eyebrow">
+      <span class="pulse-dot"></span>
+      Ubuntu in Tech &nbsp;·&nbsp; South Africa
+    </div>
 
-                    <i class="ri-close-line nav__close" id="nav-close"></i>
-                </div>
+    <h1 class="hero__title">
+      We <em>Build.</em><br>You <em>Grow.</em>
+    </h1>
 
-                <div class="nav__toggle" id="nav-toggle">
-                    <i class="ri-function-line"></i>
-                </div>
-            </nav>
-        </header>
+    <p class="hero__desc">
+      MgucaTech Solutions (MGT) delivers WhatsApp-native platforms, intelligent
+      automation, and change-management tools that connect South African
+      organisations and healthcare practices with the communities they serve.
+    </p>
 
-        <main class="main">
-            <!--==================== HOME ====================-->
-            <section class="home" id="home">
-                <img src="assets/img/home1.jpg" alt="" class="home__img">
+    <div class="hero__actions">
+      <a href="#services" class="btn btn--primary">
+        Our Services <i class="ri-arrow-right-line"></i>
+      </a>
+      <a href="#video" class="btn btn--outline">
+        <i class="ri-play-circle-line"></i> Watch Demo
+      </a>
+    </div>
+  </div>
 
-                <div class="home__container container grid">
-                    <div class="home__data">
-                        <span class="home__data-subtitle">Discover your place</span>
-                        <h1 class="home__data-title">Explore The <br> Best <b>Beautiful <br> Beaches</b></h1>
-                        <a href="#" class="button">Explore</a>
+  <a href="#stats" class="hero__scroll">
+    <span>Scroll</span>
+    <i class="ri-arrow-down-line"></i>
+  </a>
+</section>
 
-                    </div>
+<!-- ════════════════════════════════ STATS ════════════════════════════════ -->
+<div class="stats-bar" id="stats">
+  <div class="stats-bar__inner container">
+    <div class="stat">
+      <span class="stat__num">23M<sup>+</sup></span>
+      <span class="stat__label">Rural residents in SA</span>
+    </div>
+    <div class="stats-bar__divider"></div>
+    <div class="stat">
+      <span class="stat__num">47K</span>
+      <span class="stat__label">Registered practitioners</span>
+    </div>
+    <div class="stats-bar__divider"></div>
+    <div class="stat">
+      <span class="stat__num">94<sup>%</sup></span>
+      <span class="stat__label">SA WhatsApp penetration</span>
+    </div>
+    <div class="stats-bar__divider"></div>
+    <div class="stat">
+      <span class="stat__num">R199</span>
+      <span class="stat__label">Per practice / month</span>
+    </div>
+  </div>
+</div>
 
-                    <div class="home__social">
-                        <a href="https://www.facebook.com/" target="_blank" class="home__social-link">
-                            <i class="ri-facebook-box-fill"></i>
-                        </a>
-                        <a href="https://www.instagram.com/" target="_blank" class="home__social-link">
-                            <i class="ri-instagram-fill"></i>
-                        </a>
-                        <a href="https://twitter.com/" target="_blank" class="home__social-link">
-                            <i class="ri-twitter-fill"></i>
-                        </a>
-                    </div>
+<!-- ════════════════════════════════ ABOUT ════════════════════════════════ -->
+<section class="section" id="about">
+  <div class="container about">
+    <div class="about__text">
+      <span class="eyebrow">Who We Are</span>
+      <h2 class="h2">Built for Communities,<br>Powered by Technology</h2>
+      <p class="body-copy">
+        MGT is a South African technology company guided by the spirit of ubuntu —
+        the belief that we rise by lifting others. We design affordable, accessible
+        tools that bridge the gap between organisations and the communities they
+        serve, with a focus on rural healthcare, change management, and intelligent
+        automation.
+      </p>
 
-                    <div class="home__info">
-                        <div>
-                            <span class="home__info-title">5 best places to visit</span>
-                            <a href="" class="button button--flex button--link home__info-button">
-                                More <i class="ri-arrow-right-line"></i>
-                            </a>
-                        </div>
+      <ul class="pillars">
+        <li class="pillar">
+          <span class="pillar__icon"><i class="ri-shield-check-line"></i></span>
+          <div>
+            <strong>Ubuntu-centred Design</strong>
+            <span>Technology built around people, not processes.</span>
+          </div>
+        </li>
+        <li class="pillar">
+          <span class="pillar__icon"><i class="ri-whatsapp-line"></i></span>
+          <div>
+            <strong>WhatsApp-first Workflow</strong>
+            <span>No app download. No account. Just familiar access.</span>
+          </div>
+        </li>
+        <li class="pillar">
+          <span class="pillar__icon"><i class="ri-map-pin-2-line"></i></span>
+          <div>
+            <strong>Local Access, Local Trust</strong>
+            <span>Built for peri-urban and rural South Africa.</span>
+          </div>
+        </li>
+      </ul>
+    </div>
 
-                        <div class="home__info-overlay">
-                            <img src="assets/img/home2.jpg" alt="" class="home__info-img">
-                        </div>
-                    </div>
-                </div>
-            </section>
+    <div class="about__visual">
+      <img src="assets/img/pexels-igor-starkov-1117452.jpg" alt="MGT team" class="about__img">
+      <div class="about__badge">
+        <span class="about__badge-num">20<sup>+</sup></span>
+        <span class="about__badge-lbl">Years<br>Experience</span>
+      </div>
+    </div>
+  </div>
+</section>
 
-            <!--==================== ABOUT ====================-->
-            <section class="about section" id="about">
-                <div class="about__container container grid">
-                    <div class="about__data">
-                        <h2 class="section__title about__title">More Information <br> About The Best Beaches</h2>
-                        <p class="about__description">You can find the most beautiful and pleasant places at the best 
-                            prices with special discounts, you choose the place we will guide you all the way to wait, get your 
-                            place now.
-                        </p>
-                        <a href="#" class="button">Reserve a place</a>
-                    </div>
+<!-- ════════════════════════════════ SERVICES ════════════════════════════════ -->
+<section class="section section--alt" id="services">
+  <div class="container">
+    <span class="eyebrow eyebrow--center">What We Deliver</span>
+    <h2 class="h2 h2--center">Our Services</h2>
 
-                    <div class="about__img">
-                        <div class="about__img-overlay">
-                            <img src="assets/img/about1.jpg" alt="" class="about__img-one">
-                        </div>
+    <div class="services">
 
-                        <div class="about__img-overlay">
-                            <img src="assets/img/about2.jpg" alt="" class="about__img-two">
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!--==================== DISCOVER ====================-->
-            <section class="discover section" id="discover">
-                <h2 class="section__title">Discover the most <br> attractive places</h2>
-                
-                <div class="discover__container container swiper-container">
-                    <div class="swiper-wrapper">
-                        <!--==================== DISCOVER 1 ====================-->
-                        <div class="discover__card swiper-slide">
-                            <img src="assets/img/discover1.jpg" alt="" class="discover__img">
-                            <div class="discover__data">
-                                <h2 class="discover__title">Bali</h2>
-                                <span class="discover__description">24 tours available</span>
-                            </div>
-                        </div>
+      <article class="svc">
+        <div class="svc__icon"><i class="ri-chat-3-line"></i></div>
+        <h3 class="svc__title">WhatsApp Automation</h3>
+        <p class="svc__body">AI-powered chatbots and booking systems on a channel patients already trust — no app required.</p>
+        <a href="#contact" class="svc__link">Get started <i class="ri-arrow-right-line"></i></a>
+      </article>
 
-                        <!--==================== DISCOVER 2 ====================-->
-                        <div class="discover__card swiper-slide">
-                            <img src="assets/img/discover2.jpg" alt="" class="discover__img">
-                            <div class="discover__data">
-                                <h2 class="discover__title">Hawaii</h2>
-                                <span class="discover__description">15 tours available</span>
-                            </div>
-                        </div>
+      <article class="svc">
+        <div class="svc__icon"><i class="ri-exchange-funds-line"></i></div>
+        <h3 class="svc__title">Change Management</h3>
+        <p class="svc__body">Strategic consulting that guides organisations through digital transformation and people-centred change.</p>
+        <a href="#contact" class="svc__link">Get started <i class="ri-arrow-right-line"></i></a>
+      </article>
 
-                        <!--==================== DISCOVER 3 ====================-->
-                        <div class="discover__card swiper-slide">
-                            <img src="assets/img/discover3.jpg" alt="" class="discover__img">
-                            <div class="discover__data">
-                                <h2 class="discover__title">Hvar</h2>
-                                <span class="discover__description">18 tours available</span>
-                            </div>
-                        </div>
+      <article class="svc">
+        <div class="svc__icon"><i class="ri-database-2-line"></i></div>
+        <h3 class="svc__title">Systems &amp; Data</h3>
+        <p class="svc__body">End-to-end pipelines, dashboards, and automation that turn raw data into actionable intelligence.</p>
+        <a href="#contact" class="svc__link">Get started <i class="ri-arrow-right-line"></i></a>
+      </article>
 
-                        <!--==================== DISCOVER 4 ====================-->
-                        <div class="discover__card swiper-slide">
-                            <img src="assets/img/discover4.jpg" alt="" class="discover__img">
-                            <div class="discover__data">
-                                <h2 class="discover__title">Whitehaven</h2>
-                                <span class="discover__description">32 tours available</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
+      <article class="svc">
+        <div class="svc__icon"><i class="ri-task-line"></i></div>
+        <h3 class="svc__title">Project Management</h3>
+        <p class="svc__body">Rigorous tender and project delivery management — from bid preparation to milestone reporting.</p>
+        <a href="#contact" class="svc__link">Get started <i class="ri-arrow-right-line"></i></a>
+      </article>
 
-            <!--==================== EXPERIENCE ====================-->
-            <section class="experience section">
-                <h2 class="section__title">With Our Experience <br> We Will Serve You</h2>
+      <article class="svc">
+        <div class="svc__icon"><i class="ri-hospital-line"></i></div>
+        <h3 class="svc__title">Healthcare Access</h3>
+        <p class="svc__body">Booking and patient communication platforms for clinics serving rural and peri-urban South Africa.</p>
+        <a href="#contact" class="svc__link">Get started <i class="ri-arrow-right-line"></i></a>
+      </article>
 
-                <div class="experience__container container grid">
-                    <div class="experience__content grid">
-                        <div class="experience__data">
-                            <h2 class="experience__number">20</h2>
-                            <span class="experience__description">Year <br> Experience</span>
-                        </div>
+      <article class="svc">
+        <div class="svc__icon"><i class="ri-robot-line"></i></div>
+        <h3 class="svc__title">AI Integration</h3>
+        <p class="svc__body">Plug smart triage, automated follow-ups, and personalised AI responses directly into your workflow.</p>
+        <a href="#contact" class="svc__link">Get started <i class="ri-arrow-right-line"></i></a>
+      </article>
 
-                        <div class="experience__data">
-                            <h2 class="experience__number">75</h2>
-                            <span class="experience__description">Complete <br> tours</span>
-                        </div>
+    </div>
+  </div>
+</section>
 
-                        <div class="experience__data">
-                            <h2 class="experience__number">650+</h2>
-                            <span class="experience__description">Tourist <br> Destination</span>
-                        </div>
-                    </div>
+<!-- ════════════════════════════════ HOW WE WORK ════════════════════════════════ -->
+<section class="section" id="how">
+  <div class="container">
+    <span class="eyebrow eyebrow--center">Our Process</span>
+    <h2 class="h2 h2--center">How We Work</h2>
 
-                    <div class="experience__img grid">
-                        <div class="experience__overlay">
-                            <img src="assets/img/experience1.jpg" alt="" class="experience__img-one">
-                        </div>
-                        
-                        <div class="experience__overlay">
-                            <img src="assets/img/experience2.jpg" alt="" class="experience__img-two">
-                        </div>
-                    </div>
-                </div>
-            </section>
+    <div class="steps">
+      <div class="step">
+        <div class="step__num">01</div>
+        <i class="ri-search-eye-line step__icon"></i>
+        <h3 class="step__title">Discover &amp; Strategise</h3>
+        <p class="step__body">We analyse your organisation's needs, map your stakeholders, and define the right tools and approach.</p>
+      </div>
+      <div class="step__line"></div>
+      <div class="step">
+        <div class="step__num">02</div>
+        <i class="ri-code-s-slash-line step__icon"></i>
+        <h3 class="step__title">Build &amp; Customise</h3>
+        <p class="step__body">Our team builds and integrates your solution with rich personalisation and full WhatsApp compatibility.</p>
+      </div>
+      <div class="step__line"></div>
+      <div class="step">
+        <div class="step__num">03</div>
+        <i class="ri-rocket-2-line step__icon"></i>
+        <h3 class="step__title">Launch &amp; Grow</h3>
+        <p class="step__body">We ensure flawless performance at launch, train your team, and track growth alongside you.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-            <!--==================== VIDEO ====================-->
-            <section class="video section">
-                <h2 class="section__title">Video Tour</h2>
+<!-- ════════════════════════════════ SECTORS ════════════════════════════════ -->
+<section class="section section--alt" id="sectors">
+  <div class="container">
+    <span class="eyebrow eyebrow--center">Where We Operate</span>
+    <h2 class="h2 h2--center">Industries We Serve</h2>
+  </div>
 
-                <div class="video__container container">
-                    <p class="video__description">Find out more with our video of the most beautiful and 
-                        pleasant places for you and your family.
-                    </p>
+  <div class="sectors">
+    <div class="sector">
+      <span class="sector__name">Healthcare</span>
+      <i class="ri-hospital-line sector__icon"></i>
+    </div>
+    <div class="sector sector--mid">
+      <span class="sector__name">Agriculture</span>
+      <i class="ri-plant-line sector__icon"></i>
+    </div>
+    <div class="sector">
+      <span class="sector__name">Manufacturing</span>
+      <i class="ri-hammer-line sector__icon"></i>
+    </div>
 
-                    <div class="video__content">
-                        <video id="video-file">
-                            <source src="assets/video/video.mp4" type="video/mp4">
-                        </video>
+    <div class="sector">
+      <span class="sector__name">Financial Services</span>
+      <i class="ri-bank-line sector__icon"></i>
+    </div>
+    <div class="sector sector--mid">
+      <span class="sector__name">Technology and<br>Telecommunications</span>
+      <i class="ri-global-line sector__icon"></i>
+    </div>
+    <div class="sector">
+      <span class="sector__name">Retail</span>
+      <i class="ri-store-2-line sector__icon"></i>
+    </div>
 
-                        <button class="button button--flex video__button" id="video-button">
-                            <i class="ri-play-line video__button-icon" id="video-icon"></i>
-                        </button>
-                    </div>
-                </div>
-            </section>
+    <div class="sector">
+      <span class="sector__name">Renewable Energy</span>
+      <i class="ri-sun-line sector__icon"></i>
+    </div>
+    <div class="sector sector--logo">
+      <img src="assets/img/mgt-logo.svg" alt="MGT | Ubuntu in Tech" class="sector__logo">
+    </div>
+  </div>
+</section>
 
-            <!--==================== PLACES ====================-->
-            <section class="place section" id="place">
-                <h2 class="section__title">Choose Your Place</h2>
+<!-- ════════════════════════════════ VIDEO ════════════════════════════════ -->
+<section class="section" id="video">
+  <div class="container">
+    <span class="eyebrow eyebrow--center">See It In Action</span>
+    <h2 class="h2 h2--center">MGT in Motion</h2>
+    <p class="section-sub">
+      Watch how MgucaTech Solutions is transforming access to healthcare and
+      services across South Africa's rural and peri-urban communities.
+    </p>
+    <div class="video-wrap">
+      <video id="video-file">
+        <source src="assets/img/Sakhinto-Solutions.mp4" type="video/mp4">
+      </video>
+      <button type="button" class="video-btn" id="video-button" aria-label="Play">
+        <i class="ri-play-line" id="video-icon"></i>
+      </button>
+    </div>
+  </div>
+</section>
 
-                <div class="place__container container grid">
-                    <!--==================== PLACES CARD 1 ====================-->
-                    <div class="place__card">
-                        <img src="assets/img/place1.jpg" alt="" class="place__img">
-                        
-                        <div class="place__content">
-                            <span class="place__rating">
-                                <i class="ri-star-line place__rating-icon"></i>
-                                <span class="place__rating-number">4,8</span>
-                            </span>
+<!-- ════════════════════════════════ TRUST ════════════════════════════════ -->
+<section class="section section--alt">
+  <div class="container">
+    <span class="eyebrow eyebrow--center">The Numbers That Drive Us</span>
+    <h2 class="h2 h2--center">Why MGT</h2>
 
-                            <div class="place__data">
-                                <h3 class="place__title">Bali</h3>
-                                <span class="place__subtitle">Indonesia</span>
-                                <span class="place__price">$2499</span>
-                            </div>
-                        </div>
+    <div class="trust">
+      <div class="trust-card">
+        <span class="trust-card__num">84.1%</span>
+        <h3 class="trust-card__title">Long Wait Times Cited</h3>
+        <p class="trust-card__body">Of rural patients cite long waiting times as a primary barrier to care — a pain point MGT directly resolves through WhatsApp booking.</p>
+      </div>
+      <div class="trust-card">
+        <span class="trust-card__num">94–96%</span>
+        <h3 class="trust-card__title">Monthly WhatsApp Usage</h3>
+        <p class="trust-card__body">Of South African internet users are active on WhatsApp monthly — giving MGT a distribution channel already trusted at massive scale.</p>
+      </div>
+      <div class="trust-card">
+        <span class="trust-card__num">R4.78M</span>
+        <h3 class="trust-card__title">Year 3 Base-Case ARR</h3>
+        <p class="trust-card__body">A three-year base case of 2,000 subscribed practices at R199/month supports an ARR target of approximately R4.78 million.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-                        <button class="button button--flex place__button">
-                            <i class="ri-arrow-right-line"></i>
-                        </button>
-                    </div>
+<!-- ════════════════════════════════ PARTNERS ════════════════════════════════ -->
+<section class="section partners-section">
+  <div class="container">
+    <span class="eyebrow eyebrow--center">Trusted Partners</span>
+    <div class="partners">
+      <div class="partner"><img src="assets/img/sponsors1.png" alt="Partner"></div>
+      <div class="partner"><img src="assets/img/sponsors2.png" alt="Partner"></div>
+      <div class="partner"><img src="assets/img/sponsors3.png" alt="Partner"></div>
+      <div class="partner"><img src="assets/img/sponsors4.png" alt="Partner"></div>
+      <div class="partner"><img src="assets/img/sponsors5.png" alt="Partner"></div>
+    </div>
+  </div>
+</section>
 
-                    <!--==================== PLACES CARD 2 ====================-->
-                    <div class="place__card">
-                        <img src="assets/img/place2.jpg" alt="" class="place__img">
-                        
-                        <div class="place__content">
-                            <span class="place__rating">
-                                <i class="ri-star-line place__rating-icon"></i>
-                                <span class="place__rating-number">5,0</span>
-                            </span>
+<!-- ════════════════════════════════ CONTACT ════════════════════════════════ -->
+<section class="section section--alt" id="contact">
+  <div class="container contact">
+    <div class="contact__left">
+      <span class="eyebrow">Get in Touch</span>
+      <h2 class="h2">Let's Build<br>Something Great</h2>
+      <p class="body-copy">
+        Whether you're a practice looking to streamline bookings, an organisation
+        navigating change, or an investor exploring the opportunity — we'd love
+        to hear from you.
+      </p>
+      <ul class="contact__info">
+        <li>
+          <i class="ri-map-pin-2-line"></i>
+          <span>Cape Town, Western Cape, South Africa</span>
+        </li>
+        <li>
+          <i class="ri-mail-send-line"></i>
+          <span>hello@mgt.co.za</span>
+        </li>
+        <li>
+          <i class="ri-whatsapp-line"></i>
+          <span>+27 (0) XXX XXX XXXX</span>
+        </li>
+      </ul>
+    </div>
 
-                            <div class="place__data">
-                                <h3 class="place__title">Bora Bora</h3>
-                                <span class="place__subtitle">Polinesia</span>
-                                <span class="place__price">$1599</span>
-                            </div>
-                        </div>
+    <form class="contact__form" action="">
+      <div class="form-row">
+        <input type="text"  placeholder="Your name"  class="form-field" autocomplete="name" required>
+        <input type="email" placeholder="Your email" class="form-field" autocomplete="email" required>
+      </div>
+      <input type="text" placeholder="Subject" class="form-field" autocomplete="off" required>
+      <textarea class="form-field form-field--ta" placeholder="Your message" required></textarea>
+      <button type="submit" class="btn btn--primary btn--full">
+        Send Message <i class="ri-send-plane-line"></i>
+      </button>
+    </form>
+  </div>
+</section>
 
-                        <button class="button button--flex place__button">
-                            <i class="ri-arrow-right-line"></i>
-                        </button>
-                    </div>
+</main>
 
-                    <!--==================== PLACES CARD 3 ====================-->
-                    <div class="place__card">
-                        <img src="assets/img/place3.jpg" alt="" class="place__img">
-                        
-                        <div class="place__content">
-                            <span class="place__rating">
-                                <i class="ri-star-line place__rating-icon"></i>
-                                <span class="place__rating-number">4,9</span>
-                            </span>
+<!-- ════════════════════════════════ FOOTER ════════════════════════════════ -->
+<footer class="footer">
+  <div class="footer__top container">
+    <div class="footer__brand">
+      <img src="assets/img/mgt-logo.svg" alt="MGT" class="footer__logo">
+      <p class="footer__tagline">WhatsApp-native tools for South African healthcare and beyond. Ubuntu in Tech.</p>
+      <div class="footer__socials">
+        <a href="#" target="_blank" aria-label="Facebook"><i class="ri-facebook-box-fill"></i></a>
+        <a href="#" target="_blank" aria-label="Twitter"><i class="ri-twitter-fill"></i></a>
+        <a href="#" target="_blank" aria-label="Instagram"><i class="ri-instagram-fill"></i></a>
+        <a href="#" target="_blank" aria-label="LinkedIn"><i class="ri-linkedin-box-fill"></i></a>
+      </div>
+    </div>
 
-                            <div class="place__data">
-                                <h3 class="place__title">Hawaii</h3>
-                                <span class="place__subtitle">EE.UU</span>
-                                <span class="place__price">$3499</span>
-                            </div>
-                        </div>
+    <div class="footer__col">
+      <h4 class="footer__heading">Company</h4>
+      <ul>
+        <li><a href="#about">About Us</a></li>
+        <li><a href="#how">How We Work</a></li>
+        <li><a href="chatbot.html">MGT Chatbot</a></li>
+      </ul>
+    </div>
 
-                        <button class="button button--flex place__button">
-                            <i class="ri-arrow-right-line"></i>
-                        </button>
-                    </div>
+    <div class="footer__col">
+      <h4 class="footer__heading">Services</h4>
+      <ul>
+        <li><a href="#services">WhatsApp Automation</a></li>
+        <li><a href="#services">Healthcare Access</a></li>
+        <li><a href="#services">Change Management</a></li>
+        <li><a href="#services">AI Integration</a></li>
+      </ul>
+    </div>
 
-                    <!--==================== PLACES CARD 4 ====================-->
-                    <div class="place__card">
-                        <img src="assets/img/place4.jpg" alt="" class="place__img">
-                        
-                        <div class="place__content">
-                            <span class="place__rating">
-                                <i class="ri-star-line place__rating-icon"></i>
-                                <span class="place__rating-number">4,8</span>
-                            </span>
+    <div class="footer__col">
+      <h4 class="footer__heading">Support</h4>
+      <ul>
+        <li><a href="#contact">Contact Us</a></li>
+        <li><a href="#">Privacy Policy</a></li>
+        <li><a href="#">Terms &amp; Agreements</a></li>
+      </ul>
+    </div>
+  </div>
 
-                            <div class="place__data">
-                                <h3 class="place__title">Whitehaven</h3>
-                                <span class="place__subtitle">Australia</span>
-                                <span class="place__price">$2499</span>
-                            </div>
-                        </div>
+  <div class="footer__bottom container">
+    <p>© 2026 MGT | MgucaTech Solutions. All rights reserved.</p>
+    <div>
+      <a href="#">Terms</a>
+      <a href="#">Privacy</a>
+    </div>
+  </div>
+</footer>
 
-                        <button class="button button--flex place__button">
-                            <i class="ri-arrow-right-line"></i>
-                        </button>
-                    </div>
+<a href="#home" class="scroll-top" id="scroll-up" aria-label="Back to top">
+  <i class="ri-arrow-up-line"></i>
+</a>
 
-                    <!--==================== PLACES CARD 5 ====================-->
-                    <div class="place__card">
-                        <img src="assets/img/place5.jpg" alt="" class="place__img">
-                        
-                        <div class="place__content">
-                            <span class="place__rating">
-                                <i class="ri-star-line place__rating-icon"></i>
-                                <span class="place__rating-number">4,8</span>
-                            </span>
-
-                            <div class="place__data">
-                                <h3 class="place__title">Hvar</h3>
-                                <span class="place__subtitle">Croacia</span>
-                                <span class="place__price">$1999</span>
-                            </div>
-                        </div>
-
-                        <button class="button button--flex place__button">
-                            <i class="ri-arrow-right-line"></i>
-                        </button>
-                    </div>
-                </div>
-            </section>
-
-            <!--==================== SUBSCRIBE ====================-->
-            <section class="subscribe section">
-                <div class="subscribe__bg">
-                    <div class="subscribe__container container">
-                        <h2 class="section__title subscribe__title">Subscribe Our <br> Newsletter</h2>
-                        <p class="subscribe__description">Subscribe to our newsletter and get a 
-                            special 30% discount.
-                        </p>
-    
-                        <form action="" class="subscribe__form">
-                            <input type="text" placeholder="Enter email" class="subscribe__input">
-    
-                            <button class="button">
-                                Subscribe
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </section>
-            
-            <!--==================== SPONSORS ====================-->
-            <section class="sponsor section">
-                <div class="sponsor__container container grid">
-                    <div class="sponsor__content">
-                        <img src="assets/img/sponsors1.png" alt="" class="sponsor__img">
-                    </div>
-                    <div class="sponsor__content">
-                        <img src="assets/img/sponsors2.png" alt="" class="sponsor__img">
-                    </div>
-                    <div class="sponsor__content">
-                        <img src="assets/img/sponsors3.png" alt="" class="sponsor__img">
-                    </div>
-                    <div class="sponsor__content">
-                        <img src="assets/img/sponsors4.png" alt="" class="sponsor__img">
-                    </div>
-                    <div class="sponsor__content">
-                        <img src="assets/img/sponsors5.png" alt="" class="sponsor__img">
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <!--==================== FOOTER ====================-->
-        <footer class="footer section">
-            <div class="footer__container container grid">
-                <div class="footer__content grid">
-                    <div class="footer__data">
-                        <h3 class="footer__title">Travel</h3>
-                        <p class="footer__description">Travel you choose the <br> destination, 
-                            we offer you the <br> experience.
-                        </p>
-                        <div>
-                            <a href="https://www.facebook.com/" target="_blank" class="footer__social">
-                                <i class="ri-facebook-box-fill"></i>
-                            </a>
-                            <a href="https://twitter.com/" target="_blank" class="footer__social">
-                                <i class="ri-twitter-fill"></i>
-                            </a>
-                            <a href="https://www.instagram.com/" target="_blank" class="footer__social">
-                                <i class="ri-instagram-fill"></i>
-                            </a>
-                            <a href="https://www.youtube.com/" target="_blank" class="footer__social">
-                                <i class="ri-youtube-fill"></i>
-                            </a>
-                        </div>
-                    </div>
-    
-                    <div class="footer__data">
-                        <h3 class="footer__subtitle">About</h3>
-                        <ul>
-                            <li class="footer__item">
-                                <a href="" class="footer__link">About Us</a>
-                            </li>
-                            <li class="footer__item">
-                                <a href="" class="footer__link">Features</a>
-                            </li>
-                            <li class="footer__item">
-                                <a href="" class="footer__link">New & Blog</a>
-                            </li>
-                        </ul>
-                    </div>
-    
-                    <div class="footer__data">
-                        <h3 class="footer__subtitle">Company</h3>
-                        <ul>
-                            <li class="footer__item">
-                                <a href="" class="footer__link">Team</a>
-                            </li>
-                            <li class="footer__item">
-                                <a href="" class="footer__link">Plan y Pricing</a>
-                            </li>
-                            <li class="footer__item">
-                                <a href="" class="footer__link">Become a member</a>
-                            </li>
-                        </ul>
-                    </div>
-    
-                    <div class="footer__data">
-                        <h3 class="footer__subtitle">Support</h3>
-                        <ul>
-                            <li class="footer__item">
-                                <a href="" class="footer__link">FAQs</a>
-                            </li>
-                            <li class="footer__item">
-                                <a href="" class="footer__link">Support Center</a>
-                            </li>
-                            <li class="footer__item">
-                                <a href="" class="footer__link">Contact Us</a>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-
-                <div class="footer__rights">
-                    <p class="footer__copy">&#169; 2021 Bedimcode. All rigths reserved.</p>
-                    <div class="footer__terms">
-                        <a href="#" class="footer__terms-link">Terms & Agreements</a>
-                        <a href="#" class="footer__terms-link">Privacy Policy</a>
-                    </div>
-                </div>
-            </div>
-        </footer>
-
-         <!--========== SCROLL UP ==========-->
-        <a href="#" class="scrollup" id="scroll-up">
-            <i class="ri-arrow-up-line scrollup__icon"></i>
-        </a>
-
-        <!--=============== SCROLL REVEAL===============-->
-        <script src="assets/js/scrollreveal.min.js"></script>
-        
-        <!--=============== SWIPER JS ===============-->
-        <script src="assets/js/swiper-bundle.min.js"></script>
-
-        <!--=============== MAIN JS ===============-->
-        <script src="assets/js/main.js"></script>
-    </body>
+<script src="assets/js/scrollreveal.min.js"></script>
+<script src="assets/js/main.js"></script>
+</body>
 </html>

@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MGT Chatbot | Revolutionizing Customer Engagement</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .gradient-text {
+            background: linear-gradient(90deg, #0a9396, #ee9b00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .kpi-card {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="bg-[#001219] text-gray-200 antialiased">
+
+    <div class="container mx-auto p-4 md:p-8">
+
+        <header class="text-center my-12 md:my-16">
+            <a href="index.html" class="absolute top-8 left-8 bg-gray-800 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">&#8592; Back to Home</a>
+            <div class="flex justify-center mb-6">
+                <img src="assets/img/mgt-logo.svg" alt="MGT logo" style="height:64px;width:auto;border-radius:8px;"/>
+            </div>
+            <h1 class="text-4xl md:text-6xl font-black text-white tracking-tight">MGT Chatbot</h1>
+            <p class="text-xl md:text-2xl font-semibold mt-4 gradient-text">Intelligent Conversations, Real Results</p>
+            <p class="max-w-3xl mx-auto mt-6 text-gray-400">In today's digital world, generic communication falls short. Discover how MGT's AI-powered WhatsApp Chatbot transforms customer interactions, boosts sales, and empowers your team.</p>
+        </header>
+
+        <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+            <section class="md:col-span-2 lg:col-span-3 bg-white/5 p-8 rounded-2xl shadow-2xl border border-white/10">
+                <h2 class="text-3xl font-bold text-center text-white mb-6">The Modern Communication Gap</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                    <div class="kpi-card p-6 rounded-xl">
+                        <p class="text-5xl font-bold text-[#ae2012]">😥</p>
+                        <h3 class="text-xl font-bold mt-4 text-white">Customer Frustration</h3>
+                        <p class="text-gray-400 mt-2">Slow response times and generic answers damage customer relationships and drive them away.</p>
+                    </div>
+                    <div class="kpi-card p-6 rounded-xl">
+                        <p class="text-5xl font-bold text-[#ca6702]">🔥</p>
+                        <h3 class="text-xl font-bold mt-4 text-white">Agent Burnout</h3>
+                        <p class="text-gray-400 mt-2">Endless repetitive tasks lead to decreased morale, high stress, and costly team turnover.</p>
+                    </div>
+                    <div class="kpi-card p-6 rounded-xl">
+                        <p class="text-5xl font-bold text-[#bb3e03]">💸</p>
+                        <h3 class="text-xl font-bold mt-4 text-white">Lost Sales</h3>
+                        <p class="text-gray-400 mt-2">Failing to engage customers at critical moments in their buying journey means leaving money on the table.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="lg:col-span-1 md:col-span-1 bg-white/5 p-6 rounded-2xl shadow-lg border border-white/10 flex flex-col justify-center">
+                 <h2 class="text-2xl font-bold text-center text-white mb-4">The Power of Automation</h2>
+                <p class="text-gray-400 text-center mb-4">Our chatbot automates the mundane, freeing your team to focus on what matters most: complex problem-solving and building customer relationships.</p>
+                <div class="chart-container h-64 md:h-72">
+                    <canvas id="automationChart"></canvas>
+                </div>
+            </section>
+
+            <section class="lg:col-span-2 md:col-span-1 bg-white/5 p-6 rounded-2xl shadow-lg border border-white/10">
+                <h2 class="text-2xl font-bold text-center text-white mb-4">The Personalization Engine</h2>
+                <p class="text-gray-400 text-center mb-4">Personalized messages resonate deeper and drive action. We leverage user data to craft tailored interactions that significantly outperform generic messaging.</p>
+                <div class="chart-container h-64 md:h-72">
+                    <canvas id="personalizationChart"></canvas>
+                </div>
+            </section>
+            
+            <section class="md:col-span-2 lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                 <div class="kpi-card p-6 rounded-xl">
+                    <p class="text-5xl font-bold text-[#0a9396]">80%</p>
+                    <h3 class="text-xl font-bold mt-2 text-white">More Likely to Buy</h3>
+                    <p class="text-gray-400 mt-1">of consumers are more likely to purchase when offered a personalized experience.</p>
+                </div>
+                <div class="kpi-card p-6 rounded-xl">
+                    <p class="text-5xl font-bold text-[#94d2bd]">82%</p>
+                    <h3 class="text-xl font-bold mt-2 text-white">Purchase After Messaging</h3>
+                    <p class="text-gray-400 mt-1">of customers make a purchase after messaging a brand on a platform like WhatsApp.</p>
+                </div>
+                <div class="kpi-card p-6 rounded-xl">
+                    <p class="text-5xl font-bold text-[#ee9b00]">20-30%</p>
+                    <h3 class="text-xl font-bold mt-2 text-white">Conversion Boost</h3>
+                    <p class="text-gray-400 mt-1">is the typical increase in conversions seen after implementing a personalized chatbot.</p>
+                </div>
+            </section>
+            
+            <section class="lg:col-span-2 md:col-span-2 bg-white/5 p-6 rounded-2xl shadow-lg border border-white/10">
+                <h2 class="text-2xl font-bold text-center text-white mb-4">Your Return on Investment</h2>
+                 <p class="text-gray-400 text-center mb-4">Investing in the MGT chatbot isn't an expense; it's a growth strategy. See a tangible impact on sales, operational costs, and customer satisfaction.</p>
+                <div class="chart-container h-64 md:h-72">
+                    <canvas id="roiChart"></canvas>
+                </div>
+            </section>
+
+            <section class="lg:col-span-1 md:col-span-2 bg-white/5 p-6 rounded-2xl shadow-lg border border-white/10 flex flex-col items-center justify-center">
+                <h2 class="text-2xl font-bold text-center text-white mb-4">Empower Your Team</h2>
+                <p class="text-gray-400 text-center mb-4">A happy team is a productive team. Automation reduces burnout and leads to higher employee retention.</p>
+                <div class="text-center">
+                    <p class="text-6xl font-black text-[#94d2bd]">30%</p>
+                    <p class="text-lg font-semibold text-white">Lower Employee Turnover</p>
+                    <div class="flex justify-center text-4xl mt-4 space-x-2">
+                        <span>😊</span><span>😊</span><span>😊</span><span>😊</span><span>😊</span><span>😊</span><span>😊</span>
+                        <span class="opacity-50">😐</span><span class="opacity-50">😐</span><span class="opacity-50">😐</span>
+                    </div>
+                     <p class="text-gray-400 mt-2">7 out of 10 employees are retained who would have otherwise left due to burnout.</p>
+                </div>
+            </section>
+
+            <section class="md:col-span-2 lg:col-span-3 bg-white/5 p-8 rounded-2xl shadow-2xl border border-white/10">
+                <h2 class="text-3xl font-bold text-center text-white mb-6">Built on a Foundation of Trust & Security</h2>
+                <div class="flex flex-col md:flex-row items-center justify-center gap-8">
+                    <div class="text-center">
+                        <div class="mx-auto flex items-center justify-center w-24 h-24 rounded-full bg-[#0a9396] text-white text-5xl font-black shadow-lg">
+                            <span>&#128274;</span>
+                        </div>
+                        <h3 class="text-xl font-bold mt-4 text-white">End-to-End Encryption</h3>
+                        <p class="text-gray-400 mt-2 max-w-sm">Every message is secured so only you and your customer can read them. Not even we can.</p>
+                    </div>
+                     <div class="text-center">
+                        <div class="mx-auto flex items-center justify-center w-24 h-24 rounded-full bg-[#0a9396] text-white text-5xl font-black shadow-lg">
+                            <span>&#128220;</span>
+                        </div>
+                        <h3 class="text-xl font-bold mt-4 text-white">GDPR Compliant</h3>
+                        <p class="text-gray-400 mt-2 max-w-sm">We adhere to the strictest data protection regulations to ensure user privacy is respected.</p>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="md:col-span-2 lg:col-span-3 bg-transparent p-8 rounded-2xl">
+                <h2 class="text-3xl font-bold text-center text-white mb-8">Your Path to Success</h2>
+                <div class="relative flex flex-col md:flex-row justify-between items-center w-full max-w-5xl mx-auto">
+                     <div class="absolute top-1/2 left-0 w-full h-1 bg-white/20 hidden md:block"></div>
+                    <div class="flex flex-col items-center text-center z-10 mb-8 md:mb-0">
+                        <div class="flex items-center justify-center w-20 h-20 rounded-full bg-[#0a9396] text-white text-3xl font-bold border-4 border-[#001219] shadow-lg">1</div>
+                        <h3 class="mt-4 text-lg font-bold text-white">Discovery & Strategy</h3>
+                        <p class="mt-1 text-gray-400 w-64">We analyze your needs and define the perfect chatbot persona and flow.</p>
+                    </div>
+                    <div class="flex flex-col items-center text-center z-10 mb-8 md:mb-0">
+                        <div class="flex items-center justify-center w-20 h-20 rounded-full bg-[#94d2bd] text-[#001219] text-3xl font-bold border-4 border-[#001219] shadow-lg">2</div>
+                        <h3 class="mt-4 text-lg font-bold text-white">Development & Customization</h3>
+                        <p class="mt-1 text-gray-400 w-64">Our experts build and integrate your custom chatbot for rich personalization.</p>
+                    </div>
+                    <div class="flex flex-col items-center text-center z-10">
+                        <div class="flex items-center justify-center w-20 h-20 rounded-full bg-[#ee9b00] text-[#001219] text-3xl font-bold border-4 border-[#001219] shadow-lg">3</div>
+                        <h3 class="mt-4 text-lg font-bold text-white">Testing & Launch</h3>
+                        <p class="mt-1 text-gray-400 w-64">We ensure flawless performance before launching and training your team.</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+
+        <footer class="text-center my-12 md:my-16 border-t border-white/10 pt-10">
+            <h2 class="text-3xl font-bold text-white">Ready to Transform Your Business?</h2>
+            <p class="text-gray-400 mt-4 max-w-2xl mx-auto">Let's build your future of customer engagement together. Schedule a personalized demo and start your journey to enhanced ROI.</p>
+            <a href="mailto:hello@mgt.co.za" class="mt-8 inline-block bg-[#ee9b00] text-[#001219] font-bold py-3 px-8 rounded-lg text-lg hover:bg-[#ca6702] transition-colors duration-300 shadow-lg">Schedule a Demo</a>
+            <div class="mt-8 text-gray-500 text-sm">
+                <p>MGT | Cape Town, Western Cape, South Africa</p>
+                <p>(+XX) XXX XXX XXXX | hello@mgt.co.za</p>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        const wrapLabel = (label) => {
+            const maxLen = 16;
+            if (label.length <= maxLen) {
+                return label;
+            }
+            const words = label.split(' ');
+            const lines = [];
+            let currentLine = '';
+            for (const word of words) {
+                if ((currentLine + ' ' + word).length > maxLen && currentLine.length > 0) {
+                    lines.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = currentLine ? currentLine + ' ' + word : word;
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        };
+        
+        const tooltipTitleCallback = (tooltipItems) => {
+            const item = tooltipItems[0];
+            let label = item.chart.data.labels[item.dataIndex];
+            if (Array.isArray(label)) {
+              return label.join(' ');
+            } else {
+              return label;
+            }
+        };
+
+        const chartColors = {
+            primary: '#0a9396',
+            secondary: '#94d2bd',
+            accent: '#ee9b00',
+            danger: '#ae2012',
+            grid: 'rgba(255, 255, 255, 0.1)',
+            text: '#e5e7eb'
+        };
+
+        const automationCtx = document.getElementById('automationChart').getContext('2d');
+        new Chart(automationCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Repetitive Questions Handled by AI', 'Complex Issues for Agents'],
+                datasets: [{
+                    label: 'Question Handling',
+                    data: [70, 30],
+                    backgroundColor: [chartColors.primary, chartColors.secondary],
+                    borderColor: '#001219',
+                    borderWidth: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: chartColors.text,
+                            font: { size: 14 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                           title: tooltipTitleCallback
+                        }
+                    }
+                }
+            }
+        });
+
+        const personalizationCtx = document.getElementById('personalizationChart').getContext('2d');
+        new Chart(personalizationCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Generic Messages', 'Personalized Messages'],
+                datasets: [{
+                    label: 'Conversion Rate',
+                    data: [5, 25],
+                    backgroundColor: [chartColors.danger, chartColors.primary],
+                    borderColor: [chartColors.danger, chartColors.primary],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: chartColors.grid },
+                        ticks: { 
+                            color: chartColors.text,
+                            callback: (value) => value + '%'
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: chartColors.text, font: { size: 14 } }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: (context) => context.dataset.label + ': ' + context.parsed.y + '%',
+                            title: tooltipTitleCallback
+                        }
+                    }
+                }
+            }
+        });
+        
+        const roiCtx = document.getElementById('roiChart').getContext('2d');
+        const gradient = roiCtx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, 'rgba(148, 210, 189, 0.6)');
+        gradient.addColorStop(1, 'rgba(148, 210, 189, 0)');
+        new Chart(roiCtx, {
+            type: 'line',
+            data: {
+                labels: ['Q1', 'Q2', 'Q3', 'Q4', 'Q1 (Y2)', 'Q2 (Y2)'],
+                datasets: [{
+                    label: 'Business Growth',
+                    data: [10, 25, 45, 60, 80, 110],
+                    fill: true,
+                    backgroundColor: gradient,
+                    borderColor: chartColors.secondary,
+                    tension: 0.4,
+                    pointBackgroundColor: chartColors.secondary,
+                    pointRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: chartColors.grid },
+                        ticks: { 
+                            color: chartColors.text,
+                            callback: (value) => value + '% Growth'
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: chartColors.text, font: { size: 14 } }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                         callbacks: {
+                            title: tooltipTitleCallback
+                        }
+                    }
+                }
+            }
+        });
+
+    </script>
+</body>
+</html>

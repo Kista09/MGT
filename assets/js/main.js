@@ -1,174 +1,125 @@
-/*==================== SHOW MENU ====================*/
-const navMenu = document.getElementById('nav-menu'),
-      navToggle = document.getElementById('nav-toggle'),
-      navClose = document.getElementById('nav-close')
+/* ═══════════════════════════════════════════════
+   MGT | MgucaTech Solutions  —  main.js
+═══════════════════════════════════════════════ */
 
-/*===== MENU SHOW =====*/
-/* Validate if constant exists */
-if(navToggle){
-    navToggle.addEventListener('click', () =>{
-        navMenu.classList.add('show-menu')
-    })
+/* ── Mobile nav ── */
+const navList   = document.getElementById('nav-list');
+const navToggle = document.getElementById('nav-toggle');
+
+function closeMenu() {
+  if (!navList || !navToggle) return;
+  navList.classList.remove('open');
+  navToggle.classList.remove('open');
+  navToggle.setAttribute('aria-expanded', 'false');
+  document.body.style.overflow = '';
 }
 
-/*===== MENU HIDDEN =====*/
-/* Validate if constant exists */
-if(navClose){
-    navClose.addEventListener('click', () =>{
-        navMenu.classList.remove('show-menu')
-    })
+if (navToggle && navList) {
+  navToggle.setAttribute('aria-expanded', 'false');
+
+  navToggle.addEventListener('click', () => {
+    const open = navList.classList.toggle('open');
+    navToggle.classList.toggle('open', open);
+    navToggle.setAttribute('aria-expanded', String(open));
+    document.body.style.overflow = open ? 'hidden' : '';
+  });
 }
 
-/*==================== REMOVE MENU MOBILE ====================*/
-const navLink = document.querySelectorAll('.nav__link')
+// Close on link click
+document.querySelectorAll('.nav__link').forEach(link => {
+  link.addEventListener('click', () => {
+    closeMenu();
+  });
+});
 
-function linkAction(){
-    const navMenu = document.getElementById('nav-menu')
-    // When we click on each nav__link, we remove the show-menu class
-    navMenu.classList.remove('show-menu')
-}
-navLink.forEach(n => n.addEventListener('click', linkAction))
+// Close on outside click
+document.addEventListener('click', e => {
+  if (navList && navToggle && !navList.contains(e.target) && !navToggle.contains(e.target)) {
+    closeMenu();
+  }
+});
 
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeMenu();
+});
 
-/*==================== CHANGE BACKGROUND HEADER ====================*/
-function scrollHeader(){
-    const header = document.getElementById('header')
-    // When the scroll is greater than 100 viewport height, add the scroll-header class to the header tag
-    if(this.scrollY >= 100) header.classList.add('scroll-header'); else header.classList.remove('scroll-header')
-}
-window.addEventListener('scroll', scrollHeader)
+/* ── Scroll: header + scroll-top ── */
+const header   = document.getElementById('header');
+const scrollUp = document.getElementById('scroll-up');
 
-/*==================== SWIPER DISCOVER ====================*/
-let swiper = new Swiper(".discover__container", {
-    effect: "coverflow",
-    grabCursor: true,
-    centeredSlides: true,
-    slidesPerView: "auto",
-    loop: true,
-    spaceBetween: 32,
-    coverflowEffect: {
-        rotate: 0,
-    },
-})
+window.addEventListener('scroll', () => {
+  const y = window.scrollY;
+  if (header)   header.classList.toggle('scrolled', y >= 60);
+  if (scrollUp) scrollUp.classList.toggle('show',   y >= 300);
+}, { passive: true });
 
-/*==================== VIDEO ====================*/
-const videoFile = document.getElementById('video-file'),
-      videoButton = document.getElementById('video-button'),
-      videoIcon = document.getElementById('video-icon')
+/* ── Active nav link on scroll ── */
+const sections = document.querySelectorAll('section[id], div[id]');
 
-function playPause(){ 
-    if (videoFile.paused){
-        // Play video
-        videoFile.play()
-        // We change the icon
-        videoIcon.classList.add('ri-pause-line')
-        videoIcon.classList.remove('ri-play-line')
+window.addEventListener('scroll', () => {
+  const y = window.scrollY + 90;
+  sections.forEach(sec => {
+    const top  = sec.offsetTop;
+    const h    = sec.offsetHeight;
+    const id   = sec.getAttribute('id');
+    const link = document.querySelector(`.nav__link[href="#${id}"]`);
+    if (link) link.classList.toggle('active-link', y >= top && y < top + h);
+  });
+}, { passive: true });
+
+/* ── Video play / pause ── */
+const videoEl  = document.getElementById('video-file');
+const videoBtn = document.getElementById('video-button');
+const videoIco = document.getElementById('video-icon');
+
+if (videoBtn && videoEl) {
+  videoBtn.addEventListener('click', () => {
+    if (videoEl.paused) {
+      videoEl.play();
+      videoIco.className = 'ri-pause-line';
+    } else {
+      videoEl.pause();
+      videoIco.className = 'ri-play-line';
     }
-    else {
-        // Pause video
-        videoFile.pause(); 
-        // We change the icon
-        videoIcon.classList.remove('ri-pause-line')
-        videoIcon.classList.add('ri-play-line')
-
-    }
-}
-videoButton.addEventListener('click', playPause)
-
-function finalVideo(){
-    // Video ends, icon change
-    videoIcon.classList.remove('ri-pause-line')
-    videoIcon.classList.add('ri-play-line')
-}
-// ended, when the video ends
-videoFile.addEventListener('ended', finalVideo)
-
-
-/*==================== SHOW SCROLL UP ====================*/ 
-function scrollUp(){
-    const scrollUp = document.getElementById('scroll-up');
-    // When the scroll is higher than 200 viewport height, add the show-scroll class to the a tag with the scroll-top class
-    if(this.scrollY >= 200) scrollUp.classList.add('show-scroll'); else scrollUp.classList.remove('show-scroll')
-}
-window.addEventListener('scroll', scrollUp)
-
-/*==================== SCROLL SECTIONS ACTIVE LINK ====================*/
-const sections = document.querySelectorAll('section[id]')
-
-function scrollActive(){
-    const scrollY = window.pageYOffset
-
-    sections.forEach(current =>{
-        const sectionHeight = current.offsetHeight
-        const sectionTop = current.offsetTop - 50;
-        sectionId = current.getAttribute('id')
-
-        if(scrollY > sectionTop && scrollY <= sectionTop + sectionHeight){
-            document.querySelector('.nav__menu a[href*=' + sectionId + ']').classList.add('active-link')
-        }else{
-            document.querySelector('.nav__menu a[href*=' + sectionId + ']').classList.remove('active-link')
-        }
-    })
-}
-window.addEventListener('scroll', scrollActive)
-
-/*==================== SCROLL REVEAL ANIMATION ====================*/
-const sr = ScrollReveal({
-    distance: '60px',
-    duration: 2800,
-    // reset: true,
-})
-
-
-sr.reveal(`.home__data, .home__social-link, .home__info,
-           .discover__container,
-           .experience__data, .experience__overlay,
-           .place__card,
-           .sponsor__content,
-           .footer__data, .footer__rights`,{
-    origin: 'top',
-    interval: 100,
-})
-
-sr.reveal(`.about__data, 
-           .video__description,
-           .subscribe__description`,{
-    origin: 'left',
-})
-
-sr.reveal(`.about__img-overlay, 
-           .video__content,
-           .subscribe__form`,{
-    origin: 'right',
-    interval: 100,
-})
-
-/*==================== DARK LIGHT THEME ====================*/ 
-const themeButton = document.getElementById('theme-button')
-const darkTheme = 'dark-theme'
-const iconTheme = 'ri-sun-line'
-
-// Previously selected topic (if user selected)
-const selectedTheme = localStorage.getItem('selected-theme')
-const selectedIcon = localStorage.getItem('selected-icon')
-
-// We obtain the current theme that the interface has by validating the dark-theme class
-const getCurrentTheme = () => document.body.classList.contains(darkTheme) ? 'dark' : 'light'
-const getCurrentIcon = () => themeButton.classList.contains(iconTheme) ? 'ri-moon-line' : 'ri-sun-line'
-
-// We validate if the user previously chose a topic
-if (selectedTheme) {
-  // If the validation is fulfilled, we ask what the issue was to know if we activated or deactivated the dark
-  document.body.classList[selectedTheme === 'dark' ? 'add' : 'remove'](darkTheme)
-  themeButton.classList[selectedIcon === 'ri-moon-line' ? 'add' : 'remove'](iconTheme)
+  });
+  videoEl.addEventListener('ended', () => { videoIco.className = 'ri-play-line'; });
 }
 
-// Activate / deactivate the theme manually with the button
-themeButton.addEventListener('click', () => {
-    // Add or remove the dark / icon theme
-    document.body.classList.toggle(darkTheme)
-    themeButton.classList.toggle(iconTheme)
-    // We save the theme and the current icon that the user chose
-    localStorage.setItem('selected-theme', getCurrentTheme())
-    localStorage.setItem('selected-icon', getCurrentIcon())
-})
+/* ── Dark / light theme toggle ── */
+const themeBtn = document.getElementById('theme-button');
+if (themeBtn) {
+  const setThemeIcon = () => {
+    const light = document.body.classList.contains('light-theme');
+    themeBtn.className = `${light ? 'ri-sun-line' : 'ri-moon-line'} nav__theme`;
+    themeBtn.setAttribute('aria-label', light ? 'Use dark theme' : 'Use light theme');
+    themeBtn.setAttribute('title', light ? 'Use dark theme' : 'Use light theme');
+  };
+
+  // MGT defaults to dark, with a saved light-mode option.
+  const saved = localStorage.getItem('mgt-theme');
+  if (saved === 'light') document.body.classList.add('light-theme');
+  setThemeIcon();
+
+  themeBtn.addEventListener('click', () => {
+    document.body.classList.toggle('light-theme');
+    setThemeIcon();
+    localStorage.setItem('mgt-theme', document.body.classList.contains('light-theme') ? 'light' : 'dark');
+  });
+}
+
+/* ── ScrollReveal animations ── */
+if (typeof ScrollReveal !== 'undefined') {
+  const sr = ScrollReveal({ distance: '32px', duration: 1600, reset: false, easing: 'cubic-bezier(.4,0,.2,1)' });
+
+  sr.reveal('.hero__body',     { origin: 'left',   delay: 100 });
+  sr.reveal('.stat',           { origin: 'bottom', interval: 100 });
+  sr.reveal('.about__text',    { origin: 'left' });
+  sr.reveal('.about__visual',  { origin: 'right' });
+  sr.reveal('.svc',            { origin: 'bottom', interval: 80 });
+  sr.reveal('.step',           { origin: 'bottom', interval: 130 });
+  sr.reveal('.sector',         { origin: 'bottom', interval: 60 });
+  sr.reveal('.trust-card',     { origin: 'bottom', interval: 100 });
+  sr.reveal('.partner',        { origin: 'bottom', interval: 80 });
+  sr.reveal('.contact__left',  { origin: 'left' });
+  sr.reveal('.contact__form',  { origin: 'right' });
+}
