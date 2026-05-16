@@ -371,16 +371,17 @@
       </ul>
     </div>
 
-    <form class="contact__form" action="">
+    <form class="contact__form" id="contact-form">
       <div class="form-row">
-        <input type="text"  placeholder="Your name"  class="form-field" autocomplete="name" required>
-        <input type="email" placeholder="Your email" class="form-field" autocomplete="email" required>
+        <input type="text"  name="name"    placeholder="Your name"  class="form-field" autocomplete="name" required>
+        <input type="email" name="email"   placeholder="Your email" class="form-field" autocomplete="email" required>
       </div>
-      <input type="text" placeholder="Subject" class="form-field" autocomplete="off" required>
-      <textarea class="form-field form-field--ta" placeholder="Your message" required></textarea>
-      <button type="submit" class="btn btn--primary btn--full">
+      <input type="text"   name="subject"  placeholder="Subject" class="form-field" autocomplete="off" required>
+      <textarea            name="message"  class="form-field form-field--ta" placeholder="Your message" required></textarea>
+      <button type="submit" class="btn btn--primary btn--full" id="form-submit-btn">
         Send Message <i class="ri-send-plane-line"></i>
       </button>
+      <p id="form-status" style="display:none;margin-top:1rem;text-align:center;font-weight:600;"></p>
     </form>
   </div>
 </section>

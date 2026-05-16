@@ -107,6 +107,46 @@ if (themeBtn) {
   });
 }
 
+/* ── Contact form ── */
+const contactForm = document.getElementById('contact-form');
+const formStatus  = document.getElementById('form-status');
+const submitBtn   = document.getElementById('form-submit-btn');
+
+if (contactForm) {
+  contactForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = 'Sending… <i class="ri-loader-4-line"></i>';
+
+    const data = new FormData(contactForm);
+
+    try {
+      const res = await fetch('https://formsubmit.co/ajax/admin@mgucatech.com', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' },
+        body: data,
+      });
+
+      if (res.ok) {
+        contactForm.reset();
+        formStatus.style.display = 'block';
+        formStatus.style.color   = '#0a9396';
+        formStatus.textContent   = '✓ Message sent! We\'ll be in touch soon.';
+        submitBtn.innerHTML = 'Send Message <i class="ri-send-plane-line"></i>';
+        submitBtn.disabled  = false;
+      } else {
+        throw new Error('Server error');
+      }
+    } catch {
+      formStatus.style.display = 'block';
+      formStatus.style.color   = '#ae2012';
+      formStatus.textContent   = '✗ Something went wrong. Please email admin@mgucatech.com directly.';
+      submitBtn.innerHTML = 'Send Message <i class="ri-send-plane-line"></i>';
+      submitBtn.disabled  = false;
+    }
+  });
+}
+
 /* ── ScrollReveal animations ── */
 if (typeof ScrollReveal !== 'undefined') {
   const sr = ScrollReveal({ distance: '32px', duration: 1600, reset: false, easing: 'cubic-bezier(.4,0,.2,1)' });
