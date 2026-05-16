@@ -107,14 +107,49 @@ if (themeBtn) {
   });
 }
 
-/* ── Contact form success message ── */
-if (new URLSearchParams(window.location.search).get('sent') === '1') {
-  const status = document.getElementById('form-status');
-  if (status) {
-    status.style.display = 'block';
-    status.textContent   = '✓ Message sent! We\'ll be in touch soon.';
-  }
-  window.history.replaceState({}, '', window.location.pathname + '#contact');
+/* ── Contact form ── */
+const contactForm = document.getElementById('contact-form');
+const formStatus  = document.getElementById('form-status');
+const submitBtn   = document.getElementById('form-submit-btn');
+
+if (contactForm) {
+  contactForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = 'Sending… <i class="ri-loader-4-line"></i>';
+
+    const fd = new FormData(contactForm);
+    const payload = {
+      name:    fd.get('name'),
+      email:   fd.get('email'),
+      subject: fd.get('subject'),
+      message: fd.get('message'),
+    };
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        contactForm.reset();
+        formStatus.style.display = 'block';
+        formStatus.style.color   = '#0a9396';
+        formStatus.textContent   = '✓ Message sent! We\'ll be in touch soon.';
+      } else {
+        throw new Error();
+      }
+    } catch {
+      formStatus.style.display = 'block';
+      formStatus.style.color   = '#ae2012';
+      formStatus.textContent   = '✗ Something went wrong. Please email admin@mgucatech.com directly.';
+    } finally {
+      submitBtn.innerHTML = 'Send Message <i class="ri-send-plane-line"></i>';
+      submitBtn.disabled  = false;
+    }
+  });
 }
 
 /* ── ScrollReveal animations ── */

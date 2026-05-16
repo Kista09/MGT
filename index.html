@@ -371,20 +371,17 @@
       </ul>
     </div>
 
-    <form class="contact__form" action="https://formsubmit.co/admin@mgucatech.com" method="POST">
-      <input type="hidden" name="_subject"  value="New message from MGT Website">
-      <input type="hidden" name="_next"     value="https://mgucatech.com/?sent=1#contact">
-      <input type="hidden" name="_captcha"  value="false">
+    <form class="contact__form" id="contact-form">
       <div class="form-row">
         <input type="text"  name="name"    placeholder="Your name"  class="form-field" autocomplete="name" required>
         <input type="email" name="email"   placeholder="Your email" class="form-field" autocomplete="email" required>
       </div>
       <input type="text"   name="subject"  placeholder="Subject" class="form-field" autocomplete="off" required>
       <textarea            name="message"  class="form-field form-field--ta" placeholder="Your message" required></textarea>
-      <button type="submit" class="btn btn--primary btn--full">
+      <button type="submit" class="btn btn--primary btn--full" id="form-submit-btn">
         Send Message <i class="ri-send-plane-line"></i>
       </button>
-      <p id="form-status" style="display:none;margin-top:1rem;text-align:center;font-weight:600;color:#0a9396;"></p>
+      <p id="form-status" style="display:none;margin-top:1rem;text-align:center;font-weight:600;"></p>
     </form>
   </div>
 </section>
