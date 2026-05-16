@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'MGT Website <onboarding@resend.dev>',
+        from: 'MGT Website <admin@mgucatech.com>',
         to:   ['admin@mgucatech.com'],
         reply_to: email,
         subject: `[MGT Contact] ${subject}`,
