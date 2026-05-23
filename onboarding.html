@@ -388,6 +388,7 @@
             email: data.email,
             subject: `Onboarding Brief - ${data.company}`,
             message: buildMessage(data),
+            onboarding: data,
           }),
         });
         const result = await res.json().catch(() => ({}));

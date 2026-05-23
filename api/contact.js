@@ -1,4 +1,6 @@
 
+const { put } = require('@vercel/blob');
+
 function escapeHtml(value = '') {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -12,6 +14,59 @@ function formatMessage(value = '') {
   return escapeHtml(value).replace(/\n/g, '<br>');
 }
 
+function addDays(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function makeCrmRequest({ name, email, subject, message, onboarding }) {
+  const company = onboarding?.company || subject.replace(/^Onboarding Brief -\s*/i, '').trim() || 'New onboarding lead';
+  const products = Array.isArray(onboarding?.product) ? onboarding.product.join(', ') : '';
+  const summary = [
+    onboarding?.goal && `Goal: ${onboarding.goal}`,
+    products && `Products: ${products}`,
+    onboarding?.volume && `Volume: ${onboarding.volume}`,
+    onboarding?.timeline && `Timeline: ${onboarding.timeline}`,
+    onboarding?.systems && `Systems: ${onboarding.systems}`,
+    onboarding?.language && `Languages: ${onboarding.language}`,
+    '',
+    message,
+  ].filter(Boolean).join('\n');
+
+  const id = `onboarding-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return {
+    id,
+    externalId: id,
+    clientId: null,
+    requester: name,
+    email,
+    category: 'Operations',
+    priority: onboarding?.timeline === 'As soon as possible' ? 'High' : 'Medium',
+    status: 'New',
+    subject: `Onboarding: ${company}`,
+    description: summary,
+    dueDate: addDays(2),
+    owner: 'Admin',
+    channel: 'Onboarding',
+    notes: `Sector: ${onboarding?.sector || 'Not specified'}\nWhatsApp: ${onboarding?.phone || 'Not provided'}\nLocation: ${onboarding?.location || 'Not provided'}\nSource: mgucatech.com/onboarding.html`,
+    receivedAt: new Date().toISOString(),
+    source: 'onboarding',
+    company,
+    onboarding: onboarding || null,
+  };
+}
+
+async function storeCrmRequest(record) {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return false;
+  await put(`crm-requests/${record.id}.json`, JSON.stringify(record, null, 2), {
+    access: 'public',
+    contentType: 'application/json',
+    addRandomSuffix: false,
+  });
+  return true;
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -20,7 +75,7 @@ module.exports = async (req, res) => {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { name, email, subject, message } = req.body || {};
+  const { name, email, subject, message, onboarding } = req.body || {};
 
   if (!name || !email || !subject || !message) {
     return res.status(400).json({ error: 'All fields are required' });
@@ -95,6 +150,12 @@ module.exports = async (req, res) => {
     const data = await r.json();
     if (!r.ok) return res.status(500).json({ error: data.message || 'Send failed' });
 
+    const isOnboarding = /^Onboarding Brief/i.test(subject) || onboarding;
+    let crmSynced = false;
+    if (isOnboarding) {
+      crmSynced = await storeCrmRequest(makeCrmRequest({ name, email, subject, message, onboarding }));
+    }
+
     const autoReply = await sendEmail({
       from: 'MgucaTECH <admin@mgucatech.com>',
       to: [email],
@@ -138,7 +199,7 @@ module.exports = async (req, res) => {
       return res.status(500).json({ error: autoReplyData.message || 'Auto-response failed' });
     }
 
-    res.status(200).json({ success: true, autoReply: true });
+    res.status(200).json({ success: true, autoReply: true, crmSynced });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
