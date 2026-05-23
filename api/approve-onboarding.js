@@ -76,7 +76,8 @@ async function htmlToPdf(html) {
   const puppeteer = require('puppeteer-core');
 
   const version = chromium.version || '131.0.0';
-  const binaryUrl = `https://github.com/Sparticuz/chromium/releases/download/v${version}/chromium-v${version}-pack.tar`;
+  const binaryUrl = process.env.CHROMIUM_BINARY_URL
+    || `https://github.com/Sparticuz/chromium/releases/download/v${version}/chromium-v${version}-pack.tar`;
   const executablePath = await chromium.executablePath(binaryUrl);
 
   const browser = await puppeteer.launch({
