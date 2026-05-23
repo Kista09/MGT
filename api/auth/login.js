@@ -7,20 +7,18 @@ function setCors(res) {
 }
 
 function getAdminUser(email, password) {
-  const adminEmail = (process.env.SUPPORT_EMAIL || '').toLowerCase();
-  const adminPass  =  process.env.SUPPORT_PASSWORD || '';
-  if (!adminEmail || !adminPass) return null;
-  if (email !== adminEmail || password !== adminPass) return null;
-  return {
-    id: 'support',
-    email: adminEmail,
-    name: 'MgucaTech Support',
-    role: 'admin',
-    clientId: null,
-    clientName: 'MgucaTech Solutions',
-    plan: null,
-    portalApproved: true,
-  };
+  const accounts = [
+    { envEmail: 'SUPPORT_EMAIL', envPass: 'SUPPORT_PASSWORD', id: 'support', name: 'MgucaTech Support' },
+    { envEmail: 'ADMIN_EMAIL',   envPass: 'ADMIN_PASSWORD',   id: 'admin',   name: 'MgucaTech Admin'   },
+  ];
+  for (const { envEmail, envPass, id, name } of accounts) {
+    const e = (process.env[envEmail] || '').toLowerCase();
+    const p =  process.env[envPass]  || '';
+    if (e && p && email === e && password === p) {
+      return { id, email: e, name, role: 'admin', clientId: null, clientName: 'MgucaTech Solutions', plan: null, portalApproved: true };
+    }
+  }
+  return null;
 }
 
 module.exports = async (req, res) => {

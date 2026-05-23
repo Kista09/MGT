@@ -51,7 +51,7 @@ const AuthCtx = createContext(null);
 const STORAGE_KEY = "mgucatech_client_access_token";
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://mgucatech.com";
 const ALLOW_LOCAL_CLIENT_AUTH = import.meta.env.VITE_ALLOW_LOCAL_CLIENT_AUTH !== "false";
-const CLIENT_ROLES = new Set(["client_admin", "client_manager", "client_viewer"]);
+const CLIENT_ROLES = new Set(["admin", "client_admin", "client_manager", "client_viewer"]);
 
 const DEV_USERS = [
   { id:"u1", email:"dina@noon.com",      password:"demo123", name:"Dina Khalil",    role:"client_admin", clientId:"noon",   clientName:"Noon.com",   plan:"Enterprise" },
