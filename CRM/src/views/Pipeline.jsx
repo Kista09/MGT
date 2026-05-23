@@ -29,7 +29,7 @@ function DealForm({ form, setForm, errors, stage, setStage }) {
         <FormRow label="Contact Name" error={errors.contact}>
           <input value={form.contact} onChange={set("contact")} style={{ ...inputStyle, borderColor: errors.contact ? C.red : C.border }} placeholder="Jane Doe" />
         </FormRow>
-        <FormRow label="Value ($/mo)" error={errors.value}>
+        <FormRow label="Value (R/month)" error={errors.value}>
           <input value={form.value} onChange={set("value")} style={{ ...inputStyle, borderColor: errors.value ? C.red : C.border }} type="number" min="0" placeholder="5000" />
         </FormRow>
         <FormRow label="Stage">

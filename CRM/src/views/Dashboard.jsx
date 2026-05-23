@@ -2,7 +2,7 @@ import { C, font, STAGE_CONFIG } from "../constants";
 import { useApp } from "../context";
 import MetricCard from "../components/MetricCard";
 import CustomTooltip from "../components/CustomTooltip";
-import { clientHealthScore, healthColor, fmt$, daysUntil, formatDateShort } from "../utils";
+import { clientHealthScore, healthColor, fmt$, fmtRandK, daysUntil, formatDateShort } from "../utils";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis,
   Tooltip, ResponsiveContainer,
@@ -86,7 +86,7 @@ export default function Dashboard() {
 
       <div style={{ display:"flex", gap:16, marginBottom:28, flexWrap:"wrap" }}>
         <MetricCard label="Recurring Advisory Revenue" value={fmt$(totalMrr)} sub={`${mrrDelta}% vs last month`} color={C.accent} trend="up" />
-        <MetricCard label="Annualized Revenue" value={`$${(totalMrr * 12 / 1000).toFixed(0)}k`} sub={`${active.length} active relationships`} color={C.blue} />
+        <MetricCard label="Annualized Revenue" value={fmtRandK(totalMrr * 12)} sub={`${active.length} active relationships`} color={C.blue} />
         <MetricCard label="Operations Coverage" value={bots.length} sub={`${bots.filter(b => b.status === "Online").length} online - ${bots.filter(b => b.status === "Warning").length} warnings`} />
         <MetricCard label="Mandate Pipeline" value={fmt$(pipeValue)} sub={`${allDeals.length} active mandates`} color={C.yellow} />
         <MetricCard label="Partner Follow-ups" value={openTasks.length} sub={`${openTasks.filter(t => daysUntil(t.dueDate) <= 0).length} due now`} color={C.purple} />
@@ -106,8 +106,8 @@ export default function Dashboard() {
               </defs>
               <XAxis dataKey="m" tick={{ fill:C.muted, fontSize:11 }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fill:C.muted, fontSize:11 }} axisLine={false} tickLine={false}
-                tickFormatter={v => `$${(v/1000).toFixed(0)}k`}/>
-              <Tooltip content={<CustomTooltip prefix="$" />}/>
+                tickFormatter={fmtRandK}/>
+              <Tooltip content={<CustomTooltip prefix="R" />}/>
               <Area type="monotone" dataKey="mrr" stroke={C.accent} strokeWidth={2.5} fill="url(#mrrG)"/>
             </AreaChart>
           </ResponsiveContainer>

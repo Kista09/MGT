@@ -5,7 +5,7 @@ import Modal, { FormRow, inputStyle, selectStyle } from "../components/Modal";
 import SegmentTabs from "../components/SegmentTabs";
 import { clientHealthScore, healthColor, exportCSV, fmt$, formatJoined } from "../utils";
 
-const JURISDICTIONS = ["South Africa", "United States", "United Kingdom", "UAE", "Saudi Arabia", "Singapore", "Switzerland", "Other"];
+const JURISDICTIONS = ["South Africa", "Western Cape", "Gauteng", "KwaZulu-Natal", "Eastern Cape", "Free State", "Mpumalanga", "Limpopo", "North West", "Northern Cape", "Other"];
 const RELATIONSHIP_TIERS = ["Strategic", "Institutional", "Priority", "Emerging"];
 const MANDATE_TYPES = ["Discretionary", "Advisory", "Execution-only", "Capital Raise", "Strategic Advisory"];
 const RISK_RATINGS = ["Low", "Medium", "High", "Restricted"];
@@ -134,13 +134,13 @@ function ClientForm({ form, setForm, errors }) {
           {INDUSTRIES.map(i => <option key={i}>{i}</option>)}
         </select>
       </FormRow>
-      <FormRow label="MRR ($/mo)" error={errors.mrr}>
+      <FormRow label="MRR (R/month)" error={errors.mrr}>
         <input value={form.mrr ?? ""} onChange={set("mrr")} style={{ ...inputStyle, borderColor: errors.mrr ? C.red : C.border }} placeholder="0" type="number" min="0" />
       </FormRow>
-      <FormRow label="Expected Annual Fee ($)" error={errors.expectedAnnualFee}>
+      <FormRow label="Expected Annual Fee (R)" error={errors.expectedAnnualFee}>
         <input value={form.expectedAnnualFee ?? ""} onChange={set("expectedAnnualFee")} style={{ ...inputStyle, borderColor: errors.expectedAnnualFee ? C.red : C.border }} placeholder="250000" type="number" min="0" />
       </FormRow>
-      <FormRow label="Estimated AUM / Exposure ($)" error={errors.estimatedAum}>
+      <FormRow label="Estimated AUM / Exposure (R)" error={errors.estimatedAum}>
         <input value={form.estimatedAum ?? ""} onChange={set("estimatedAum")} style={{ ...inputStyle, borderColor: errors.estimatedAum ? C.red : C.border }} placeholder="5000000" type="number" min="0" />
       </FormRow>
       <FormRow label="Next Review Date" error={errors.nextReviewDate}>

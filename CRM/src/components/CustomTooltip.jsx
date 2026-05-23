@@ -8,7 +8,7 @@ export default function CustomTooltip({ active, payload, label, prefix = "", suf
       padding:"8px 14px", fontSize:13, fontFamily:font.mono }}>
       <div style={{ color:C.muted, marginBottom:4 }}>{label}</div>
       <div style={{ color:C.accent, fontWeight:700 }}>
-        {prefix}{typeof val === "number" ? val.toLocaleString() : val}{suffix}
+        {prefix}{typeof val === "number" ? val.toLocaleString("en-ZA") : val}{suffix}
       </div>
     </div>
   );

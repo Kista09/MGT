@@ -1,5 +1,8 @@
 export const fmt$ = (v) =>
-  v > 0 ? `$${v.toLocaleString()}` : "—";
+  v > 0 ? `R${Number(v).toLocaleString("en-ZA")}` : "—";
+
+export const fmtRandK = (v) =>
+  `R${(Number(v) / 1000).toFixed(0)}k`;
 
 export const fmtK = (v) =>
   v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(v);

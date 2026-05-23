@@ -54,9 +54,9 @@ const ALLOW_LOCAL_CLIENT_AUTH = import.meta.env.VITE_ALLOW_LOCAL_CLIENT_AUTH !==
 const CLIENT_ROLES = new Set(["admin", "client_admin", "client_manager", "client_viewer"]);
 
 const DEV_USERS = [
-  { id:"u1", email:"dina@noon.com",      password:"demo123", name:"Dina Khalil",    role:"client_admin", clientId:"noon",   clientName:"Noon.com",   plan:"Enterprise" },
-  { id:"u2", email:"omar@noon.com",       password:"demo123", name:"Omar Al-Rashid", role:"client_manager",clientId:"noon",  clientName:"Noon.com",   plan:"Enterprise" },
-  { id:"u4", email:"khalid@tamimi.sa",    password:"demo123", name:"Khalid Tamimi",  role:"client_admin", clientId:"tamimi", clientName:"TamimiMarkets",plan:"Growth" },
+  { id:"u1", email:"ayesha@tapartner.co.za", password:"demo123", name:"Ayesha Jacobs", role:"client_admin", clientId:"takealot-partner-store", clientName:"Takealot Partner Store", plan:"Enterprise" },
+  { id:"u2", email:"owen@tapartner.co.za",   password:"demo123", name:"Owen Petersen", role:"client_manager",clientId:"takealot-partner-store", clientName:"Takealot Partner Store", plan:"Enterprise" },
+  { id:"u4", email:"naledi@tapartner.co.za", password:"demo123", name:"Naledi Dlamini",role:"client_admin", clientId:"mzansi-fresh-market",   clientName:"Mzansi Fresh Market",   plan:"Growth" },
 ];
 
 const AUTH = {

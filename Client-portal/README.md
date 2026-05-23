@@ -53,8 +53,8 @@ npm run dev:frontend
 | Email | Password | Role |
 |---|---|---|
 | admin@botflow.io | demo123 | Super Admin |
-| dina@noon.com | demo123 | Client Admin (Noon.com) |
-| omar@noon.com | demo123 | Client Manager (Noon.com) |
+| ayesha@tapartner.co.za | demo123 | Client Admin (Takealot Partner Store) |
+| owen@tapartner.co.za | demo123 | Client Manager (Takealot Partner Store) |
 
 ---
 
@@ -116,7 +116,7 @@ fly deploy
 |---|---|---|
 | **Neon** | 512 MB | Serverless, branching, excellent Vercel integration |
 | **Supabase** | 500 MB | Includes auth, storage, realtime |
-| **Railway** | $5/mo | Simplest, co-located with API |
+| **Railway** | from R100/month | Simplest, co-located with API |
 | **PlanetScale** | — | MySQL only |
 
 For Neon: `DATABASE_URL=postgres://user:pass@ep-xxx.neon.tech/botflow?sslmode=require`

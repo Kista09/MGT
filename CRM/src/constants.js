@@ -66,15 +66,15 @@ export const PLANS      = ["Enterprise", "Scale", "Growth"];
 export const STATUSES   = ["Active", "Trial", "Churned"];
 export const BOT_TYPES  = ["Support", "Ops", "Marketing", "Sales"];
 export const BOT_STATUSES = ["Online", "Warning", "Offline", "Trial"];
-export const LANGUAGES  = ["AR/EN", "AR", "EN"];
+export const LANGUAGES  = ["English", "isiXhosa", "isiZulu", "Afrikaans", "Sesotho", "Setswana"];
 export const TASK_PRIORITIES = ["High", "Medium", "Low"];
 export const TASK_STATUSES = ["Open", "In Progress", "Done"];
 export const REQUEST_CATEGORIES = ["Reporting", "Portfolio Review", "Compliance", "Operations", "Billing", "Technical", "Other"];
 export const REQUEST_PRIORITIES = ["Critical", "High", "Medium", "Low"];
 export const REQUEST_STATUSES = ["New", "Approved", "Triaged", "In Progress", "Waiting on Client", "Resolved", "Closed"];
 export const INDUSTRIES = [
-  "Retail","Grocery","Sports","E-Commerce","Fintech",
-  "Logistics","Transport","Banking","Healthcare","SaaS",
+  "Retail","Grocery","Sports","E-Commerce","Financial Services",
+  "Logistics","Transport","Banking","Healthcare","SaaS","Hospitality",
 ];
 
 export const pill = (color, bg) => ({

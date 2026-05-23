@@ -155,12 +155,12 @@ export default function Settings() {
           </Row>
           <Row label="Currency">
             <select value={settings.currency} onChange={setSetting("currency")} style={{ ...selectStyle, width:120 }}>
-              {["USD","EUR","GBP","SAR","AED"].map(c => <option key={c}>{c}</option>)}
+              {["ZAR"].map(c => <option key={c}>{c}</option>)}
             </select>
           </Row>
           <Row label="Timezone">
             <select value={settings.timezone} onChange={setSetting("timezone")} style={{ ...selectStyle, width:140 }}>
-              {["UTC","UTC+1","UTC+2","UTC+3","UTC+4","UTC+5"].map(t => <option key={t}>{t}</option>)}
+              {["Africa/Johannesburg"].map(t => <option key={t}>{t}</option>)}
             </select>
           </Row>
         </Section>}

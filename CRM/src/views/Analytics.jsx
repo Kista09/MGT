@@ -4,7 +4,7 @@ import { useApp } from "../context";
 import MetricCard from "../components/MetricCard";
 import CustomTooltip from "../components/CustomTooltip";
 import SegmentTabs from "../components/SegmentTabs";
-import { clientHealthScore, fmt$ } from "../utils";
+import { clientHealthScore, fmt$, fmtRandK } from "../utils";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend,
@@ -99,7 +99,7 @@ export default function Analytics() {
 
       {/* KPI row */}
       <div style={{ display:"flex", gap:16, marginBottom:28, flexWrap:"wrap" }}>
-        <MetricCard label="Annual Run Rate"      value={`$${(arr/1000).toFixed(0)}k`} sub={`+${mrrGrowth}% MoM`} color={C.accent} trend="up" />
+        <MetricCard label="Annual Run Rate"      value={fmtRandK(arr)} sub={`+${mrrGrowth}% MoM`} color={C.accent} trend="up" />
         <MetricCard label="Avg MRR / Client"     value={fmt$(avgMrr)} sub={`${active.length} active clients`} />
         <MetricCard label="Churn Rate"           value={`${churnRate}%`} sub={`${clients.filter(c => c.status === "Churned").length} churned`} color={parseFloat(churnRate) > 10 ? C.red : C.yellow} trend={parseFloat(churnRate) > 10 ? "down" : undefined} />
         <MetricCard label="Bot Fleet Messages"   value={bots.reduce((a, b) => a + b.msgs, 0).toLocaleString()} sub="Total across all bots" color={C.blue} />
@@ -121,8 +121,8 @@ export default function Analytics() {
               </defs>
               <XAxis dataKey="m" tick={{ fill:C.muted, fontSize:11 }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fill:C.muted, fontSize:11 }} axisLine={false} tickLine={false}
-                tickFormatter={v => `$${(v/1000).toFixed(0)}k`}/>
-              <Tooltip content={<CustomTooltip prefix="$" />}/>
+                tickFormatter={fmtRandK}/>
+              <Tooltip content={<CustomTooltip prefix="R" />}/>
               <Area type="monotone" dataKey="mrr" stroke={C.accent} strokeWidth={2.5} fill="url(#mrrGA)"/>
             </AreaChart>
           </ResponsiveContainer>
@@ -141,7 +141,7 @@ export default function Analytics() {
                   <Cell key={entry.name} fill={planColors[entry.name] || C.muted} />
                 ))}
               </Pie>
-              <Tooltip formatter={(v) => [`$${v.toLocaleString()}`, "MRR"]}
+              <Tooltip formatter={(v) => [`R${v.toLocaleString("en-ZA")}`, "MRR"]}
                 contentStyle={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8 }}
                 labelStyle={{ color:C.muted }} itemStyle={{ color:C.accent }} />
               <Legend formatter={(v) => <span style={{ color:C.muted, fontSize:11 }}>{v}</span>} />
@@ -160,8 +160,8 @@ export default function Analytics() {
             <BarChart data={byStage} barSize={28}>
               <XAxis dataKey="stage" tick={{ fill:C.muted, fontSize:11 }} axisLine={false} tickLine={false}/>
               <YAxis tick={{ fill:C.muted, fontSize:11 }} axisLine={false} tickLine={false}
-                tickFormatter={v => `$${(v/1000).toFixed(0)}k`}/>
-              <Tooltip content={<CustomTooltip prefix="$" />}/>
+                tickFormatter={fmtRandK}/>
+              <Tooltip content={<CustomTooltip prefix="R" />}/>
               <Bar dataKey="value" radius={[4,4,0,0]}>
                 {byStage.map(entry => <Cell key={entry.stage} fill={entry.color} />)}
               </Bar>

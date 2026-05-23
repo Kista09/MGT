@@ -305,7 +305,7 @@ export default function ClientDetail({ clientId }) {
                 {STATUSES.map(s => <option key={s}>{s}</option>)}
               </select>
             </FormRow>
-            <FormRow label="MRR ($/mo)">
+            <FormRow label="MRR (R/month)">
               <input value={form.mrr} onChange={set("mrr")} style={inputStyle} type="number" min="0" />
             </FormRow>
             <FormRow label="Industry">

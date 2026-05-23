@@ -4,7 +4,7 @@ import { useApp } from "../context";
 import Modal, { FormRow, inputStyle, selectStyle } from "../components/Modal";
 import SegmentTabs from "../components/SegmentTabs";
 
-const BLANK = { name:"", client:"", type:"Support", lang:"AR/EN", status:"Online" };
+const BLANK = { name:"", client:"", type:"Support", lang:"English", status:"Online" };
 
 function validate(f) {
   const e = {};

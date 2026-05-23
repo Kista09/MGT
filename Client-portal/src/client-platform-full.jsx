@@ -23,82 +23,83 @@ const T = {
 };
 const font="'DM Sans',sans-serif";
 const serif="'Cormorant Garamond',Georgia,serif";
+const fmtRand = (v) => `R${Number(v).toLocaleString("en-ZA")}`;
 
 /* ─── seed data ───────────────────────────────────────────── */
 const INIT_QA = [
   { id:1,category:"Orders",  question:"How do I track my order?",        answer:"Reply with your order number and we'll send real-time tracking info within seconds.", active:true  },
   { id:2,category:"Orders",  question:"Can I cancel my order?",          answer:"Orders can be cancelled within 2 hours. Reply 'CANCEL [order number]' to proceed.",  active:true  },
   { id:3,category:"Returns", question:"What is your return policy?",     answer:"We accept returns within 30 days of delivery. Items must be unused and in original packaging.", active:true },
-  { id:4,category:"Returns", question:"How long do refunds take?",       answer:"Refunds are processed within 5–7 business days back to your original payment method.", active:true  },
+  { id:4,category:"Returns", question:"How long do refunds take?",       answer:"Refunds are processed within 5-7 business days back to your original payment method.", active:true  },
   { id:5,category:"Support", question:"How do I speak to a human agent?",answer:"Reply 'AGENT' at any time and we'll connect you to a live support representative.",   active:true  },
-  { id:6,category:"Support", question:"What are your support hours?",    answer:"Our team is available Sunday–Thursday, 9 AM to 6 PM (GST).",                         active:true  },
+  { id:6,category:"Support", question:"What are your support hours?",    answer:"Our team is available Monday-Friday, 8 AM to 5 PM (SAST).",                         active:true  },
   { id:7,category:"Products",question:"Do you offer bulk discounts?",    answer:"Yes! For orders above 50 units, reply 'BULK' to get a custom quote.",                 active:true  },
 ];
 
 const INIT_CONVS = [
-  { id:1, name:"Mohammed Al-Ghamdi", phone:"+966 50 123 4567", status:"Escalated", agent:"Omar", country:"SA", unread:3,
+  { id:1, name:"Lerato Mokoena", phone:"+27 82 123 4567", status:"Escalated", agent:"Owen", country:"ZA", unread:3,
     messages:[
       { id:1, from:"customer", text:"Hi I need help with my order", time:"10:02" },
-      { id:2, from:"bot",      text:"Hello! 👋 I'd be happy to help. What's your order number?", time:"10:02" },
-      { id:3, from:"customer", text:"NN-29341, it's been 3 weeks and nothing arrived", time:"10:03" },
-      { id:4, from:"bot",      text:"I see order #NN-29341 placed on May 1st. Let me check the shipping status... it appears there's a delay at the logistics hub. I'm escalating this to our team now.", time:"10:03" },
+      { id:2, from:"bot",      text:"Hello! I'd be happy to help. What's your order number?", time:"10:02" },
+      { id:3, from:"customer", text:"ZA-29341, it's been 3 weeks and nothing arrived", time:"10:03" },
+      { id:4, from:"bot",      text:"I see order #ZA-29341 placed on 1 May. Let me check the shipping status... it appears there's a delay at the Johannesburg hub. I'm escalating this to our team now.", time:"10:03" },
       { id:5, from:"customer", text:"AGENT", time:"10:04" },
-      { id:6, from:"bot",      text:"Connecting you to a human agent now. Please hold... 🔄", time:"10:04" },
-      { id:7, from:"agent",    text:"Hi Mohammed, this is Omar from Noon support. I can see your order was delayed at our Riyadh hub. I'm arranging a priority redelivery for tomorrow — will that work for you?", time:"10:06", agentName:"Omar" },
+      { id:6, from:"bot",      text:"Connecting you to a human agent now. Please hold...", time:"10:04" },
+      { id:7, from:"agent",    text:"Hi Lerato, this is Owen from Takealot Partner Support. I can see your order was delayed at our Johannesburg hub. I'm arranging a priority redelivery for tomorrow - will that work for you?", time:"10:06", agentName:"Owen" },
       { id:8, from:"customer", text:"Yes that's fine, I just need it delivered", time:"10:07" },
     ]
   },
-  { id:2, name:"Fatima Hassan", phone:"+971 55 234 5678", status:"Bot", agent:null, country:"AE", unread:0,
+  { id:2, name:"Thabo Nkosi", phone:"+27 71 234 5678", status:"Bot", agent:null, country:"ZA", unread:0,
     messages:[
-      { id:1, from:"customer", text:"track order NN-45892", time:"09:41" },
-      { id:2, from:"bot",      text:"📦 Order #NN-45892 is out for delivery! Your driver is nearby. Expected arrival: before 6 PM today.\n\nTrack live: noon.com/track/NN-45892", time:"09:41" },
+      { id:1, from:"customer", text:"track order ZA-45892", time:"09:41" },
+      { id:2, from:"bot",      text:"Order #ZA-45892 is out for delivery! Your driver is nearby. Expected arrival: before 6 PM today.\n\nTrack live: tapartner.co.za/track/ZA-45892", time:"09:41" },
       { id:3, from:"customer", text:"thank you!", time:"09:42" },
-      { id:4, from:"bot",      text:"You're welcome! 😊 Let me know if there's anything else I can help with.", time:"09:42" },
+      { id:4, from:"bot",      text:"You're welcome! Let me know if there's anything else I can help with.", time:"09:42" },
     ]
   },
-  { id:3, name:"Ahmed Saleh", phone:"+966 55 345 6789", status:"Resolved", agent:null, country:"SA", unread:0,
+  { id:3, name:"Ayesha Jacobs", phone:"+27 73 345 6789", status:"Resolved", agent:null, country:"ZA", unread:0,
     messages:[
       { id:1, from:"customer", text:"what's the return policy?", time:"Yesterday" },
       { id:2, from:"bot",      text:"Our return policy allows returns within 30 days of delivery. Items must be unused and in their original packaging.\n\nTo start a return, reply 'RETURN' with your order number.", time:"Yesterday" },
       { id:3, from:"customer", text:"great thanks", time:"Yesterday" },
     ]
   },
-  { id:4, name:"Lina Khalil", phone:"+961 70 456 7890", status:"Escalated", agent:null, country:"LB", unread:1,
+  { id:4, name:"Sibusiso Khumalo", phone:"+27 76 456 7890", status:"Escalated", agent:null, country:"ZA", unread:1,
     messages:[
       { id:1, from:"customer", text:"I was charged twice for the same order!!", time:"08:30" },
-      { id:2, from:"bot",      text:"I'm very sorry to hear that. Double charges are taken seriously — let me escalate this to our billing team immediately.", time:"08:30" },
+      { id:2, from:"bot",      text:"I'm very sorry to hear that. Double charges are taken seriously - let me escalate this to our billing team immediately.", time:"08:30" },
       { id:3, from:"customer", text:"This is unacceptable I want a refund NOW", time:"08:31" },
     ]
   },
-  { id:5, name:"Tariq Al-Otaibi", phone:"+966 56 567 8901", status:"Bot", agent:null, country:"SA", unread:0,
+  { id:5, name:"Megan Naidoo", phone:"+27 84 567 8901", status:"Bot", agent:null, country:"ZA", unread:0,
     messages:[
-      { id:1, from:"customer", text:"do you deliver to Abha?", time:"11:20" },
-      { id:2, from:"bot",      text:"Yes! We deliver across all Saudi Arabia, including Abha. Standard delivery takes 2–4 business days. 🚚", time:"11:20" },
+      { id:1, from:"customer", text:"do you deliver to Durban?", time:"11:20" },
+      { id:2, from:"bot",      text:"Yes! We deliver across South Africa, including Durban. Standard delivery takes 2-4 business days.", time:"11:20" },
     ]
   },
 ];
 
 const INIT_CONTACTS = [
-  { id:1,  name:"Mohammed Al-Ghamdi", phone:"+966 50 123 4567", optIn:true,  tags:["VIP","Escalated"],  country:"SA", convs:8,  lastSeen:"Today"     },
-  { id:2,  name:"Fatima Hassan",      phone:"+971 55 234 5678", optIn:true,  tags:["Regular"],           country:"AE", convs:14, lastSeen:"Today"     },
-  { id:3,  name:"Ahmed Saleh",        phone:"+966 55 345 6789", optIn:true,  tags:["Resolved"],          country:"SA", convs:3,  lastSeen:"Yesterday" },
-  { id:4,  name:"Lina Khalil",        phone:"+961 70 456 7890", optIn:true,  tags:["Billing","VIP"],     country:"LB", convs:5,  lastSeen:"Today"     },
-  { id:5,  name:"Tariq Al-Otaibi",    phone:"+966 56 567 8901", optIn:true,  tags:["Regular"],           country:"SA", convs:2,  lastSeen:"Today"     },
-  { id:6,  name:"Sara Nour",          phone:"+971 52 678 9012", optIn:false, tags:["Opted-out"],         country:"AE", convs:1,  lastSeen:"3 days ago"},
-  { id:7,  name:"Omar Hassan",        phone:"+966 54 789 0123", optIn:true,  tags:["Regular"],           country:"SA", convs:7,  lastSeen:"2 days ago"},
-  { id:8,  name:"Reem Al-Rashid",     phone:"+965 66 890 1234", optIn:true,  tags:["VIP","Repeat"],      country:"KW", convs:21, lastSeen:"Yesterday" },
-  { id:9,  name:"Khalid Ibrahim",     phone:"+966 50 901 2345", optIn:true,  tags:["Regular"],           country:"SA", convs:4,  lastSeen:"1 week ago"},
-  { id:10, name:"Noura Al-Zahrani",   phone:"+966 55 012 3456", optIn:true,  tags:["New"],               country:"SA", convs:1,  lastSeen:"Today"     },
+  { id:1,  name:"Lerato Mokoena",     phone:"+27 82 123 4567", optIn:true,  tags:["VIP","Escalated"],  country:"ZA", convs:8,  lastSeen:"Today"     },
+  { id:2,  name:"Thabo Nkosi",        phone:"+27 71 234 5678", optIn:true,  tags:["Regular"],           country:"ZA", convs:14, lastSeen:"Today"     },
+  { id:3,  name:"Ayesha Jacobs",      phone:"+27 73 345 6789", optIn:true,  tags:["Resolved"],          country:"ZA", convs:3,  lastSeen:"Yesterday" },
+  { id:4,  name:"Sibusiso Khumalo",   phone:"+27 76 456 7890", optIn:true,  tags:["Billing","VIP"],     country:"ZA", convs:5,  lastSeen:"Today"     },
+  { id:5,  name:"Megan Naidoo",       phone:"+27 84 567 8901", optIn:true,  tags:["Regular"],           country:"ZA", convs:2,  lastSeen:"Today"     },
+  { id:6,  name:"Naledi Dlamini",     phone:"+27 81 678 9012", optIn:false, tags:["Opted-out"],         country:"ZA", convs:1,  lastSeen:"3 days ago"},
+  { id:7,  name:"Owen Petersen",      phone:"+27 83 789 0123", optIn:true,  tags:["Regular"],           country:"ZA", convs:7,  lastSeen:"2 days ago"},
+  { id:8,  name:"Zanele Mthembu",     phone:"+27 72 890 1234", optIn:true,  tags:["VIP","Repeat"],      country:"ZA", convs:21, lastSeen:"Yesterday" },
+  { id:9,  name:"Johan Botha",        phone:"+27 79 901 2345", optIn:true,  tags:["Regular"],           country:"ZA", convs:4,  lastSeen:"1 week ago"},
+  { id:10, name:"Priya Govender",     phone:"+27 74 012 3456", optIn:true,  tags:["New"],               country:"ZA", convs:1,  lastSeen:"Today"     },
 ];
 
 const INIT_TEMPLATES = [
-  { id:1, name:"order_confirmed",     category:"UTILITY",   status:"APPROVED", lang:"AR/EN", body:"Hello {{1}}, your order #{{2}} has been confirmed! 🎉 Estimated delivery: {{3}}. Track it anytime by replying with your order number.", vars:["name","order_id","delivery_date"], uses:12400 },
-  { id:2, name:"order_shipped",       category:"UTILITY",   status:"APPROVED", lang:"AR/EN", body:"Great news {{1}}! Your order #{{2}} is on its way 🚚 Your driver will arrive between {{3}}. Reply TRACK for live updates.",           vars:["name","order_id","time_window"],  uses:9800  },
-  { id:3, name:"delivery_failed",     category:"UTILITY",   status:"APPROVED", lang:"AR/EN", body:"Hi {{1}}, we attempted delivery of order #{{2}} but couldn't reach you. Please reply with your preferred redelivery slot.",           vars:["name","order_id"],               uses:3100  },
-  { id:4, name:"flash_sale_promo",    category:"MARKETING", status:"PENDING",  lang:"AR/EN", body:"🔥 FLASH SALE! {{1}}% off everything for the next {{2}} hours. Shop now: noon.com/sale\n\nReply STOP to opt out.",                    vars:["discount","hours"],              uses:0     },
-  { id:5, name:"abandoned_cart",      category:"MARKETING", status:"APPROVED", lang:"EN",    body:"Hey {{1}}, you left something behind! 🛒 Your cart has {{2}} item(s) worth {{3}}. Complete your order: {{4}}",                        vars:["name","count","total","link"],   uses:5600  },
-  { id:6, name:"review_request",      category:"UTILITY",   status:"REJECTED", lang:"AR/EN", body:"Hi {{1}}, how was your recent Noon order? Rate your experience: ⭐⭐⭐⭐⭐\nReply 1-5 to share your rating.",                            vars:["name"],                          uses:0     },
-  { id:7, name:"refund_processed",    category:"UTILITY",   status:"APPROVED", lang:"AR/EN", body:"Hi {{1}}, your refund of {{2}} for order #{{3}} has been processed. It will appear in your account within 5–7 business days.",         vars:["name","amount","order_id"],      uses:1800  },
+  { id:1, name:"order_confirmed",     category:"UTILITY",   status:"APPROVED", lang:"English", body:"Hello {{1}}, your order #{{2}} has been confirmed. Estimated delivery: {{3}}. Track it anytime by replying with your order number.", vars:["name","order_id","delivery_date"], uses:12400 },
+  { id:2, name:"order_shipped",       category:"UTILITY",   status:"APPROVED", lang:"English", body:"Great news {{1}}! Your order #{{2}} is on its way. Your driver will arrive between {{3}}. Reply TRACK for live updates.", vars:["name","order_id","time_window"],  uses:9800  },
+  { id:3, name:"delivery_failed",     category:"UTILITY",   status:"APPROVED", lang:"English", body:"Hi {{1}}, we attempted delivery of order #{{2}} but couldn't reach you. Please reply with your preferred redelivery slot.", vars:["name","order_id"], uses:3100 },
+  { id:4, name:"weekend_promo",       category:"MARKETING", status:"PENDING",  lang:"English", body:"Weekend special: {{1}}% off selected products for the next {{2}} hours. Shop now: tapartner.co.za/sale\n\nReply STOP to opt out.", vars:["discount","hours"], uses:0 },
+  { id:5, name:"abandoned_cart",      category:"MARKETING", status:"APPROVED", lang:"English", body:"Hey {{1}}, you left something behind. Your cart has {{2}} item(s) worth {{3}}. Complete your order: {{4}}", vars:["name","count","total","link"], uses:5600 },
+  { id:6, name:"review_request",      category:"UTILITY",   status:"REJECTED", lang:"English", body:"Hi {{1}}, how was your recent Takealot Partner Store order? Reply 1-5 to share your rating.", vars:["name"], uses:0 },
+  { id:7, name:"refund_processed",    category:"UTILITY",   status:"APPROVED", lang:"English", body:"Hi {{1}}, your refund of {{2}} for order #{{3}} has been processed. It will appear in your account within 5-7 business days.", vars:["name","amount","order_id"], uses:1800 },
 ];
 
 const ANALYTICS_MSGS = [
@@ -125,10 +126,10 @@ const RESOLUTION = [
 ];
 
 const INIT_BROADCASTS = [
-  { id:1, name:"Eid Mubarak Sale",      template:"flash_sale_promo",  segment:"All subscribers",  status:"Sent",      sent:18400, delivered:17820, read:9340, scheduled:null,      sentAt:"Apr 8, 2026"  },
-  { id:2, name:"Abandoned Cart — May",  template:"abandoned_cart",    segment:"Cart abandoners",  status:"Sent",      sent:4200,  delivered:4120,  read:2890, scheduled:null,      sentAt:"May 15, 2026" },
-  { id:3, name:"Flash Sale — 48hr",     template:"flash_sale_promo",  segment:"VIP customers",    status:"Scheduled", sent:0,     delivered:0,     read:0,    scheduled:"May 25, 2026 9:00 AM", sentAt:null },
-  { id:4, name:"Post-Ramadan Promo",    template:"abandoned_cart",    segment:"All subscribers",  status:"Draft",     sent:0,     delivered:0,     read:0,    scheduled:null,      sentAt:null           },
+  { id:1, name:"Winter Sale",           template:"weekend_promo",     segment:"All subscribers",  status:"Sent",      sent:18400, delivered:17820, read:9340, scheduled:null,      sentAt:"Apr 8, 2026"  },
+  { id:2, name:"Abandoned Cart - May",   template:"abandoned_cart",    segment:"Cart abandoners",  status:"Sent",      sent:4200,  delivered:4120,  read:2890, scheduled:null,      sentAt:"May 15, 2026" },
+  { id:3, name:"Payday Promo - 48hr",    template:"weekend_promo",     segment:"VIP customers",    status:"Scheduled", sent:0,     delivered:0,     read:0,    scheduled:"May 25, 2026 9:00 AM", sentAt:null },
+  { id:4, name:"Heritage Month Promo",   template:"abandoned_cart",    segment:"All subscribers",  status:"Draft",     sent:0,     delivered:0,     read:0,    scheduled:null,      sentAt:null           },
 ];
 
 const FLOW_NODES = [
@@ -136,7 +137,7 @@ const FLOW_NODES = [
   { id:"menu",     type:"menu",    label:"Main Menu",           content:"Reply with a number:\n1️⃣ Track order\n2️⃣ Returns\n3️⃣ Promotions\n4️⃣ Speak to agent", x:260, y:240, outputs:["track","returns","promo","agent"] },
   { id:"track",    type:"message", label:"Track Order",         content:"Please share your order number and I'll fetch the latest status for you 📦",  x:520, y:80,  outputs:["done1"]   },
   { id:"returns",  type:"message", label:"Return Info",         content:"Returns are accepted within 30 days. Reply 'RETURN' + order number to begin.", x:520, y:200, outputs:["done2"]   },
-  { id:"promo",    type:"message", label:"Promotions",          content:"🔥 Check our latest deals at noon.com/offers — new sales every day!",          x:520, y:320, outputs:["done3"]   },
+  { id:"promo",    type:"message", label:"Promotions",          content:"Check our latest deals at tapartner.co.za/offers - new sales every day!",          x:520, y:320, outputs:["done3"]   },
   { id:"agent",    type:"action",  label:"Escalate to Agent",   content:"Connecting you to a live support agent. Average wait: 2 minutes ⏳",           x:520, y:440, outputs:[]          },
   { id:"done1",    type:"end",     label:"Continue / Resolved", content:"",                                      x:740, y:80,  outputs:[]          },
   { id:"done2",    type:"end",     label:"Continue / Resolved", content:"",                                      x:740, y:200, outputs:[]          },
@@ -144,11 +145,11 @@ const FLOW_NODES = [
 ];
 
 const INVOICES = [
-  { id:"INV-2026-05", date:"May 1, 2026",  amount:4200, status:"Paid",    plan:"Enterprise" },
-  { id:"INV-2026-04", date:"Apr 1, 2026",  amount:4200, status:"Paid",    plan:"Enterprise" },
-  { id:"INV-2026-03", date:"Mar 1, 2026",  amount:4200, status:"Paid",    plan:"Enterprise" },
-  { id:"INV-2026-02", date:"Feb 1, 2026",  amount:3800, status:"Paid",    plan:"Scale"      },
-  { id:"INV-2026-01", date:"Jan 1, 2026",  amount:3800, status:"Paid",    plan:"Scale"      },
+  { id:"INV-2026-05", date:"1 May 2026", amount:73500, status:"Paid", plan:"Enterprise" },
+  { id:"INV-2026-04", date:"1 Apr 2026", amount:73500, status:"Paid", plan:"Enterprise" },
+  { id:"INV-2026-03", date:"1 Mar 2026", amount:73500, status:"Paid", plan:"Enterprise" },
+  { id:"INV-2026-02", date:"1 Feb 2026", amount:66500, status:"Paid", plan:"Scale"      },
+  { id:"INV-2026-01", date:"1 Jan 2026", amount:66500, status:"Paid", plan:"Scale"      },
 ];
 
 const STATUS_SERVICES = [
@@ -542,7 +543,7 @@ function Contacts({ toast }) {
             </div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:20}}>
-            {[["Country",{SA:"Saudi Arabia",AE:"UAE",LB:"Lebanon",KW:"Kuwait"}[selected.country]||selected.country],
+            {[["Country",{ZA:"South Africa"}[selected.country]||selected.country],
               ["Conversations",selected.convs],["Opt-in Status",selected.optIn?"✓ Opted In":"✗ Opted Out"],
               ["Last Seen",selected.lastSeen]].map(([k,v])=>(
               <div key={k} style={{background:T.bg,borderRadius:10,padding:"12px 14px"}}>
@@ -565,7 +566,7 @@ function Contacts({ toast }) {
 function Templates({ toast }) {
   const [items, setItems] = useState(INIT_TEMPLATES);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({name:"",category:"UTILITY",body:"",lang:"AR/EN"});
+  const [form, setForm] = useState({name:"",category:"UTILITY",body:"",lang:"English"});
   const [nextId, setNextId] = useState(8);
 
   const statusStyle = s => s==="APPROVED"?{color:T.accent,bg:T.accentBg,bdr:T.accentBdr}
@@ -644,7 +645,7 @@ function Templates({ toast }) {
             </div>
             <div style={{display:"flex",gap:12}}>
               <div style={{flex:1}}><Label>Category</Label><Select value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))} options={["UTILITY","MARKETING","AUTHENTICATION"]}/></div>
-              <div style={{flex:1}}><Label>Language</Label><Select value={form.lang} onChange={e=>setForm(f=>({...f,lang:e.target.value}))} options={["AR/EN","AR","EN"]}/></div>
+              <div style={{flex:1}}><Label>Language</Label><Select value={form.lang} onChange={e=>setForm(f=>({...f,lang:e.target.value}))} options={["English","isiXhosa","isiZulu","Afrikaans","Sesotho","Setswana"]}/></div>
             </div>
             <div>
               <Label>Message Body</Label>
@@ -672,7 +673,7 @@ function Analytics() {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:28,flexWrap:"wrap",gap:12}}>
         <div>
           <div style={{fontFamily:serif,fontSize:30,color:T.text,marginBottom:4}}>Analytics</div>
-          <div style={{color:T.muted,fontSize:14}}>Bot performance for your Noon Support assistant</div>
+          <div style={{color:T.muted,fontSize:14}}>Bot performance for your Takealot Partner Support assistant</div>
         </div>
         <div style={{display:"flex",gap:6}}>
           {["7d","14d","30d"].map(r=>(
@@ -992,7 +993,7 @@ function Broadcasts({ toast }) {
             <div style={{display:"flex",flexDirection:"column",gap:16}}>
               <div><Label>Audience Segment</Label>
                 <Select value={form.segment} onChange={e=>setForm(f=>({...f,segment:e.target.value}))}
-                  options={["All subscribers","VIP customers","Cart abandoners","Inactive (30+ days)","Saudi Arabia only","UAE only"]}/>
+                  options={["All subscribers","VIP customers","Cart abandoners","Inactive (30+ days)","South Africa only","Western Cape only"]}/>
               </div>
               <div style={{background:T.accentBg,border:`1.5px solid ${T.accentBdr}`,borderRadius:10,padding:"14px"}}>
                 <div style={{fontSize:13,fontWeight:600,color:T.accent,marginBottom:4}}>Estimated reach</div>
@@ -1005,7 +1006,7 @@ function Broadcasts({ toast }) {
             <div style={{display:"flex",flexDirection:"column",gap:16}}>
               <div style={{display:"flex",gap:12}}>
                 <div style={{flex:1}}><Label>Send Date</Label><Input type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))}/></div>
-                <div style={{flex:1}}><Label>Send Time (GST)</Label><Input type="time" value={form.time} onChange={e=>setForm(f=>({...f,time:e.target.value}))}/></div>
+                <div style={{flex:1}}><Label>Send Time (SAST)</Label><Input type="time" value={form.time} onChange={e=>setForm(f=>({...f,time:e.target.value}))}/></div>
               </div>
               <div style={{background:T.yellowBg,border:`1.5px solid ${T.yellowBdr}`,borderRadius:10,padding:"12px 14px",fontSize:13,color:T.yellow}}>
                 ⚠ Scheduled sends can't be cancelled within 30 minutes of delivery time.
@@ -1038,7 +1039,7 @@ function Billing({ toast }) {
             <div>
               <div style={{fontSize:11,color:T.muted,fontWeight:700,letterSpacing:.5,textTransform:"uppercase",marginBottom:6}}>Current Plan</div>
               <div style={{fontFamily:serif,fontSize:28,color:T.text,lineHeight:1}}>Enterprise</div>
-              <div style={{fontSize:14,color:T.muted,marginTop:6}}>$4,200 / month · Renews Jun 1, 2026</div>
+              <div style={{fontSize:14,color:T.muted,marginTop:6}}>R73,500 / month · Renews 1 Jun 2026</div>
             </div>
             <Btn small variant="secondary">Manage plan</Btn>
           </div>
@@ -1063,7 +1064,7 @@ function Billing({ toast }) {
 
         <Card style={{flex:1,minWidth:220}}>
           <div style={{fontFamily:serif,fontSize:18,color:T.text,marginBottom:16}}>Upgrade options</div>
-          {[{name:"Scale",price:"$1,600",msgs:"1M msgs",bots:3},{name:"Enterprise+",price:"$8,500",msgs:"Unlimited",bots:"Unlimited"}].map(p=>(
+          {[{name:"Scale",price:"R28,000",msgs:"1M msgs",bots:3},{name:"Enterprise+",price:"R150,000",msgs:"Unlimited",bots:"Unlimited"}].map(p=>(
             <div key={p.name} style={{border:`1.5px solid ${T.border}`,borderRadius:12,padding:"14px",marginBottom:12}}>
               <div style={{fontWeight:700,fontSize:15,color:T.text,marginBottom:4}}>{p.name}</div>
               <div style={{fontSize:13,color:T.muted,marginBottom:10}}>{p.msgs} · {p.bots} bots</div>
@@ -1092,7 +1093,7 @@ function Billing({ toast }) {
                 <td style={{padding:"12px 14px",fontSize:13,fontWeight:600,color:T.text}}><code style={{background:T.subtle,padding:"2px 7px",borderRadius:6}}>{inv.id}</code></td>
                 <td style={{padding:"12px 14px",fontSize:13,color:T.muted}}>{inv.date}</td>
                 <td style={{padding:"12px 14px",fontSize:13,color:T.muted}}>{inv.plan}</td>
-                <td style={{padding:"12px 14px",fontSize:14,fontWeight:700,color:T.text}}>${inv.amount.toLocaleString()}</td>
+                <td style={{padding:"12px 14px",fontSize:14,fontWeight:700,color:T.text}}>{fmtRand(inv.amount)}</td>
                 <td style={{padding:"12px 14px"}}><Pill label={inv.status} color={T.accent} bg={T.accentBg} border={T.accentBdr}/></td>
                 <td style={{padding:"12px 14px"}}><button onClick={()=>toast("Invoice downloaded")} style={{background:T.subtle,border:"none",borderRadius:7,padding:"5px 12px",fontSize:12,fontWeight:600,color:T.muted,cursor:"pointer"}}>⬇ PDF</button></td>
               </tr>
@@ -1107,7 +1108,7 @@ function Billing({ toast }) {
 /* ─── SIMULATOR ────────────────────────────────────────────── */
 function Simulator() {
   const [messages, setMessages] = useState([
-    { role:"assistant", content:"Hello! 👋 Welcome to Noon Support.\n\nHow can I help you today?\n\n1️⃣ Track my order\n2️⃣ Returns & refunds\n3️⃣ Speak to an agent" }
+    { role:"assistant", content:"Hello! Welcome to Takealot Partner Support.\n\nHow can I help you today?\n\n1. Track my order\n2. Returns & refunds\n3. Speak to an agent" }
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1128,7 +1129,7 @@ function Simulator() {
         body:JSON.stringify({
           model:"claude-sonnet-4-20250514",
           max_tokens:1000,
-          system:`You are "Noon Support", a WhatsApp customer service bot for Noon.com, the leading e-commerce platform in the Middle East. Respond exactly as a WhatsApp bot would: short, friendly, emoji-enhanced. Max 3-4 sentences unless listing steps.\n\nYour knowledge base:\n${INIT_QA.filter(q=>q.active).map(q=>`Q: ${q.question}\nA: ${q.answer}`).join("\n\n")}\n\nIf the user asks something outside your knowledge, offer to connect them with a human agent. Never break character.`,
+          system:`You are "Takealot Partner Support", a WhatsApp customer service bot for Takealot Partner Store, a South African e-commerce operation. Respond exactly as a WhatsApp bot would: short, friendly, and practical. Max 3-4 sentences unless listing steps.\n\nYour knowledge base:\n${INIT_QA.filter(q=>q.active).map(q=>`Q: ${q.question}\nA: ${q.answer}`).join("\n\n")}\n\nIf the user asks something outside your knowledge, offer to connect them with a human agent. Never break character.`,
           messages:newMessages
         })
       });
@@ -1140,7 +1141,7 @@ function Simulator() {
     } finally { setLoading(false); }
   };
 
-  const reset = () => setMessages([{role:"assistant",content:"Hello! 👋 Welcome to Noon Support.\n\nHow can I help you today?\n\n1️⃣ Track my order\n2️⃣ Returns & refunds\n3️⃣ Speak to an agent"}]);
+  const reset = () => setMessages([{role:"assistant",content:"Hello! Welcome to Takealot Partner Support.\n\nHow can I help you today?\n\n1. Track my order\n2. Returns & refunds\n3. Speak to an agent"}]);
 
   return (
     <div style={{padding:"36px 40px",overflowY:"auto",flex:1,display:"flex",gap:32,flexWrap:"wrap",alignItems:"flex-start"}}>
@@ -1150,16 +1151,16 @@ function Simulator() {
         <Card style={{marginBottom:20}}>
           <div style={{fontWeight:700,fontSize:15,color:T.text,marginBottom:12}}>📋 Current Configuration</div>
           <div style={{fontSize:13,color:T.muted,lineHeight:1.8}}>
-            <div><b style={{color:T.text}}>Bot name:</b> Noon Support</div>
-            <div><b style={{color:T.text}}>Language:</b> AR/EN</div>
+            <div><b style={{color:T.text}}>Bot name:</b> Takealot Partner Support</div>
+            <div><b style={{color:T.text}}>Language:</b> English</div>
             <div><b style={{color:T.text}}>Tone:</b> Friendly</div>
             <div><b style={{color:T.text}}>Active Q&As:</b> {INIT_QA.filter(q=>q.active).length} responses</div>
-            <div><b style={{color:T.text}}>Escalation:</b> +966 50 123 4567</div>
+            <div><b style={{color:T.text}}>Escalation:</b> +27 83 456 7890</div>
           </div>
         </Card>
         <Card>
           <div style={{fontWeight:700,fontSize:14,color:T.text,marginBottom:10}}>💡 Try asking:</div>
-          {["Track order NN-45892","What's your return policy?","Do you deliver to Riyadh?","I want a refund","AGENT"].map(s=>(
+          {["Track order ZA-45892","What's your return policy?","Do you deliver to Durban?","I want a refund","AGENT"].map(s=>(
             <div key={s} onClick={()=>{setInput(s);}} style={{padding:"7px 12px",background:T.bg,
               border:`1.5px solid ${T.border}`,borderRadius:8,fontSize:13,color:T.muted,
               cursor:"pointer",marginBottom:6,transition:"all .12s"}}
@@ -1180,7 +1181,7 @@ function Simulator() {
               <div style={{width:36,height:36,borderRadius:99,background:T.accentLt,
                 display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🛍</div>
               <div>
-                <div style={{color:"#fff",fontWeight:700,fontSize:14,fontFamily:font}}>Noon Support</div>
+                <div style={{color:"#fff",fontWeight:700,fontSize:14,fontFamily:font}}>Takealot Partner Support</div>
                 <div style={{color:"rgba(255,255,255,.65)",fontSize:11,fontFamily:font}}>
                   {loading?"typing…":"online"}
                 </div>
@@ -1496,7 +1497,7 @@ function CalendarView({ toast }) {
 }
 
 function BotSettings({ toast }) {
-  const [s,setS]=useState({botName:"Noon Support",welcomeMsg:"Hello! 👋 Welcome to Noon Support. How can I help you today?\n\n1️⃣ Track my order\n2️⃣ Returns & refunds\n3️⃣ Speak to an agent",fallbackMsg:"I'm sorry, I didn't understand that. Please reply with a number, or type 'AGENT'.",language:"AR/EN",tone:"Friendly",escalation:"+966 50 123 4567",escalationEmail:"support@noon.com",typingDelay:"1.5",autoClose:"24"});
+  const [s,setS]=useState({botName:"Takealot Partner Support",welcomeMsg:"Hello! Welcome to Takealot Partner Support. How can I help you today?\n\n1. Track my order\n2. Returns & refunds\n3. Speak to an agent",fallbackMsg:"I'm sorry, I didn't understand that. Please reply with a number, or type 'AGENT'.",language:"English",tone:"Friendly",escalation:"+27 83 456 7890",escalationEmail:"support@tapartner.co.za",typingDelay:"1.5",autoClose:"24"});
   const [tab,setTab]=useState("messages");
   const set=k=>e=>setS(p=>({...p,[k]:e.target.value}));
   return(
@@ -1515,7 +1516,7 @@ function BotSettings({ toast }) {
           <div><Label>Fallback Message</Label><Input multiline rows={3} value={s.fallbackMsg} onChange={set("fallbackMsg")}/></div>
         </div>)}
         {tab==="behaviour"&&(<div style={{display:"flex",flexDirection:"column",gap:20}}>
-          <div><Label>Language</Label><Select value={s.language} onChange={set("language")} options={["AR/EN","AR","EN","FR","TR"]}/></div>
+          <div><Label>Language</Label><Select value={s.language} onChange={set("language")} options={["English","isiXhosa","isiZulu","Afrikaans","Sesotho","Setswana"]}/></div>
           <div><Label>Tone</Label><Select value={s.tone} onChange={set("tone")} options={["Friendly","Professional","Formal","Casual","Concise"]}/></div>
           <div><Label>Typing delay (seconds)</Label><Input value={s.typingDelay} onChange={set("typingDelay")}/></div>
           <div><Label>Auto-close after (hours)</Label><Input value={s.autoClose} onChange={set("autoClose")}/></div>
@@ -1534,7 +1535,7 @@ function BotSettings({ toast }) {
 }
 
 function Team({ toast }) {
-  const [members,setMembers]=useState([{id:1,name:"Dina Khalil",email:"dina@noon.com",role:"Admin",notify:["escalations","reports"]},{id:2,name:"Omar Al-Rashid",email:"omar@noon.com",role:"Manager",notify:["escalations"]},{id:3,name:"Sara Abdelaziz",email:"sara@noon.com",role:"Viewer",notify:[]}]);
+  const [members,setMembers]=useState([{id:1,name:"Ayesha Jacobs",email:"ayesha@tapartner.co.za",role:"Admin",notify:["escalations","reports"]},{id:2,name:"Owen Petersen",email:"owen@tapartner.co.za",role:"Manager",notify:["escalations"]},{id:3,name:"Naledi Dlamini",email:"naledi@tapartner.co.za",role:"Viewer",notify:[]}]);
   const [modal,setModal]=useState(false);const[form,setForm]=useState({name:"",email:"",role:"Viewer",notify:[]});const[nextId,setNextId]=useState(4);
   const rCol={Admin:T.accent,Manager:"#7c3aed",Viewer:T.muted};
   const invite=()=>{if(!form.name.trim()||!form.email.trim())return;setMembers(p=>[...p,{...form,id:nextId}]);setNextId(n=>n+1);setModal(false);setForm({name:"",email:"",role:"Viewer",notify:[]});toast("Invite sent to "+form.email);};
