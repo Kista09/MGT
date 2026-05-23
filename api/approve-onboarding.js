@@ -71,6 +71,11 @@ function makeStarterKitHtml({ company, contact, portalEmail, portalPassword, req
   }
 }
 
+function makeStarterKitPdfFromDesignedFile() {
+  const pdfPath = path.join(__dirname, '..', 'files', 'organicsmith-starter-kit.pdf');
+  return fs.readFileSync(pdfPath).toString('base64');
+}
+
 async function htmlToPdf(html) {
   const chromium = require('@sparticuz/chromium-min');
   const puppeteer = require('puppeteer-core');
@@ -724,8 +729,8 @@ module.exports = async (req, res) => {
       pdf = await htmlToPdf(starterKitHtml);
     } catch (puppeteerErr) {
       console.error('Puppeteer failed:', puppeteerErr.message);
-      pdfMethod = 'pdfmake';
-      pdf = await makeStarterKitPdf(pdfArgs);
+      pdfMethod = 'designed-file';
+      pdf = makeStarterKitPdfFromDesignedFile();
     }
 
     await sendEmail({
