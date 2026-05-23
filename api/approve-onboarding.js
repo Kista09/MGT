@@ -52,7 +52,8 @@ function cell(stack, opts = {}) {
 
 function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, request }) {
   const PdfPrinter = require('pdfmake');
-  const vfs = require('pdfmake/build/vfs_fonts').pdfMake.vfs;
+  const vfsModule = require('pdfmake/build/vfs_fonts');
+  const vfs = (vfsModule.pdfMake || {}).vfs || vfsModule.vfs || vfsModule;
   const fonts = {
     Roboto: {
       normal:      Buffer.from(vfs['Roboto-Regular.ttf'], 'base64'),
