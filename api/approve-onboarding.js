@@ -24,17 +24,42 @@ function makeStarterKitHtml({ company, contact, portalEmail, portalPassword, req
   const templatePath = path.join(__dirname, '..', 'files', 'organicsmith-starter-kit.html');
   try {
     let html = fs.readFileSync(templatePath, 'utf8');
+
+    const co  = escapeHtml(company);
+    const ct  = escapeHtml(contact);
+    const em  = escapeHtml(portalEmail);
+    const pw  = escapeHtml(portalPassword);
+    const sec = escapeHtml(onboarding.sector   || 'Business');
+    const loc = escapeHtml(onboarding.location || 'South Africa');
+    const gol = escapeHtml(onboarding.goal     || 'Increase customers and improve access');
+    const tl  = escapeHtml(onboarding.timeline || 'As soon as possible');
+
+    // Order matters — replace the most specific strings first so a later,
+    // shorter pattern does not partially re-match what a previous one produced.
     [
-      [/OrganicSmith/g, escapeHtml(company)],
-      [/Kista/g, escapeHtml(contact)],
-      [/organicsmith@gmail\.com/g, escapeHtml(portalEmail)],
-      [/MGT-HPemqvGhcq/g, escapeHtml(portalPassword)],
-      [/Healthcare/g, escapeHtml(onboarding.sector || 'Business')],
-      [/Cape Town, Western Cape/g, escapeHtml(onboarding.location || 'South Africa')],
-      [/Cape Town/g, escapeHtml(onboarding.location || 'South Africa')],
-      [/Increase customers &amp; patient access/g, escapeHtml(onboarding.goal || 'Increase customers and improve access')],
-      [/As soon as possible/g, escapeHtml(onboarding.timeline || 'As soon as possible')],
-    ].forEach(([p, v]) => { html = html.replace(p, v); });
+      // <title> and body heading
+      [/OrganicSmith Starter Kit/g,              `${co} Starter Kit`],
+      [/OrganicSmith/g,                          co],
+      [/\bKista\b/g,                             ct],
+      // Credentials (exact strings used in the HTML template)
+      [/organicsmith@gmail\.com/g,               em],
+      [/MGT-HPemqvGhcq/g,                        pw],
+      // Consultant card: remove the stale "(portal)" annotation so it reads
+      // as just the email address regardless of who the client is
+      [/ \(portal\)/g,                            ''],
+      // Sector + location must replace the combined pill BEFORE the
+      // individual tokens, otherwise the first individual pass leaves
+      // a dangling separator in strings like "Healthcare · Cape Town".
+      [/Healthcare · Cape Town, Western Cape/g,  `${sec} · ${loc}`],
+      [/Healthcare · Cape Town/g,                `${sec} · ${loc}`],
+      [/Cape Town, Western Cape/g,               loc],
+      [/Cape Town/g,                             loc],
+      [/\bHealthcare\b/g,                        sec],
+      // Goal and timeline
+      [/Increase customers &amp; patient access/g, gol],
+      [/As soon as possible/g,                   tl],
+    ].forEach(([pattern, value]) => { html = html.replace(pattern, value); });
+
     return html;
   } catch {
     return `<!DOCTYPE html><html><body>
@@ -55,7 +80,9 @@ async function htmlToPdf(html) {
   const executablePath = await chromium.executablePath(binaryUrl);
 
   const browser = await puppeteer.launch({
-    args: chromium.args,
+    // Spread into a fresh array — Puppeteer mutates the args list internally
+    // and chromium.args is a frozen readonly reference in some package versions.
+    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
     defaultViewport: { width: 1440, height: 900 },
     executablePath,
     headless: chromium.headless,
@@ -64,11 +91,25 @@ async function htmlToPdf(html) {
   try {
     const page = await browser.newPage();
 
-    // Load the HTML and wait for Google Fonts — they are what make the PDF
-    // look identical to the reference (Cormorant Garamond + DM Sans).
-    await page.setContent(html, { waitUntil: 'networkidle2', timeout: 30000 });
+    // Use 'load' (not 'networkidle2'). In serverless, networkidle2 waits for
+    // ALL pending network requests to drop to ≤2 for 500 ms, which never
+    // reliably happens when Google Fonts CDN requests are in-flight — causing
+    // a 30 s timeout and silent fallback to the pdfmake version.
+    await page.setContent(html, { waitUntil: 'load', timeout: 30000 });
 
-    // Print overrides: accurate background colours, hide nav, clean page breaks
+    // Explicitly wait for the font faces (Cormorant Garamond + DM Sans) to
+    // finish loading. Race against a 6 s ceiling so a CDN hiccup doesn't
+    // block the whole render — Chromium will substitute the system fallback
+    // rather than leaving blank glyphs.
+    await Promise.race([
+      page.evaluate(() => document.fonts.ready),
+      new Promise(resolve => setTimeout(resolve, 6000)),
+    ]);
+
+    // Print overrides: accurate background colours, hide nav, clean page breaks.
+    // Use both the legacy page-break-* and the modern CSS break-* properties
+    // because Chromium 120+ honours break-before/after in paginated contexts
+    // but older lambda images may only support the legacy syntax.
     await page.addStyleTag({
       content: `
         *, *::before, *::after {
@@ -77,8 +118,14 @@ async function htmlToPdf(html) {
         }
         .sidenav { display: none !important; }
         @media print {
-          section { page-break-before: always; }
-          section:first-of-type { page-break-before: avoid; }
+          section {
+            page-break-before: always;
+            break-before: page;
+          }
+          section#cover {
+            page-break-before: avoid;
+            break-before: avoid;
+          }
         }
       `,
     });
