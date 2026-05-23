@@ -24,6 +24,7 @@ async function savePortalUser(user) {
     access: 'public',
     contentType: 'application/json',
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
 }
 

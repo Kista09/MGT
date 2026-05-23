@@ -79,6 +79,7 @@ async function storeCrmRequest(record) {
     access: 'public',
     contentType: 'application/json',
     addRandomSuffix: false,
+    allowOverwrite: true,
   });
   return true;
 }

@@ -1,4 +1,6 @@
 const { makePassword, normalizeEmail, savePortalUser, slugify } = require('./_portal');
+const fs = require('fs');
+const path = require('path');
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -91,6 +93,50 @@ function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, requ
   return Buffer.from(pdf).toString('base64');
 }
 
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function makeStarterKitHtml({ company, contact, portalEmail, portalPassword, request }) {
+  const onboarding = request.onboarding || {};
+  const templatePath = path.join(__dirname, '..', 'files', 'organicsmith-starter-kit.html');
+
+  try {
+    let html = fs.readFileSync(templatePath, 'utf8');
+    const replacements = [
+      [/OrganicSmith/g, escapeHtml(company)],
+      [/Kista/g, escapeHtml(contact)],
+      [/organicsmith@gmail\.com/g, escapeHtml(portalEmail)],
+      [/MGT-HPemqvGhcq/g, escapeHtml(portalPassword)],
+      [/Healthcare/g, escapeHtml(onboarding.sector || 'Business')],
+      [/Cape Town, Western Cape/g, escapeHtml(onboarding.location || 'South Africa')],
+      [/Cape Town/g, escapeHtml(onboarding.location || 'South Africa')],
+      [/Increase customers &amp; patient access/g, escapeHtml(onboarding.goal || 'Increase customers and improve access')],
+      [/As soon as possible/g, escapeHtml(onboarding.timeline || 'As soon as possible')],
+    ];
+
+    replacements.forEach(([pattern, value]) => {
+      html = html.replace(pattern, value);
+    });
+
+    return html;
+  } catch {
+    return `<!DOCTYPE html><html><body>
+      <h1>MgucaTECH Starter Kit</h1>
+      <p>Client: ${escapeHtml(company)}</p>
+      <p>Contact: ${escapeHtml(contact)}</p>
+      <p>Portal: https://client-portal.mgucatech.com</p>
+      <p>Email: ${escapeHtml(portalEmail)}</p>
+      <p>Temporary password: ${escapeHtml(portalPassword)}</p>
+    </body></html>`;
+  }
+}
+
 async function sendEmail(payload) {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -144,28 +190,30 @@ module.exports = async (req, res) => {
       portalPassword: password,
       request,
     });
+    const starterKitHtml = makeStarterKitHtml({
+      company,
+      contact: request.requester,
+      portalEmail: email,
+      portalPassword: password,
+      request,
+    });
 
     await sendEmail({
       from: 'MgucaTECH <admin@mgucatech.com>',
       to: [email],
       reply_to: 'admin@mgucatech.com',
       subject: 'Your MgucaTECH onboarding has been approved',
-      html: `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;background:#f6f8fb;padding:24px;color:#0f172a;">
-        <div style="max-width:620px;margin:auto;background:#fff;border-radius:12px;padding:28px;border:1px solid #e2e8f0;">
-          <h2 style="margin-top:0;color:#001219;">Welcome to MgucaTECH</h2>
-          <p>Hi ${request.requester},</p>
-          <p>Your onboarding has been approved. Your client portal access is active.</p>
-          <p><strong>Portal:</strong> <a href="https://client-portal.mgucatech.com">https://client-portal.mgucatech.com</a><br>
-          <strong>Email:</strong> ${email}<br>
-          <strong>Temporary password:</strong> ${password}</p>
-          <p>Your starter-kit PDF is attached, including launch steps and projections.</p>
-          <p>Regards,<br>MgucaTECH</p>
-        </div>
-      </body></html>`,
-      attachments: [{
-        filename: `${slugify(company)}-starter-kit.pdf`,
-        content: pdf,
-      }],
+      html: starterKitHtml,
+      attachments: [
+        {
+          filename: `${slugify(company)}-starter-kit.html`,
+          content: Buffer.from(starterKitHtml).toString('base64'),
+        },
+        {
+          filename: `${slugify(company)}-starter-kit-summary.pdf`,
+          content: pdf,
+        },
+      ],
     });
 
     return res.status(200).json({
