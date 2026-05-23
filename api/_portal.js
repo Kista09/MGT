@@ -16,7 +16,9 @@ function makePassword() {
 }
 
 function userPath(email) {
-  return `portal-users/${encodeURIComponent(normalizeEmail(email))}.json`;
+  // Do NOT encode @ — Vercel Blob returns pathnames with @ decoded,
+  // so encoding it causes a %40 vs @ mismatch in list() results.
+  return `portal-users/${normalizeEmail(email)}.json`;
 }
 
 async function savePortalUser(user) {
@@ -30,13 +32,19 @@ async function savePortalUser(user) {
 
 async function readPortalUser(email) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
-  const path = userPath(email);
-  const result = await list({ prefix: path, limit: 1 });
-  const blob = result.blobs.find(item => item.pathname === path);
-  if (!blob) return null;
-  const response = await fetch(blob.url).catch(() => null);
-  if (!response || response.status === 404 || !response.ok) return null;
-  return response.json();
+  const norm = normalizeEmail(email);
+  // Try the current path format first, then the old %40-encoded format
+  // in case the account was saved before this encoding fix.
+  const paths = [`portal-users/${norm}.json`, `portal-users/${encodeURIComponent(norm)}.json`];
+  for (const pathname of paths) {
+    const result = await list({ prefix: pathname, limit: 1 });
+    const blob = result.blobs.find(b => b.pathname === pathname);
+    if (!blob) continue;
+    const response = await fetch(blob.url).catch(() => null);
+    if (!response?.ok) continue;
+    return response.json();
+  }
+  return null;
 }
 
 function makeToken(user) {
