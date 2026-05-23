@@ -46,6 +46,60 @@ function makeStarterKitHtml({ company, contact, portalEmail, portalPassword, req
   }
 }
 
+async function htmlToPdf(html) {
+  const chromium = require('@sparticuz/chromium-min');
+  const puppeteer = require('puppeteer-core');
+
+  const executablePath = await chromium.executablePath(
+    'https://github.com/Sparticuz/chromium/releases/download/v131.0.0/chromium-v131.0.0-pack.tar'
+  );
+
+  // A4 in CSS px at 96 dpi — makes 100vh equal one printed page
+  const A4 = { width: 794, height: 1123 };
+
+  const browser = await puppeteer.launch({
+    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
+    defaultViewport: A4,
+    executablePath,
+    headless: true,
+  });
+
+  try {
+    const page = await browser.newPage();
+
+    // Block Google Fonts to avoid a network round-trip timeout
+    await page.setRequestInterception(true);
+    page.on('request', (req) => {
+      if (req.url().includes('fonts.googleapis.com') || req.url().includes('fonts.gstatic.com')) {
+        req.abort();
+      } else {
+        req.continue();
+      }
+    });
+
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20000 });
+
+    // Enforce clean page breaks and hide the dot-nav
+    await page.addStyleTag({
+      content: `
+        .sidenav { display: none !important; }
+        section { page-break-before: always; min-height: 100vh; }
+        section:first-of-type { page-break-before: avoid; }
+      `,
+    });
+
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
+    });
+
+    return pdfBuffer.toString('base64');
+  } finally {
+    await browser.close();
+  }
+}
+
 function cell(stack, opts = {}) {
   return { border: [false, false, false, false], stack, ...opts };
 }
@@ -392,10 +446,16 @@ module.exports = async (req, res) => {
 
     await savePortalUser(user);
 
-    const [starterKitHtml, pdf] = await Promise.all([
-      Promise.resolve(makeStarterKitHtml({ company, contact: request.requester, portalEmail: email, portalPassword: password, request })),
-      makeStarterKitPdf({ company, contact: request.requester, portalEmail: email, portalPassword: password, request }),
-    ]);
+    const pdfArgs = { company, contact: request.requester, portalEmail: email, portalPassword: password, request };
+    const starterKitHtml = makeStarterKitHtml(pdfArgs);
+
+    let pdf;
+    try {
+      pdf = await htmlToPdf(starterKitHtml);
+    } catch (err) {
+      console.error('HTML→PDF failed, falling back to pdfmake:', err.message);
+      pdf = await makeStarterKitPdf(pdfArgs);
+    }
 
     await sendEmail({
       from: 'MgucaTECH <admin@mgucatech.com>',
