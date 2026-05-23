@@ -50,41 +50,36 @@ async function htmlToPdf(html) {
   const chromium = require('@sparticuz/chromium-min');
   const puppeteer = require('puppeteer-core');
 
-  const executablePath = await chromium.executablePath(
-    'https://github.com/Sparticuz/chromium/releases/download/v131.0.0/chromium-v131.0.0-pack.tar'
-  );
-
-  // A4 in CSS px at 96 dpi — makes 100vh equal one printed page
-  const A4 = { width: 794, height: 1123 };
+  // Use the version baked into the package so the URL never gets out of sync
+  const binaryUrl = `https://github.com/Sparticuz/chromium/releases/download/v${chromium.version}/chromium-v${chromium.version}-pack.tar`;
+  const executablePath = await chromium.executablePath(binaryUrl);
 
   const browser = await puppeteer.launch({
-    args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
-    defaultViewport: A4,
+    args: chromium.args,
+    defaultViewport: { width: 1440, height: 900 },
     executablePath,
-    headless: true,
+    headless: chromium.headless,
   });
 
   try {
     const page = await browser.newPage();
 
-    // Block Google Fonts to avoid a network round-trip timeout
-    await page.setRequestInterception(true);
-    page.on('request', (req) => {
-      if (req.url().includes('fonts.googleapis.com') || req.url().includes('fonts.gstatic.com')) {
-        req.abort();
-      } else {
-        req.continue();
-      }
-    });
+    // Load the HTML and wait for Google Fonts — they are what make the PDF
+    // look identical to the reference (Cormorant Garamond + DM Sans).
+    await page.setContent(html, { waitUntil: 'networkidle2', timeout: 30000 });
 
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 20000 });
-
-    // Enforce clean page breaks and hide the dot-nav
+    // Print overrides: accurate background colours, hide nav, clean page breaks
     await page.addStyleTag({
       content: `
+        *, *::before, *::after {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
         .sidenav { display: none !important; }
-        section { page-break-before: always; min-height: 100vh; }
-        section:first-of-type { page-break-before: avoid; }
+        @media print {
+          section { page-break-before: always; }
+          section:first-of-type { page-break-before: avoid; }
+        }
       `,
     });
 
@@ -450,10 +445,12 @@ module.exports = async (req, res) => {
     const starterKitHtml = makeStarterKitHtml(pdfArgs);
 
     let pdf;
+    let pdfMethod = 'puppeteer';
     try {
       pdf = await htmlToPdf(starterKitHtml);
     } catch (err) {
-      console.error('HTML→PDF failed, falling back to pdfmake:', err.message);
+      pdfMethod = `pdfmake-fallback(${err.message})`;
+      console.error('HTML→PDF failed:', err.message);
       pdf = await makeStarterKitPdf(pdfArgs);
     }
 
@@ -471,6 +468,7 @@ module.exports = async (req, res) => {
 
     return res.status(200).json({
       success: true,
+      pdfMethod,
       portalUser: { email: user.email, clientId: user.clientId, clientName: user.clientName, plan: user.plan },
     });
   } catch (error) {
