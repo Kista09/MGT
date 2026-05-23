@@ -36,10 +36,12 @@ function priorityStyle(priority) {
 
 function requestStatusStyle(status) {
   if (status === "Resolved" || status === "Closed") return pill(C.success, C.successBg);
-  if (status === "Approved") return pill(C.success, C.successBg);
+  if (status === "Approved" || status === "Live") return pill(C.success, C.successBg);
+  if (status === "Needs Attention") return pill("#fff", C.red);
+  if (status === "In Setup" || status === "Proposal Sent") return pill(C.accent, C.accentBg);
   if (status === "In Progress") return pill(C.blue, C.blueBg);
   if (status === "Waiting on Client") return pill(C.yellow, C.yellowBg);
-  if (status === "Triaged") return pill(C.purple, C.purpleBg);
+  if (status === "Triaged" || status === "Qualified") return pill(C.purple, C.purpleBg);
   return pill(C.accent, C.accentBg);
 }
 
@@ -299,10 +301,17 @@ export default function ServiceRequests() {
   const overdue = openRequests.filter(request => daysUntil(request.dueDate) < 0).length;
   const critical = openRequests.filter(request => request.priority === "Critical").length;
   const waiting = requests.filter(request => request.status === "Waiting on Client").length;
+  const inSetup = requests.filter(request => ["Approved", "In Setup"].includes(request.status)).length;
+  const attention = requests.filter(request => request.status === "Needs Attention").length;
 
   const tabs = [
     { id:"Open", label:"Open", count:openRequests.length },
     { id:"New", label:"New", count:requests.filter(r => r.status === "New").length },
+    { id:"Qualified", label:"Qualified", count:requests.filter(r => r.status === "Qualified").length },
+    { id:"Proposal Sent", label:"Proposal", count:requests.filter(r => r.status === "Proposal Sent").length },
+    { id:"In Setup", label:"Setup", count:inSetup },
+    { id:"Live", label:"Live", count:requests.filter(r => r.status === "Live").length },
+    { id:"Needs Attention", label:"Attention", count:attention },
     { id:"Critical", label:"Critical", count:critical },
     { id:"Overdue", label:"Overdue", count:overdue },
     { id:"Waiting", label:"Waiting", count:waiting },
@@ -319,6 +328,7 @@ export default function ServiceRequests() {
           queue === "All" ||
           (queue === "Open" && !["Resolved", "Closed"].includes(request.status)) ||
           (queue === "Critical" && request.priority === "Critical") ||
+          (queue === "In Setup" && ["Approved", "In Setup"].includes(request.status)) ||
           (queue === "Overdue" && !["Resolved", "Closed"].includes(request.status) && daysUntil(request.dueDate) < 0) ||
           (queue === "Waiting" && request.status === "Waiting on Client") ||
           request.status === queue;

@@ -52,6 +52,7 @@ export const STAGE_CONFIG = {
 };
 
 export const NAV_ITEMS = [
+  { id: "today",     icon: "T",  label: "Today" },
   { id: "dashboard", icon: "D",  label: "Executive" },
   { id: "clients",   icon: "R",  label: "Relationships" },
   { id: "pipeline",  icon: "M",  label: "Mandates" },
@@ -65,7 +66,7 @@ export const NAV_ITEMS = [
 export const NAV_GROUPS = [
   {
     label: "Workspace",
-    items: NAV_ITEMS.filter(item => ["dashboard", "clients", "pipeline"].includes(item.id)),
+    items: NAV_ITEMS.filter(item => ["today", "dashboard", "clients", "pipeline"].includes(item.id)),
   },
   {
     label: "Consultant",
@@ -86,7 +87,20 @@ export const TASK_PRIORITIES = ["High", "Medium", "Low"];
 export const TASK_STATUSES = ["Open", "In Progress", "Done"];
 export const REQUEST_CATEGORIES = ["Reporting", "Portfolio Review", "Compliance", "Operations", "Billing", "Technical", "Other"];
 export const REQUEST_PRIORITIES = ["Critical", "High", "Medium", "Low"];
-export const REQUEST_STATUSES = ["New", "Approved", "Triaged", "In Progress", "Waiting on Client", "Resolved", "Closed"];
+export const REQUEST_STATUSES = [
+  "New",
+  "Qualified",
+  "Proposal Sent",
+  "Approved",
+  "In Setup",
+  "Live",
+  "Needs Attention",
+  "Triaged",
+  "In Progress",
+  "Waiting on Client",
+  "Resolved",
+  "Closed",
+];
 export const INDUSTRIES = [
   "Retail","Grocery","Sports","E-Commerce","Financial Services",
   "Logistics","Transport","Banking","Healthcare","SaaS","Hospitality",

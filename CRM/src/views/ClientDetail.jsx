@@ -34,12 +34,47 @@ export default function ClientDetail({ clientId }) {
   );
 
   const clientBots = state.bots.filter(b => b.client === client.name);
+  const clientRequests = (state.serviceRequests ?? [])
+    .filter(request => request.clientId === client.id)
+    .sort((a, b) => String(b.receivedAt ?? "").localeCompare(String(a.receivedAt ?? "")));
+  const clientBilling = (state.billing ?? [])
+    .filter(invoice => invoice.clientId === client.id)
+    .sort((a, b) => String(a.dueDate).localeCompare(String(b.dueDate)));
   const clientTasks = state.tasks
     .filter(task => task.clientId === client.id && task.status !== "Done")
     .sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   const health     = clientHealthScore(client, state.bots);
   const tenure     = tenureMonths(client.joined);
   const pc         = PLAN_COLORS[client.plan];
+  const unpaid = clientBilling
+    .filter(invoice => ["Due", "Overdue"].includes(invoice.status))
+    .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+  const timeline = [
+    ...clientRequests.map(request => ({
+      id: `request-${request.id}`,
+      date: request.receivedAt?.slice(0, 10) ?? request.dueDate,
+      label: `Request ${request.status}`,
+      detail: request.subject,
+    })),
+    ...clientTasks.map(task => ({
+      id: `task-${task.id}`,
+      date: task.dueDate,
+      label: `Follow-up ${task.status}`,
+      detail: task.title,
+    })),
+    ...clientBots.map(bot => ({
+      id: `bot-${bot.id}`,
+      date: bot.deployedAt,
+      label: `Bot ${bot.status}`,
+      detail: bot.name,
+    })),
+    ...clientBilling.map(invoice => ({
+      id: `invoice-${invoice.id}`,
+      date: invoice.dueDate,
+      label: `Invoice ${invoice.status}`,
+      detail: `${invoice.type} - ${fmt$(invoice.amount)}`,
+    })),
+  ].filter(item => item.date).sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 8);
 
   const openEdit = () => { setForm({ ...client, mrr: String(client.mrr) }); setErrors({}); setEditOpen(true); };
 
@@ -139,6 +174,7 @@ export default function ClientDetail({ clientId }) {
           <div style={{ display:"flex", gap:20, flexWrap:"wrap" }}>
             {[
               { label:"MRR", value:fmt$(client.mrr), color: client.mrr > 0 ? C.accent : C.muted },
+              { label:"Unpaid", value:fmt$(unpaid), color: unpaid ? C.red : C.muted },
               { label:"Bots", value:clientBots.length, color:C.blue },
               { label:"Health", value:health, color:healthColor(health) },
             ].map(m => (
@@ -201,10 +237,68 @@ export default function ClientDetail({ clientId }) {
               );
             })}
           </div>
+
+          <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"20px 24px" }}>
+            <div style={{ fontSize:11, color:C.muted, fontWeight:600, letterSpacing:.6, textTransform:"uppercase", marginBottom:16 }}>
+              Client Timeline
+            </div>
+            {timeline.length === 0 ? (
+              <div style={{ color:C.muted, fontSize:13 }}>No client activity yet.</div>
+            ) : timeline.map(item => (
+              <div key={item.id} style={{ display:"grid", gridTemplateColumns:"82px 1fr", gap:12,
+                padding:"10px 0", borderBottom:`1px solid ${C.border}` }}>
+                <div style={{ color:C.muted, fontSize:11, fontFamily:font.mono }}>{formatDateShort(item.date)}</div>
+                <div>
+                  <div style={{ fontSize:12, color:C.accent, fontWeight:800 }}>{item.label}</div>
+                  <div style={{ fontSize:13, color:C.text, lineHeight:1.4 }}>{item.detail}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* right col: notes */}
         <div style={{ flex:1.2, minWidth:260, display:"flex", flexDirection:"column", gap:20 }}>
+          <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"20px 24px" }}>
+            <div style={{ fontSize:11, color:C.muted, fontWeight:600, letterSpacing:.6, textTransform:"uppercase", marginBottom:16 }}>
+              Billing
+            </div>
+            {clientBilling.length === 0 ? (
+              <div style={{ color:C.muted, fontSize:12, textAlign:"center", padding:12 }}>No invoices tracked.</div>
+            ) : clientBilling.map(invoice => (
+              <div key={invoice.id} style={{ background:C.surface, border:`1px solid ${C.border}`,
+                borderRadius:8, padding:"12px 14px", marginBottom:10 }}>
+                <div style={{ display:"flex", justifyContent:"space-between", gap:10 }}>
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:800 }}>{invoice.type}</div>
+                    <div style={{ color:C.muted, fontSize:11, marginTop:3 }}>{invoice.reference} - Due {formatDateShort(invoice.dueDate)}</div>
+                  </div>
+                  <div style={{ textAlign:"right" }}>
+                    <div style={{ color:invoice.status === "Overdue" ? C.red : C.text, fontFamily:font.mono, fontWeight:900 }}>{fmt$(invoice.amount)}</div>
+                    <div style={{ color:invoice.status === "Paid" ? C.success : invoice.status === "Overdue" ? C.red : C.yellow, fontSize:11, fontWeight:800 }}>{invoice.status}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"20px 24px" }}>
+            <div style={{ fontSize:11, color:C.muted, fontWeight:600, letterSpacing:.6, textTransform:"uppercase", marginBottom:16 }}>
+              Onboarding Progress
+            </div>
+            {["Approved", "Portal Created", "Assets Received", "Bot Configured", "Testing", "Live"].map((step, index) => {
+              const request = clientRequests.find(item => item.source === "onboarding" || item.portalGranted || item.status === "Approved");
+              const active = request?.status === "Live" ? 6 : request?.portalGranted ? 2 : request?.status === "Approved" ? 1 : 0;
+              return (
+                <div key={step} style={{ display:"flex", gap:10, alignItems:"center", marginBottom:10 }}>
+                  <div style={{ width:18, height:18, borderRadius:99, background:index < active ? C.accent : C.subtle,
+                    border:`1px solid ${index < active ? C.accent : C.border}` }} />
+                  <div style={{ color:index < active ? C.text : C.muted, fontSize:13, fontWeight:index < active ? 800 : 500 }}>{step}</div>
+                </div>
+              );
+            })}
+          </div>
+
           <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:12, padding:"20px 24px" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
               <div style={{ fontSize:11, color:C.muted, fontWeight:600, letterSpacing:.6, textTransform:"uppercase" }}>

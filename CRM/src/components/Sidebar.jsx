@@ -1,5 +1,6 @@
 import { C, NAV_GROUPS, font } from "../constants";
 import { useApp } from "../context";
+import { buildPriorityQueue } from "../utils";
 
 export default function Sidebar() {
   const { state, dispatch, navigate } = useApp();
@@ -15,6 +16,7 @@ export default function Sidebar() {
     ["Warning", "Offline"].includes(bot.status) || (bot.errorRate ?? 0) > 0.1
   );
   const attentionCounts = {
+    today: buildPriorityQueue(state).length,
     requests: openRequests.length,
     followups: urgentFollowUps.length,
     bots: operationsAttention.length,
@@ -73,7 +75,7 @@ export default function Sidebar() {
             </div>
             {group.items.map(item => {
               const active = view === item.id || (view === "client-detail" && item.id === "clients");
-              const count = group.label === "Consultant" ? attentionCounts[item.id] : 0;
+              const count = attentionCounts[item.id] ?? 0;
               return (
                 <button key={item.id} type="button" onClick={() => navigate(item.id)}
                   style={{ width:"100%", display:"flex", alignItems:"center", gap:12,

@@ -3,7 +3,7 @@ import { C, font } from "../constants";
 import { useApp } from "../context";
 import { inputStyle, selectStyle } from "../components/Modal";
 import SegmentTabs from "../components/SegmentTabs";
-import { exportCSV } from "../utils";
+import { exportCSV, fmt$ } from "../utils";
 
 function Section({ title, children }) {
   return (
@@ -68,6 +68,10 @@ export default function Settings() {
       clients:  state.clients,
       pipeline: state.pipeline,
       bots:     state.bots,
+      tasks:    state.tasks,
+      serviceRequests: state.serviceRequests,
+      billing:  state.billing,
+      auditLog: state.auditLog,
       exportedAt: new Date().toISOString(),
     }, null, 2);
     const blob = new Blob([data], { type:"application/json" });
@@ -110,6 +114,9 @@ export default function Settings() {
           { id:"Profile", label:"Profile" },
           { id:"Workspace", label:"Workspace" },
           { id:"Notifications", label:"Notifications", count:Object.values(settings.notifications).filter(Boolean).length },
+          { id:"Billing", label:"Billing", count:(state.billing ?? []).filter(i => i.status !== "Paid").length },
+          { id:"Roles", label:"Roles" },
+          { id:"Audit", label:"Audit", count:(state.auditLog ?? []).length },
           { id:"Data", label:"Data" },
           { id:"About", label:"About" },
         ]}
@@ -176,9 +183,53 @@ export default function Settings() {
           <Row label="Invoice & MRR" desc="Payment confirmations and MRR changes">
             <Toggle value={settings.notifications.invoices} onChange={setNotif("invoices")} />
           </Row>
+          <Row label="Service Requests" desc="New client requests and onboarding approvals">
+            <Toggle value={settings.notifications.serviceRequests} onChange={setNotif("serviceRequests")} />
+          </Row>
+          <Row label="Follow-ups" desc="Due and overdue consultant actions">
+            <Toggle value={settings.notifications.followUps} onChange={setNotif("followUps")} />
+          </Row>
           <Row label="Weekly Report" desc="Summary digest every Monday">
             <Toggle value={settings.notifications.weeklyReport} onChange={setNotif("weeklyReport")} />
           </Row>
+        </Section>}
+
+        {sectionTab === "Billing" && <Section title="South African Billing">
+          {(state.billing ?? []).map(invoice => {
+            const client = state.clients.find(item => item.id === invoice.clientId);
+            return (
+              <Row key={invoice.id} label={`${client?.name ?? "Unknown client"} - ${invoice.type}`} desc={`${invoice.reference} - due ${invoice.dueDate}`}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ color:invoice.status === "Overdue" ? C.red : C.text, fontFamily:font.mono, fontWeight:800 }}>{fmt$(invoice.amount)}</span>
+                  <select value={invoice.status} onChange={event => dispatch({ type:"UPDATE_BILLING", invoice:{ ...invoice, status:event.target.value, paidAt:event.target.value === "Paid" ? new Date().toISOString().slice(0, 10) : invoice.paidAt } })}
+                    style={{ ...selectStyle, width:110 }}>
+                    {["Draft", "Due", "Paid", "Overdue"].map(status => <option key={status}>{status}</option>)}
+                  </select>
+                </div>
+              </Row>
+            );
+          })}
+        </Section>}
+
+        {sectionTab === "Roles" && <Section title="Role Permissions">
+          {[
+            ["Executive", "View Today, Executive, Analytics, relationships, and revenue."],
+            ["Consultant", "Own Requests, Follow-ups, onboarding progress, and client communication."],
+            ["Operations", "Own Operations incidents, runbooks, bot status, and technical recovery."],
+            ["Client", "Use the Client Portal only: dashboards, credentials, requests, and support."],
+          ].map(([role, desc]) => (
+            <Row key={role} label={role} desc={desc}>
+              <span style={{ fontSize:12, color:C.muted, fontWeight:800 }}>Defined</span>
+            </Row>
+          ))}
+        </Section>}
+
+        {sectionTab === "Audit" && <Section title="Audit Log">
+          {(state.auditLog ?? []).slice(0, 30).map(item => (
+            <Row key={item.id} label={item.action} desc={`${item.target} - ${new Date(item.time).toLocaleString("en-ZA")}`}>
+              <span style={{ fontSize:12, color:C.muted, fontWeight:800 }}>{item.actor}</span>
+            </Row>
+          ))}
         </Section>}
 
         {/* Data */}
@@ -192,6 +243,9 @@ export default function Settings() {
             <button onClick={handleExportAll}
               style={{ background:C.subtle, border:`1px solid ${C.border}`, color:C.text,
                 borderRadius:8, padding:"7px 16px", fontSize:12, fontWeight:600, cursor:"pointer" }}>↓ JSON</button>
+          </Row>
+          <Row label="Storage Readiness" desc="Current CRM persists in this browser. Use a managed database before adding more team members.">
+            <span style={{ color:C.yellow, fontSize:12, fontWeight:800 }}>Database recommended</span>
           </Row>
           <Row label="Reset to Defaults" desc="Clear all data and restore sample dataset">
             <button onClick={handleReset}

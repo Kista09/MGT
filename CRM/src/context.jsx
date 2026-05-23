@@ -37,6 +37,16 @@ function getInitial() {
         pipeline: normalizePipeline(parsed.pipeline ?? INITIAL_STATE.pipeline),
         tasks: parsed.tasks ?? INITIAL_STATE.tasks,
         serviceRequests: parsed.serviceRequests ?? INITIAL_STATE.serviceRequests,
+        billing: parsed.billing ?? INITIAL_STATE.billing,
+        auditLog: parsed.auditLog ?? INITIAL_STATE.auditLog,
+        settings: {
+          ...INITIAL_STATE.settings,
+          ...(parsed.settings ?? {}),
+          notifications: {
+            ...INITIAL_STATE.settings.notifications,
+            ...(parsed.settings?.notifications ?? {}),
+          },
+        },
         toasts: [],
         nav: { view: "dashboard", clientId: null },
         commandPaletteOpen: false,
@@ -48,6 +58,20 @@ function getInitial() {
 
 function addToActivity(activity, item) {
   return [{ id: generateId(), ...item }, ...activity].slice(0, 60);
+}
+
+function auditItem(state, action, target, actor = state.user?.name ?? "System") {
+  return {
+    id: generateId(),
+    time: new Date().toISOString(),
+    actor,
+    action,
+    target,
+  };
+}
+
+function addAudit(state, action, target) {
+  return [auditItem(state, action, target), ...(state.auditLog ?? [])].slice(0, 120);
 }
 
 function reducer(state, action) {
@@ -70,6 +94,7 @@ function reducer(state, action) {
         ...state,
         clients: [...state.clients, client],
         activity: addToActivity(state.activity, { time: "Just now", icon: "👤", text: `New client added — ${client.name}` }),
+        auditLog: addAudit(state, "Client created", client.name),
       };
     }
     case "UPDATE_CLIENT":
@@ -77,6 +102,7 @@ function reducer(state, action) {
         ...state,
         clients: state.clients.map(c => c.id === action.client.id ? { ...c, ...action.client } : c),
         activity: addToActivity(state.activity, { time: "Just now", icon: "✏️", text: `Client updated — ${action.client.name}` }),
+        auditLog: addAudit(state, "Client updated", action.client.name),
       };
     case "DELETE_CLIENT": {
       const c = state.clients.find(x => x.id === action.id);
@@ -86,6 +112,7 @@ function reducer(state, action) {
         tasks: state.tasks.filter(t => t.clientId !== action.id),
         serviceRequests: state.serviceRequests.filter(request => request.clientId !== action.id),
         activity: addToActivity(state.activity, { time: "Just now", icon: "🗑️", text: `Client removed — ${c?.name ?? ""}` }),
+        auditLog: addAudit(state, "Client deleted", c?.name ?? String(action.id)),
       };
     }
     case "ADD_CLIENT_NOTE":
@@ -151,6 +178,7 @@ function reducer(state, action) {
         ...state,
         tasks: [task, ...state.tasks],
         activity: addToActivity(state.activity, { time: "Just now", icon: "!", text: `Follow-up added — ${client?.name ?? task.title}` }),
+        auditLog: addAudit(state, "Follow-up created", task.title),
       };
     }
     case "UPDATE_TASK":
@@ -169,6 +197,7 @@ function reducer(state, action) {
         ...state,
         tasks: state.tasks.map(t => t.id === action.id ? { ...t, status: "Done" } : t),
         activity: addToActivity(state.activity, { time: "Just now", icon: "✓", text: `Follow-up completed — ${task?.title ?? ""}` }),
+        auditLog: addAudit(state, "Follow-up completed", task?.title ?? String(action.id)),
       };
     }
 
@@ -192,6 +221,7 @@ function reducer(state, action) {
           read: false,
         }, ...state.notifications].slice(0, 50),
         activity: addToActivity(state.activity, { time: "Just now", icon: "!", text: `Service request received - ${request.subject}` }),
+        auditLog: addAudit(state, "Service request received", request.subject),
       };
     }
     case "IMPORT_SERVICE_REQUESTS": {
@@ -222,6 +252,10 @@ function reducer(state, action) {
           icon: "!",
           text: `Onboarding request imported - ${request.company ?? request.subject}`,
         }), state.activity),
+        auditLog: imported.reduce((auditLog, request) => [
+          auditItem(state, "Onboarding request imported", request.company ?? request.subject),
+          ...auditLog,
+        ], state.auditLog ?? []).slice(0, 120),
       };
     }
     case "UPDATE_SERVICE_REQUEST":
@@ -230,11 +264,13 @@ function reducer(state, action) {
         serviceRequests: state.serviceRequests.map(request =>
           request.id === action.request.id ? { ...request, ...action.request } : request
         ),
+        auditLog: addAudit(state, `Service request set to ${action.request.status ?? "updated"}`, action.request.subject ?? action.request.id),
       };
     case "DELETE_SERVICE_REQUEST":
       return {
         ...state,
         serviceRequests: state.serviceRequests.filter(request => request.id !== action.id),
+        auditLog: addAudit(state, "Service request deleted", String(action.id)),
       };
 
     case "ADD_BOT": {
@@ -243,18 +279,31 @@ function reducer(state, action) {
         ...state,
         bots: [...state.bots, bot],
         activity: addToActivity(state.activity, { time: "Just now", icon: "🤖", text: `Bot deployed — ${bot.name} (${bot.client})` }),
+        auditLog: addAudit(state, "Bot deployed", `${bot.client} - ${bot.name}`),
       };
     }
     case "UPDATE_BOT":
-      return { ...state, bots: state.bots.map(b => b.id === action.bot.id ? { ...b, ...action.bot } : b) };
+      return {
+        ...state,
+        bots: state.bots.map(b => b.id === action.bot.id ? { ...b, ...action.bot } : b),
+        auditLog: addAudit(state, "Bot updated", `${action.bot.client} - ${action.bot.name}`),
+      };
     case "DELETE_BOT": {
       const b = state.bots.find(x => x.id === action.id);
       return {
         ...state,
         bots: state.bots.filter(x => x.id !== action.id),
         activity: addToActivity(state.activity, { time: "Just now", icon: "🗑️", text: `Bot removed — ${b?.name ?? ""}` }),
+        auditLog: addAudit(state, "Bot removed", b?.name ?? String(action.id)),
       };
     }
+
+    case "UPDATE_BILLING":
+      return {
+        ...state,
+        billing: state.billing.map(invoice => invoice.id === action.invoice.id ? { ...invoice, ...action.invoice } : invoice),
+        auditLog: addAudit(state, `Invoice set to ${action.invoice.status}`, action.invoice.reference ?? action.invoice.id),
+      };
 
     /* ── Toasts ──────────────────────────────────────────────── */
     case "ADD_TOAST":

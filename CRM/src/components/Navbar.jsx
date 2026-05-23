@@ -1,6 +1,7 @@
 import { C, NAV_ITEMS, font } from "../constants";
 import { useApp } from "../context";
 import NotificationBell from "./NotificationBell";
+import { buildPriorityQueue } from "../utils";
 
 function getPageTitle(view, clientId, clients) {
   if (view === "client-detail") {
@@ -26,6 +27,7 @@ export default function Navbar() {
   const warningBots = state.bots.filter(bot => bot.status === "Warning").length;
   const activeClients = state.clients.filter(client => client.status === "Active").length;
   const openRequests = (state.serviceRequests ?? []).filter(request => !["Resolved", "Closed"].includes(request.status)).length;
+  const priorityQueue = buildPriorityQueue(state);
 
   return (
     <header
@@ -119,6 +121,22 @@ export default function Navbar() {
       </div>
 
       <nav style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => navigate("today")}
+          style={{
+            background: priorityQueue.length ? C.accentBg : C.card,
+            border: `1px solid ${priorityQueue.length ? C.accent : C.border}`,
+            borderRadius: 6,
+            color: priorityQueue.length ? C.accent : C.muted,
+            cursor: "pointer",
+            fontSize: 12,
+            fontWeight: 700,
+            padding: "8px 12px",
+          }}
+        >
+          {priorityQueue.length} tend first
+        </button>
         <button
           type="button"
           onClick={() => navigate("clients")}

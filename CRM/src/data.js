@@ -91,6 +91,19 @@ export const INITIAL_SERVICE_REQUESTS = [
   { id:"sr3", clientId:10, requester:"Rina Botha", email:"rina@finwise.co.za", category:"Portfolio Review", priority:"Medium", status:"In Progress", subject:"Trial onboarding review session", description:"Requesting a 30-minute review of first-week adoption and next actions.", receivedAt:"2026-05-21T13:20:00Z", dueDate:"2026-05-27", owner:"Admin", channel:"Client Portal", notes:"Attach activation metrics." },
 ];
 
+export const INITIAL_BILLING = [
+  { id:"inv1", clientId:4, type:"Monthly retainer", amount:73500, status:"Paid", dueDate:"2026-05-25", paidAt:"2026-05-22", reference:"MGT-2026-051" },
+  { id:"inv2", clientId:5, type:"Monthly retainer", amount:64000, status:"Due", dueDate:"2026-05-24", paidAt:null, reference:"MGT-2026-052" },
+  { id:"inv3", clientId:10, type:"Setup fee", amount:3500, status:"Overdue", dueDate:"2026-05-20", paidAt:null, reference:"MGT-2026-053" },
+  { id:"inv4", clientId:6, type:"Trial conversion", amount:18500, status:"Draft", dueDate:"2026-05-28", paidAt:null, reference:"MGT-2026-054" },
+];
+
+export const INITIAL_AUDIT_LOG = [
+  { id:"audit1", time:"2026-05-22T08:10:00Z", actor:"Admin", action:"Service request imported", target:"KasiPay - FICA Helper latency investigation" },
+  { id:"audit2", time:"2026-05-22T09:30:00Z", actor:"Admin", action:"Follow-up created", target:"Review FICA Helper latency incident" },
+  { id:"audit3", time:"2026-05-22T10:15:00Z", actor:"System", action:"Operations alert raised", target:"KasiPay - FICA Helper" },
+];
+
 export const INITIAL_SETTINGS = {
   currency: "ZAR",
   timezone: "Africa/Johannesburg",
@@ -101,6 +114,8 @@ export const INITIAL_SETTINGS = {
     dealUpdates: true,
     invoices: true,
     weeklyReport: false,
+    serviceRequests: true,
+    followUps: true,
   },
 };
 
@@ -119,6 +134,8 @@ export const INITIAL_STATE = {
   msgData: MSG_DATA,
   activity: INITIAL_ACTIVITY,
   notifications: INITIAL_NOTIFICATIONS,
+  billing: INITIAL_BILLING,
+  auditLog: INITIAL_AUDIT_LOG,
   tasks: INITIAL_TASKS,
   serviceRequests: INITIAL_SERVICE_REQUESTS,
   toasts: [],

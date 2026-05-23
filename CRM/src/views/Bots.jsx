@@ -5,6 +5,12 @@ import Modal, { FormRow, inputStyle, selectStyle } from "../components/Modal";
 import SegmentTabs from "../components/SegmentTabs";
 
 const BLANK = { name:"", client:"", type:"Support", lang:"English", status:"Online" };
+const RUNBOOKS = [
+  { title:"Bot offline", match:b => b.status === "Offline", steps:["Confirm provider status page", "Check WhatsApp webhook delivery", "Restart bot worker", "Notify client with ETA"] },
+  { title:"High error rate", match:b => (b.errorRate ?? 0) > 0.1, steps:["Open failed conversation samples", "Check recent flow changes", "Patch failing intent or API call", "Retest top 5 client journeys"] },
+  { title:"Latency spike", match:b => b.avgResponseMs > 500 || b.uptime < 98.5, steps:["Check response-time trend", "Review upstream API latency", "Escalate hosting issue", "Send incident summary"] },
+  { title:"Client cannot log in", match:b => b.type === "Support", steps:["Verify portal account", "Reset temporary password", "Confirm CORS/session cookie", "Ask client to retry"] },
+];
 
 function validate(f) {
   const e = {};
@@ -91,6 +97,10 @@ export default function Bots() {
     ];
   }, [bots]);
 
+  const activeIncidents = bots.filter(bot =>
+    ["Warning", "Offline"].includes(bot.status) || (bot.errorRate ?? 0) > 0.1 || bot.avgResponseMs > 500 || bot.uptime < 98.5
+  );
+
   const openAdd  = () => { setForm(BLANK); setErrors({}); setAddOpen(true); };
   const openEdit = (b) => { setForm({ name:b.name, client:b.client, type:b.type, lang:b.lang, status:b.status }); setErrors({}); setEditBot(b); };
 
@@ -133,6 +143,44 @@ export default function Bots() {
       </div>
 
       <SegmentTabs tabs={opsTabs} value={opsSegment} onChange={setOpsSegment} />
+
+      <div style={{ display:"grid", gridTemplateColumns:"minmax(280px,1fr) minmax(280px,1fr)", gap:14, margin:"10px 0 22px" }}>
+        <section style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:18 }}>
+          <div style={{ fontSize:11, color:C.muted, fontWeight:900, letterSpacing:.7, textTransform:"uppercase", marginBottom:12 }}>
+            Operations runbook
+          </div>
+          {RUNBOOKS.map(runbook => {
+            const count = bots.filter(runbook.match).length;
+            return (
+              <div key={runbook.title} style={{ display:"grid", gridTemplateColumns:"120px 1fr auto", gap:12,
+                padding:"10px 0", borderBottom:`1px solid ${C.border}`, alignItems:"start" }}>
+                <div style={{ color:count ? C.red : C.text, fontSize:13, fontWeight:800 }}>{runbook.title}</div>
+                <div style={{ color:C.muted, fontSize:12, lineHeight:1.55 }}>{runbook.steps.join(" -> ")}</div>
+                <div style={{ color:count ? C.red : C.muted, fontFamily:font.mono, fontWeight:900 }}>{count}</div>
+              </div>
+            );
+          })}
+        </section>
+        <section style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:18 }}>
+          <div style={{ fontSize:11, color:C.muted, fontWeight:900, letterSpacing:.7, textTransform:"uppercase", marginBottom:12 }}>
+            Incidents to tend first
+          </div>
+          {activeIncidents.length === 0 ? (
+            <div style={{ color:C.muted, fontSize:13 }}>No active operations incidents.</div>
+          ) : activeIncidents.slice(0, 4).map(bot => (
+            <div key={bot.id} style={{ display:"flex", justifyContent:"space-between", gap:12,
+              padding:"10px 0", borderBottom:`1px solid ${C.border}` }}>
+              <div>
+                <div style={{ fontSize:13, fontWeight:800 }}>{bot.client} - {bot.name}</div>
+                <div style={{ color:C.muted, fontSize:12, marginTop:3 }}>
+                  {bot.status} - {bot.avgResponseMs}ms avg - {bot.errorRate ?? 0}% errors
+                </div>
+              </div>
+              <span style={{ color:bot.status === "Offline" ? C.red : C.yellow, fontSize:11, fontWeight:900 }}>{bot.status}</span>
+            </div>
+          ))}
+        </section>
+      </div>
 
       {/* filters */}
       <div style={{ display:"flex", gap:12, marginBottom:24, flexWrap:"wrap" }}>

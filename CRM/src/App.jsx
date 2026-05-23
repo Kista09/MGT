@@ -7,6 +7,7 @@ import Sidebar from "./components/Sidebar";
 import Navbar from "./components/Navbar";
 import Toasts from "./components/Toast";
 import CommandPalette from "./components/CommandPalette";
+import Today       from "./views/Today";
 import Dashboard   from "./views/Dashboard";
 import Clients     from "./views/Clients";
 import ClientDetail from "./views/ClientDetail";
@@ -37,6 +38,7 @@ function AppInner({ onLogout }) {
   }, [dispatch]);
 
   const views = {
+    today:          <Today />,
     dashboard:      <Dashboard />,
     clients:        <Clients />,
     "client-detail":<ClientDetail clientId={clientId} />,
