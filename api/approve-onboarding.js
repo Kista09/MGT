@@ -73,6 +73,7 @@ function makeStarterKitHtml({ company, contact, portalEmail, portalPassword, req
 
 function makeStarterKitPdfFromDesignedFile() {
   const pdfPath = path.join(__dirname, '..', 'files', 'organicsmith-starter-kit.pdf');
+  if (!fs.existsSync(pdfPath)) return null;
   return fs.readFileSync(pdfPath).toString('base64');
 }
 
@@ -729,8 +730,14 @@ module.exports = async (req, res) => {
       pdf = await htmlToPdf(starterKitHtml);
     } catch (puppeteerErr) {
       console.error('Puppeteer failed:', puppeteerErr.message);
-      pdfMethod = 'designed-file';
       pdf = makeStarterKitPdfFromDesignedFile();
+      if (pdf) {
+        pdfMethod = 'designed-file';
+      } else {
+        console.error('Designed starter kit PDF missing, using pdfmake fallback');
+        pdfMethod = 'pdfmake';
+        pdf = await makeStarterKitPdf(pdfArgs);
+      }
     }
 
     await sendEmail({

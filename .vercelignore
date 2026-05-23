@@ -7,3 +7,8 @@ node_modules
 dist
 .env
 .env.local
+
+!files/
+files/*
+!files/organicsmith-starter-kit.html
+!files/organicsmith-starter-kit.pdf
