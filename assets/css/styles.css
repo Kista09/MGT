@@ -203,7 +203,7 @@ body.light-theme .header.scrolled {
 .nav__list {
   display: flex;
   align-items: center;
-  gap: 2.5rem;
+  gap: 1.45rem;
 }
 
 .nav__link {
