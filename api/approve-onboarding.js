@@ -143,46 +143,56 @@ async function htmlToPdf(html) {
   }
 }
 
-function cell(stack, opts = {}) {
+// pdfmake table-cell helper: no borders, optional extra opts
+function tc(stack, opts = {}) {
   return { border: [false, false, false, false], stack, ...opts };
+}
+
+// Single-cell borderless table acting as a coloured card
+function card(stack, fillColor, padding = 18) {
+  return {
+    table: { widths: ['*'], body: [[tc(stack, { fillColor, margin: [padding, padding, padding, padding] })]] },
+  };
 }
 
 function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, request }) {
   const PdfPrinter = require('pdfmake');
 
   let fonts;
-  let fontName = 'Roboto';
+  // ── Fonts: prefer Cormorant Garamond + DM Sans downloaded to files/fonts/
+  const fontsDir = path.join(__dirname, '..', 'files', 'fonts');
+  let hF = 'CormorantGaramond', bF = 'DMSans';
   try {
-    const vfsModule = require('pdfmake/build/vfs_fonts');
-    const vfs = (vfsModule.pdfMake || {}).vfs || vfsModule.vfs || {};
-    const fontBuf = name => {
-      const raw = vfs[name];
-      if (!raw) throw new Error(`pdfmake vfs missing font: ${name}`);
-      return Buffer.from(raw, 'base64');
-    };
+    const need = ['CG-0.ttf','CG-1.ttf','CG-2.ttf','CG-3.ttf','DM-0.ttf','DM-1.ttf','DM-2.ttf'];
+    need.forEach(f => { if (!fs.existsSync(path.join(fontsDir, f))) throw new Error(`Missing ${f}`); });
     fonts = {
-      Roboto: {
-        normal:      fontBuf('Roboto-Regular.ttf'),
-        bold:        fontBuf('Roboto-Medium.ttf'),
-        italics:     fontBuf('Roboto-Italic.ttf'),
-        bolditalics: fontBuf('Roboto-MediumItalic.ttf'),
+      CormorantGaramond: {
+        normal:      path.join(fontsDir, 'CG-2.ttf'),
+        bold:        path.join(fontsDir, 'CG-3.ttf'),
+        italics:     path.join(fontsDir, 'CG-0.ttf'),
+        bolditalics: path.join(fontsDir, 'CG-1.ttf'),
+      },
+      DMSans: {
+        normal:      path.join(fontsDir, 'DM-1.ttf'),
+        bold:        path.join(fontsDir, 'DM-2.ttf'),
+        italics:     path.join(fontsDir, 'DM-0.ttf'),
+        bolditalics: path.join(fontsDir, 'DM-2.ttf'),
       },
     };
   } catch (fontErr) {
-    console.warn('VFS fonts unavailable, using Helvetica:', fontErr.message);
-    fontName = 'Helvetica';
+    console.warn('Custom fonts unavailable, using Helvetica:', fontErr.message);
+    hF = 'Helvetica'; bF = 'Helvetica';
     fonts = {
       Helvetica: {
-        normal:      'Helvetica',
-        bold:        'Helvetica-Bold',
-        italics:     'Helvetica-Oblique',
-        bolditalics: 'Helvetica-BoldOblique',
+        normal: 'Helvetica', bold: 'Helvetica-Bold',
+        italics: 'Helvetica-Oblique', bolditalics: 'Helvetica-BoldOblique',
       },
     };
   }
 
   const printer = new PdfPrinter(fonts);
 
+  // ── Data
   const onboarding = request.onboarding || {};
   const plan     = onboarding.package  || 'Starter';
   const goal     = onboarding.goal     || 'Grow your business';
@@ -191,276 +201,465 @@ function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, requ
   const location = onboarding.location || 'South Africa';
   const dateStr  = new Date().toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' });
 
+  // ── Elephant background image
+  let elephantB64 = null;
+  try {
+    elephantB64 = 'data:image/jpeg;base64,' +
+      fs.readFileSync(path.join(__dirname, '..', 'files', 'elephant.jpg')).toString('base64');
+  } catch { /* no elephant, cover still works */ }
+
+  // ── Layout helpers
+  const W = 595.28, H = 841.89, P = 42;
+  const lbl = (text, color = ORANGE) => ({
+    text, font: bF, fontSize: 7.5, bold: true, color, characterSpacing: 1.5,
+  });
+  const h1 = (lines, size = 40) => ({
+    stack: lines.map(([t, italic, color]) => ({
+      text: t, font: hF, fontSize: size, color: color || DARK,
+      italics: !!italic, bold: !italic, lineHeight: 0.95,
+    })),
+  });
+  const sep = () => ({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 100, y2: 0, lineWidth: 0.5, lineColor: '#d1d5db' }], margin: [0, 10, 0, 12] });
+  const badge = (text, bg = '#e5e7eb', color = '#555') => ({
+    table: { widths: ['auto'], body: [[{ border: [false,false,false,false], fillColor: bg, text, font: bF, fontSize: 7.5, bold: true, color, characterSpacing: 0.5, margin: [7, 3, 7, 3] }]] },
+  });
+
   const doc = {
     pageSize: 'A4',
-    pageMargins: [40, 40, 40, 40],
+    pageMargins: [0, 0, 0, 0],
 
     background(currentPage) {
       if (currentPage === 1) {
-        return { canvas: [{ type: 'rect', x: 0, y: 0, w: 595.28, h: 841.89, color: DARK }] };
+        if (elephantB64) {
+          return [
+            { image: elephantB64, width: W * 0.68, absolutePosition: { x: W * 0.34, y: 0 } },
+            { canvas: [{ type: 'rect', x: 0, y: 0, w: W, h: H, color: DARK, fillOpacity: 0.76 }] },
+          ];
+        }
+        return { canvas: [{ type: 'rect', x: 0, y: 0, w: W, h: H, color: DARK }] };
       }
-      return null;
+      return { canvas: [{ type: 'rect', x: 0, y: 0, w: W, h: H, color: CREAM }] };
     },
 
     content: [
-      // ── PAGE 1: COVER ──────────────────────────────────────────────
-      { text: 'MgucaTech Solutions', bold: true, fontSize: 13, color: '#fff' },
-      { text: 'UBUNTU IN TECH  ·  SOUTH AFRICA', fontSize: 8, color: '#888', margin: [0, 2, 0, 56] },
 
-      { text: 'Welcome\nto the Journey.', fontSize: 46, bold: true, color: '#fff', lineHeight: 1.1, margin: [0, 0, 0, 18] },
+      // ── PAGE 1: COVER ──────────────────────────────────────────────────────
       {
-        text: 'Everything you need to get your WhatsApp automation, booking workflow, and client portal up and running — fast.',
-        fontSize: 12, color: '#aaa', lineHeight: 1.5, margin: [0, 0, 200, 56],
+        margin: [P, P * 1.1, P, 0],
+        stack: [
+          { text: 'MgucaTech Solutions', font: bF, fontSize: 11, bold: true, color: '#fff', margin: [0, 0, 0, 3] },
+          { text: 'UBUNTU IN TECH  ·  SOUTH AFRICA', font: bF, fontSize: 7, color: 'rgba(255,255,255,0.4)', characterSpacing: 1.5 },
+        ],
       },
 
+      { text: '', margin: [0, 0, 0, H * 0.25] },
+
       {
+        margin: [P, 0, P * 3.5, 0],
+        stack: [
+          lbl('YOUR STARTER KIT'),
+          { text: '', margin: [0, 0, 0, 12] },
+          h1([
+            ['Welcome', false, '#fff'],
+            ['to the', true, '#fff'],
+            ['Journey.', false, '#fff'],
+          ], 52),
+          { text: '', margin: [0, 0, 0, 20] },
+          {
+            text: 'Everything you need to get your WhatsApp automation, booking workflow, and client portal up and running — fast.',
+            font: bF, fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6,
+          },
+        ],
+      },
+
+      { text: '', margin: [0, 0, 0, H * 0.14] },
+
+      {
+        margin: [P, 0, P, P],
         columns: [
           {
             width: '*',
             stack: [
-              { text: 'PREPARED FOR', fontSize: 9, bold: true, color: ORANGE, margin: [0, 0, 0, 6] },
-              { text: company, fontSize: 22, bold: true, color: '#fff', margin: [0, 0, 0, 10] },
-              { text: `Contact: ${contact}`, fontSize: 11, color: '#bbb', margin: [0, 0, 0, 3] },
-              { text: `Sector: ${sector}`,   fontSize: 11, color: '#bbb', margin: [0, 0, 0, 3] },
-              { text: location,              fontSize: 11, color: '#bbb', margin: [0, 0, 0, 3] },
-              { text: portalEmail,           fontSize: 11, color: '#bbb' },
+              lbl('PREPARED FOR'),
+              { text: '', margin: [0, 0, 0, 8] },
+              { text: company, font: hF, fontSize: 28, bold: true, color: '#fff', margin: [0, 0, 0, 5] },
+              { text: contact, font: bF, fontSize: 11, color: 'rgba(255,255,255,0.55)', margin: [0, 0, 0, 3] },
+              { text: `${sector}  ·  ${location}`, font: bF, fontSize: 10, color: 'rgba(255,255,255,0.4)' },
             ],
           },
           {
-            width: 180,
+            width: 'auto',
+            alignment: 'right',
             stack: [
-              { text: 'PACKAGE', fontSize: 9, bold: true, color: ORANGE, margin: [0, 0, 0, 6] },
-              {
-                table: { widths: [164], body: [[cell([
-                  { text: 'Starter Kit', bold: true, fontSize: 16, color: '#fff', margin: [14, 14, 14, 4] },
-                  { text: 'WhatsApp  ·  Booking  ·  Portal', fontSize: 10, color: 'rgba(255,255,255,0.75)', margin: [14, 0, 14, 14] },
-                ], { fillColor: ORANGE })]] },
-              },
+              { text: dateStr, font: bF, fontSize: 9, color: 'rgba(255,255,255,0.3)', alignment: 'right', margin: [0, 5, 0, 4] },
+              { text: `${plan} Package`, font: bF, fontSize: 9, bold: true, color: ORANGE, alignment: 'right' },
             ],
           },
         ],
       },
-      { text: `Starter Kit  ·  ${dateStr}`, fontSize: 10, color: '#555', margin: [0, 52, 0, 0] },
 
-      // ── PAGE 2: CREDENTIALS ────────────────────────────────────────
+      // ── PAGE 2: WELCOME ────────────────────────────────────────────────────
       { text: '', pageBreak: 'before' },
       {
-        table: { widths: ['*'], body: [[cell([
-          { text: '05  ·  PORTAL & WHATSAPP ACCESS', fontSize: 10, bold: true, color: ORANGE, margin: [20, 16, 20, 4] },
-          { text: 'Your credentials & channels.', fontSize: 26, bold: true, color: '#fff', margin: [20, 0, 20, 16] },
-        ], { fillColor: TEAL })]] },
-        margin: [0, 0, 0, 24],
+        margin: [P, P * 1.3, P, 28],
+        stack: [
+          lbl('01  ·  WELCOME'),
+          { text: '', margin: [0, 0, 0, 10] },
+          h1([['Your approved', false, DARK], ['Starter Kit.', true, TEAL]], 38),
+          sep(),
+          {
+            text: `Congratulations ${contact} — your onboarding request has been approved. This document is your official welcome pack for the ${plan} package. Everything below is ready for you.`,
+            font: bF, fontSize: 11, color: '#555', lineHeight: 1.65, margin: [0, 0, 0, 0],
+          },
+        ],
       },
-
       {
+        margin: [P, 0, P, 0],
         columns: [
           {
-            width: '55%',
-            table: { widths: ['*'], body: [[cell([
-              { text: 'CLIENT PORTAL LOGIN', fontSize: 10, bold: true, color: ORANGE, margin: [16, 16, 16, 14] },
-              { text: 'PORTAL URL', fontSize: 8, color: '#aaa', margin: [16, 0, 16, 3] },
-              { text: 'client-portal.mgucatech.com', fontSize: 12, color: '#fff', margin: [16, 0, 16, 14] },
-              { text: 'LOGIN EMAIL', fontSize: 8, color: '#aaa', margin: [16, 0, 16, 3] },
-              { text: portalEmail, fontSize: 12, color: '#fff', margin: [16, 0, 16, 14] },
-              { text: 'TEMPORARY PASSWORD', fontSize: 8, color: '#aaa', margin: [16, 0, 16, 3] },
-              { text: portalPassword, fontSize: 16, bold: true, color: '#fff', margin: [16, 0, 16, 14] },
+            width: '52%',
+            margin: [0, 0, 16, 0],
+            stack: [
+              lbl('YOUR DETAILS'),
+              { text: '', margin: [0, 0, 0, 10] },
               {
-                table: { widths: ['*'], body: [[{ border: [false, false, false, false], fillColor: '#162e2e',
-                  text: 'Change your password immediately after first login. This credential is shared in this document only.',
-                  fontSize: 9, color: '#fbbf24', lineHeight: 1.4, margin: [10, 8, 10, 8],
-                }]] },
-                margin: [16, 0, 16, 16],
+                table: { widths: ['*'], body: [[tc([
+                  { text: 'COMPANY', font: bF, fontSize: 7, bold: true, color: ORANGE, characterSpacing: 1, margin: [0, 0, 0, 4] },
+                  { text: company, font: hF, fontSize: 22, bold: true, color: '#fff', margin: [0, 0, 0, 14] },
+                  { text: 'CONTACT', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.45)', characterSpacing: 1, margin: [0, 0, 0, 3] },
+                  { text: contact, font: bF, fontSize: 11, color: '#fff', margin: [0, 0, 0, 12] },
+                  { text: 'SECTOR', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.45)', characterSpacing: 1, margin: [0, 0, 0, 3] },
+                  { text: sector, font: bF, fontSize: 11, color: '#fff', margin: [0, 0, 0, 12] },
+                  { text: 'LOCATION', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.45)', characterSpacing: 1, margin: [0, 0, 0, 3] },
+                  { text: location, font: bF, fontSize: 11, color: '#fff', margin: [0, 0, 0, 12] },
+                  { text: 'PACKAGE', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.45)', characterSpacing: 1, margin: [0, 0, 0, 3] },
+                  { text: plan, font: bF, fontSize: 11, bold: true, color: ORANGE },
+                ], { fillColor: TEAL, margin: [20, 22, 20, 22] })]],
+                },
               },
-            ], { fillColor: TEAL })]] },
+            ],
           },
-          { width: 16, text: '' },
           {
             width: '*',
             stack: [
-              {
-                table: { widths: ['*'], body: [[cell([
-                  { text: 'WHATSAPP BUSINESS NUMBER', fontSize: 10, bold: true, color: ORANGE, margin: [16, 16, 16, 12] },
-                  { text: '+27 76 047 0141', fontSize: 24, bold: true, noWrap: true, margin: [16, 0, 16, 10] },
-                  { text: 'The MgucaTech support line. Your dedicated chatbot number is configured during onboarding. Message us here for setup queries.', fontSize: 10, color: '#666', lineHeight: 1.4, margin: [16, 0, 16, 16] },
-                ], { fillColor: CREAM })]] },
-                margin: [0, 0, 0, 14],
-              },
-              {
-                table: { widths: ['*'], body: [[cell([
-                  { text: 'YOUR CONSULTANT', fontSize: 10, bold: true, color: ORANGE, margin: [16, 16, 16, 8] },
-                  { text: 'Bakhokhele Mguca', bold: true, fontSize: 14, margin: [16, 0, 16, 3] },
-                  { text: 'Consultant  ·  MgucaTech Solutions', fontSize: 10, color: '#666', margin: [16, 0, 16, 6] },
-                  { text: `Email: ${portalEmail}`, fontSize: 10, color: TEAL, margin: [16, 0, 16, 3] },
-                  { text: 'WhatsApp: +27 76 047 0141', fontSize: 10, color: TEAL, margin: [16, 0, 16, 16] },
-                ], { fillColor: CREAM })]] },
-              },
+              lbl('YOUR CONSULTANT'),
+              { text: '', margin: [0, 0, 0, 10] },
+              card([
+                { text: 'Bakhokhele Mguca', font: hF, fontSize: 20, bold: true, color: DARK, margin: [0, 0, 0, 3] },
+                { text: 'Founder & Lead Consultant', font: bF, fontSize: 10, color: '#777', margin: [0, 0, 0, 14] },
+                { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 80, y2: 0, lineWidth: 0.5, lineColor: '#e5e7eb' }], margin: [0, 0, 0, 12] },
+                { text: 'admin@mgucatech.com', font: bF, fontSize: 10, color: TEAL, margin: [0, 0, 0, 4] },
+                { text: '+27 76 047 0141', font: bF, fontSize: 10, color: TEAL },
+              ], '#fff'),
+              { text: '', margin: [0, 12, 0, 0] },
+              card([
+                { text: 'PRIMARY GOAL', font: bF, fontSize: 7, bold: true, color: ORANGE, characterSpacing: 1, margin: [0, 0, 0, 6] },
+                { text: goal, font: bF, fontSize: 12, color: '#fff', lineHeight: 1.45 },
+              ], TEAL),
             ],
           },
         ],
       },
 
-      // ── PAGE 3: SOLUTION + CHECKLIST + PROJECTIONS ─────────────────
+      // ── PAGE 3: YOUR SOLUTION ──────────────────────────────────────────────
       { text: '', pageBreak: 'before' },
       {
-        table: { widths: ['*'], body: [[cell([
-          { text: '02  ·  YOUR APPROVED SOLUTION', fontSize: 10, bold: true, color: ORANGE, margin: [20, 16, 20, 4] },
-          { text: "What you're getting.", fontSize: 26, bold: true, margin: [20, 0, 20, 16] },
-        ], { fillColor: CREAM })]] },
-        margin: [0, 0, 0, 18],
+        margin: [P, P * 1.3, P, 24],
+        stack: [
+          lbl('02  ·  YOUR APPROVED SOLUTION'),
+          { text: '', margin: [0, 0, 0, 10] },
+          h1([["What you're", false, DARK], ['getting.', true, TEAL]], 38),
+          sep(),
+          {
+            text: `The ${plan} package includes three integrated tools built to work together and grow with ${company}.`,
+            font: bF, fontSize: 11, color: '#555', lineHeight: 1.6,
+          },
+        ],
       },
-
       {
+        margin: [P, 0, P, 18],
         columns: [
           {
             width: '33%',
-            table: { widths: ['*'], body: [[cell([
-              { text: 'WhatsApp Chatbot', bold: true, fontSize: 12, margin: [10, 12, 10, 6] },
-              { text: 'AI-powered conversational assistant on the channel your clients already trust.', fontSize: 10, color: '#666', lineHeight: 1.4, margin: [10, 0, 10, 8] },
-              { text: 'Automated responses\nSmart FAQ handling\nHuman handoff routing\nOperating hours\nBranded flows', fontSize: 10, color: '#555', lineHeight: 1.7, margin: [10, 0, 10, 12] },
-            ], { fillColor: '#fff' })]],
-            heights: [240] },
-            margin: [0, 0, 6, 0],
+            margin: [0, 0, 8, 0],
+            stack: [card([
+              { text: '01', font: bF, fontSize: 9, bold: true, color: ORANGE, margin: [0, 0, 0, 8] },
+              { text: 'WhatsApp\nChatbot', font: hF, fontSize: 22, bold: true, color: DARK, lineHeight: 1.0, margin: [0, 0, 0, 10] },
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 60, y2: 0, lineWidth: 0.5, lineColor: '#e5e7eb' }], margin: [0, 0, 0, 10] },
+              { text: 'AI-powered assistant on the channel your clients already use.', font: bF, fontSize: 10, color: '#666', lineHeight: 1.5, margin: [0, 0, 0, 12] },
+              { text: '— Automated responses\n— Smart FAQ handling\n— Human handoff\n— Operating hours\n— Branded flows', font: bF, fontSize: 9.5, color: '#555', lineHeight: 1.7 },
+            ], '#fff')],
           },
           {
             width: '33%',
-            table: { widths: ['*'], body: [[cell([
-              { text: 'Booking Workflow', bold: true, fontSize: 12, margin: [10, 12, 10, 6] },
-              { text: 'End-to-end appointment booking through WhatsApp — reduce no-shows and free up reception.', fontSize: 10, color: '#666', lineHeight: 1.4, margin: [10, 0, 10, 8] },
-              { text: 'Real-time availability\nAuto confirmations\nReminder messages\nCancellation handling\nCapacity management', fontSize: 10, color: '#555', lineHeight: 1.7, margin: [10, 0, 10, 12] },
-            ], { fillColor: '#fff' })]] },
-            margin: [6, 0, 6, 0],
+            margin: [0, 0, 8, 0],
+            stack: [card([
+              { text: '02', font: bF, fontSize: 9, bold: true, color: ORANGE, margin: [0, 0, 0, 8] },
+              { text: 'Booking\nWorkflow', font: hF, fontSize: 22, bold: true, color: DARK, lineHeight: 1.0, margin: [0, 0, 0, 10] },
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 60, y2: 0, lineWidth: 0.5, lineColor: '#e5e7eb' }], margin: [0, 0, 0, 10] },
+              { text: 'End-to-end appointment booking through WhatsApp.', font: bF, fontSize: 10, color: '#666', lineHeight: 1.5, margin: [0, 0, 0, 12] },
+              { text: '— Real-time availability\n— Auto confirmations\n— Reminder messages\n— Cancellation handling\n— Capacity management', font: bF, fontSize: 9.5, color: '#555', lineHeight: 1.7 },
+            ], '#fff')],
           },
           {
-            width: '33%',
-            table: { widths: ['*'], body: [[cell([
-              { text: 'Client Portal', bold: true, fontSize: 12, margin: [10, 12, 10, 6] },
-              { text: 'Your centralised dashboard — monitor bookings, conversations, and team activity.', fontSize: 10, color: '#666', lineHeight: 1.4, margin: [10, 0, 10, 8] },
-              { text: 'Live booking dashboard\nConversation history\nTeam management tools\nPerformance analytics\nContent management', fontSize: 10, color: '#555', lineHeight: 1.7, margin: [10, 0, 10, 12] },
-            ], { fillColor: '#fff' })]] },
-            margin: [6, 0, 0, 0],
+            width: '*',
+            stack: [card([
+              { text: '03', font: bF, fontSize: 9, bold: true, color: ORANGE, margin: [0, 0, 0, 8] },
+              { text: 'Client\nPortal', font: hF, fontSize: 22, bold: true, color: DARK, lineHeight: 1.0, margin: [0, 0, 0, 10] },
+              { canvas: [{ type: 'line', x1: 0, y1: 0, x2: 60, y2: 0, lineWidth: 0.5, lineColor: '#e5e7eb' }], margin: [0, 0, 0, 10] },
+              { text: 'Your centralised dashboard — monitor everything in one place.', font: bF, fontSize: 10, color: '#666', lineHeight: 1.5, margin: [0, 0, 0, 12] },
+              { text: '— Live booking dashboard\n— Conversation history\n— Team management\n— Performance analytics\n— Content management', font: bF, fontSize: 9.5, color: '#555', lineHeight: 1.7 },
+            ], '#fff')],
           },
         ],
-        columnGap: 0,
-        margin: [0, 0, 0, 14],
       },
-
       {
+        margin: [P, 0, P, 0],
         table: {
-          // Fixed widths so the goal column can never be crowded out.
-          // 'auto' for the last column would size itself to the timeline text
-          // first, leaving the two '*' columns to split whatever remains — and
-          // if the timeline is long (e.g. "As soon as possible") that remainder
-          // can collapse to a single character.  Use fixed px instead.
-          widths: ['*', 90, 150],
+          widths: ['*', 88, 160],
           body: [[
-            cell([{ text: 'Primary Goal', fontSize: 8, color: '#ccc', margin: [14, 10, 14, 3] }, { text: goal, bold: true, fontSize: 12, color: '#fff', margin: [14, 0, 14, 10] }], { fillColor: TEAL }),
-            cell([{ text: 'Package',      fontSize: 8, color: '#ccc', margin: [14, 10, 14, 3] }, { text: plan, bold: true, fontSize: 12, color: '#fff', margin: [14, 0, 14, 10] }], { fillColor: TEAL }),
-            cell([{ text: 'Launch Timing', fontSize: 8, color: 'rgba(255,255,255,0.75)', margin: [14, 10, 14, 3] }, { text: timeline, bold: true, fontSize: 11, color: '#fff', margin: [14, 0, 14, 10] }], { fillColor: ORANGE }),
+            tc([
+              { text: 'PRIMARY GOAL', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.5)', characterSpacing: 1, margin: [0, 0, 0, 4] },
+              { text: goal, font: bF, fontSize: 12, bold: true, color: '#fff' },
+            ], { fillColor: TEAL, margin: [18, 14, 18, 14] }),
+            tc([
+              { text: 'PACKAGE', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.5)', characterSpacing: 1, margin: [0, 0, 0, 4] },
+              { text: plan, font: bF, fontSize: 12, bold: true, color: '#fff' },
+            ], { fillColor: TEAL, margin: [14, 14, 14, 14] }),
+            tc([
+              { text: 'LAUNCH TIMING', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.65)', characterSpacing: 1, margin: [0, 0, 0, 4] },
+              { text: timeline, font: bF, fontSize: 12, bold: true, color: '#fff' },
+            ], { fillColor: ORANGE, margin: [18, 14, 18, 14] }),
           ]],
         },
-        margin: [0, 0, 0, 22],
       },
 
+      // ── PAGE 4: ONBOARDING CHECKLIST ───────────────────────────────────────
+      { text: '', pageBreak: 'before' },
       {
+        margin: [P, P * 1.3, P, 32],
+        stack: [
+          lbl('03  ·  ONBOARDING CHECKLIST'),
+          { text: '', margin: [0, 0, 0, 10] },
+          h1([['Five steps', false, DARK], ['to launch.', true, TEAL]], 38),
+          sep(),
+        ],
+      },
+      ...[
+        ['01', 'Log in & Confirm Details',
+          'Visit client-portal.mgucatech.com, sign in with your credentials, and verify all your business information is accurate.',
+          'ACTION REQUIRED', '#e5e7eb', '#555'],
+        ['02', 'Share Brand & Content Assets',
+          'Provide brand guidelines, FAQ document, pricing info, booking rules, support content, and your tone of voice.',
+          'ACTION REQUIRED', '#e5e7eb', '#555'],
+        ['03', 'Confirm Handoff & Hours',
+          'Identify who handles escalated conversations and define operating hours for automated responses.',
+          'ACTION REQUIRED', '#e5e7eb', '#555'],
+        ['04', 'Approve First Workflow',
+          'Review and sign off on the initial chatbot flow or portal configuration. Your approval is required before go-live.',
+          'APPROVAL NEEDED', '#fef3c7', '#92400e'],
+        ['05', 'Post-Launch Review',
+          'Attend the review session 14 days after launch to assess usage, handoff quality, and approve any improvements.',
+          'SCHEDULED', '#d1fae5', '#065f46'],
+      ].map(([num, title, desc, badgeText, badgeBg, badgeColor], i) => ({
+        margin: [P, 0, P, i < 4 ? 18 : 0],
         columns: [
           {
-            width: '42%',
+            width: 44,
+            table: { widths: [32], body: [[{ border: [false,false,false,false], fillColor: ORANGE, text: num, font: bF, fontSize: 13, bold: true, color: '#fff', alignment: 'center', margin: [0, 10, 0, 10] }]] },
+            margin: [0, 2, 0, 0],
+          },
+          {
+            width: '*',
+            margin: [14, 0, 0, 0],
             stack: [
-              { text: '04  ·  PROJECTIONS', fontSize: 10, bold: true, color: ORANGE, margin: [0, 0, 0, 10] },
-              {
-                table: { widths: ['*'], body: [[cell([
-                  { text: 'One-time setup', fontSize: 8, color: 'rgba(255,255,255,0.75)', margin: [14, 10, 14, 3] },
-                  { text: 'Configuration & Launch', bold: true, fontSize: 11, color: '#fff', margin: [14, 0, 14, 3] },
-                  { text: 'R3 500', bold: true, fontSize: 28, color: '#fff', margin: [14, 0, 14, 3] },
-                  { text: 'once-off', fontSize: 9, color: 'rgba(255,255,255,0.6)', margin: [14, 0, 14, 10] },
-                ], { fillColor: ORANGE })]] },
-                margin: [0, 0, 0, 8],
-              },
-              {
-                table: { widths: ['*'], body: [[cell([
-                  { text: 'Monthly support', fontSize: 8, color: '#999', margin: [14, 10, 14, 3] },
-                  { text: 'Hosting & Monitoring', bold: true, fontSize: 11, margin: [14, 0, 14, 3] },
-                  { text: 'R1 470', bold: true, fontSize: 28, margin: [14, 0, 14, 3] },
-                  { text: '/ month', fontSize: 9, color: '#999', margin: [14, 0, 14, 10] },
-                ], { fillColor: CREAM })]] },
-              },
+              { text: title, font: bF, fontSize: 13, bold: true, color: DARK },
+              { text: desc, font: bF, fontSize: 10, color: '#666', lineHeight: 1.5, margin: [0, 4, 0, 7] },
+              badge(badgeText, badgeBg, badgeColor),
             ],
           },
-          { width: 18, text: '' },
+        ],
+      })),
+
+      // ── PAGE 5: PROJECTIONS ────────────────────────────────────────────────
+      { text: '', pageBreak: 'before' },
+      {
+        margin: [P, P * 1.3, P, 28],
+        stack: [
+          lbl('04  ·  INVESTMENT & TIMELINE'),
+          { text: '', margin: [0, 0, 0, 10] },
+          h1([['Your investment,', false, DARK], ['projected.', true, TEAL]], 38),
+          sep(),
+        ],
+      },
+      {
+        margin: [P, 0, P, 0],
+        columns: [
+          {
+            width: '44%',
+            margin: [0, 0, 20, 0],
+            stack: [
+              card([
+                { text: 'ONE-TIME SETUP', font: bF, fontSize: 7.5, bold: true, color: 'rgba(255,255,255,0.65)', characterSpacing: 1, margin: [0, 0, 0, 6] },
+                { text: 'Configuration & Launch', font: bF, fontSize: 10.5, color: '#fff', margin: [0, 0, 0, 10] },
+                { text: 'R3 500', font: hF, fontSize: 44, bold: true, color: '#fff', lineHeight: 1.0, margin: [0, 0, 0, 2] },
+                { text: 'once-off', font: bF, fontSize: 9, color: 'rgba(255,255,255,0.55)' },
+              ], ORANGE),
+              { text: '', margin: [0, 10, 0, 0] },
+              card([
+                { text: 'MONTHLY SUPPORT', font: bF, fontSize: 7.5, bold: true, color: ORANGE, characterSpacing: 1, margin: [0, 0, 0, 6] },
+                { text: 'Hosting & Monitoring', font: bF, fontSize: 10.5, color: DARK, margin: [0, 0, 0, 10] },
+                { text: 'R1 470', font: hF, fontSize: 44, bold: true, color: DARK, lineHeight: 1.0, margin: [0, 0, 0, 2] },
+                { text: '/ month', font: bF, fontSize: 9, color: '#888' },
+              ], '#fff'),
+            ],
+          },
           {
             width: '*',
             stack: [
-              { text: 'TIMELINE', fontSize: 10, bold: true, color: ORANGE, margin: [0, 0, 0, 10] },
+              lbl('LAUNCH TIMELINE'),
+              { text: '', margin: [0, 0, 0, 14] },
               ...[
-                ['1', 'Onboarding & Setup',    'Week 1–2',   'Content submission, configuration'],
-                ['2', 'Build & Customise',      'Week 2–3',   'Chatbot flows, portal, booking setup'],
-                ['3', 'Launch',                 'ASAP',       'Go live — as soon as possible'],
-                ['4', 'First Review',           '+14 days',   'Measure usage, quality & improvements'],
-                ['5', 'Ongoing Support',        'Monthly',    'Monitoring, updates, growth tracking'],
-              ].map(([n, title, timing, desc]) => ({
+                ['Week 1–2',  'Onboarding & Setup',  'Content submission and configuration',  false],
+                ['Week 2–3',  'Build & Customise',   'Chatbot flows, portal, booking setup',  false],
+                ['Launch',    'Go Live',              'Everything is live and ready',          true],
+                ['+14 Days',  'First Review',         'Measure usage and quality improvements', false],
+                ['Monthly',   'Ongoing Support',      'Monitoring, updates, growth tracking',  false],
+              ].map(([timing, title, desc, highlight], i) => ({
                 columns: [
-                  { width: 22, table: { widths: [18], body: [[{ border: [false,false,false,false], fillColor: ORANGE, text: n, bold: true, fontSize: 10, color: '#fff', alignment: 'center', margin: [0, 4, 0, 4] }]] } },
+                  {
+                    width: 66,
+                    table: { widths: [58], body: [[{ border: [false,false,false,false], fillColor: highlight ? ORANGE : '#e5e7eb', text: timing, font: bF, fontSize: 8, bold: true, color: highlight ? '#fff' : '#555', alignment: 'center', margin: [4, 6, 4, 6] }]] },
+                  },
                   {
                     width: '*',
+                    margin: [10, 1, 0, 0],
                     stack: [
-                      { columns: [{ text: title, bold: true, fontSize: 10, width: '*' }, { text: timing, fontSize: 9, color: ORANGE, alignment: 'right', width: 'auto' }] },
-                      { text: desc, fontSize: 9, color: '#777', margin: [0, 1, 0, 0] },
+                      { text: title, font: bF, fontSize: 11, bold: true, color: DARK },
+                      { text: desc, font: bF, fontSize: 9, color: '#777', margin: [0, 2, 0, 0] },
                     ],
-                    margin: [8, 2, 0, 0],
                   },
                 ],
-                margin: [0, 0, 0, 8],
+                margin: [0, 0, 0, i < 4 ? 12 : 0],
               })),
             ],
           },
         ],
       },
 
-      // ── PAGE 4: ONBOARDING CHECKLIST + NEXT STEPS ──────────────────
+      // ── PAGE 6: CREDENTIALS ────────────────────────────────────────────────
       { text: '', pageBreak: 'before' },
       {
-        table: { widths: ['*'], body: [[cell([
-          { text: '03 & 06  ·  CHECKLIST & NEXT STEPS', fontSize: 10, bold: true, color: ORANGE, margin: [20, 16, 20, 4] },
-          { text: 'Five steps to launch.', fontSize: 26, bold: true, color: '#fff', margin: [20, 0, 20, 16] },
-        ], { fillColor: TEAL })]] },
-        margin: [0, 0, 0, 24],
+        margin: [P, P * 1.3, P, 28],
+        stack: [
+          lbl('05  ·  PORTAL & WHATSAPP ACCESS'),
+          { text: '', margin: [0, 0, 0, 10] },
+          h1([['Your credentials', false, DARK], ['& channels.', true, TEAL]], 38),
+          sep(),
+        ],
       },
-
-      ...[
-        ['01', 'Log in & Confirm Company Details',    'Visit client-portal.mgucatech.com, sign in with your credentials below, and verify all your business information.',     'ACTION REQUIRED'],
-        ['02', 'Share Brand & Content Assets',        'Provide brand guidelines, FAQ document, pricing info, booking rules, support content, and your tone of voice.',        'ACTION REQUIRED'],
-        ['03', 'Confirm Handoff & Operating Hours',   'Identify who handles escalated conversations and define operating hours for automated responses.',                      'ACTION REQUIRED'],
-        ['04', 'Approve First Workflow Before Launch','Review and sign off on the initial chatbot flow or portal configuration. Your approval is required before go-live.',    'APPROVAL NEEDED'],
-        ['05', 'Post-Launch Review',                  'Attend the review session 14 days after launch to assess usage, handoff quality, and approve any improvements.',       'SCHEDULED'],
-      ].map(([num, title, desc, badge]) => ({
+      {
+        margin: [P, 0, P, 0],
         columns: [
           {
-            width: 36,
-            table: { widths: [28], body: [[{ border: [false,false,false,false], fillColor: ORANGE, text: num, bold: true, fontSize: 13, color: '#fff', alignment: 'center', margin: [0, 8, 0, 8] }]] },
-            margin: [0, 2, 0, 0],
+            width: '55%',
+            margin: [0, 0, 16, 0],
+            stack: [
+              {
+                table: { widths: ['*'], body: [[tc([
+                  { text: 'CLIENT PORTAL LOGIN', font: bF, fontSize: 8, bold: true, color: ORANGE, characterSpacing: 1, margin: [0, 0, 0, 18] },
+                  { text: 'PORTAL URL', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.45)', characterSpacing: 1, margin: [0, 0, 0, 3] },
+                  { text: 'client-portal.mgucatech.com', font: bF, fontSize: 11, color: '#fff', margin: [0, 0, 0, 14] },
+                  { text: 'LOGIN EMAIL', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.45)', characterSpacing: 1, margin: [0, 0, 0, 3] },
+                  { text: portalEmail, font: bF, fontSize: 11, color: '#fff', margin: [0, 0, 0, 14] },
+                  { text: 'TEMPORARY PASSWORD', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.45)', characterSpacing: 1, margin: [0, 0, 0, 3] },
+                  { text: portalPassword, font: hF, fontSize: 28, bold: true, color: '#fff', margin: [0, 0, 0, 16] },
+                  {
+                    table: { widths: ['*'], body: [[{ border: [false,false,false,false], fillColor: '#0a3333', text: 'Change your password immediately after first login. This credential is only shared in this document.', font: bF, fontSize: 9, color: '#fbbf24', lineHeight: 1.4, margin: [10, 8, 10, 8] }]] },
+                  },
+                ], { fillColor: TEAL, margin: [22, 22, 22, 22] })]],
+                },
+              },
+            ],
           },
           {
             width: '*',
             stack: [
-              { text: title, bold: true, fontSize: 12 },
-              { text: desc, fontSize: 10, color: '#666', lineHeight: 1.45, margin: [0, 3, 0, 4] },
-              { table: { widths: ['auto'], body: [[{ border: [false,false,false,false], fillColor: '#e5e7eb', text: badge, fontSize: 8, bold: true, color: '#555', margin: [6, 3, 6, 3] }]] } },
+              card([
+                { text: 'WHATSAPP SUPPORT', font: bF, fontSize: 7.5, bold: true, color: ORANGE, characterSpacing: 1, margin: [0, 0, 0, 10] },
+                { text: '+27 76 047 0141', font: hF, fontSize: 28, bold: true, color: DARK, lineHeight: 1.1, margin: [0, 0, 0, 10] },
+                { text: 'The MgucaTech support line. Message us here for any setup queries or assistance during onboarding.', font: bF, fontSize: 10, color: '#666', lineHeight: 1.5 },
+              ], '#fff'),
+              { text: '', margin: [0, 14, 0, 0] },
+              card([
+                { text: 'YOUR CONSULTANT', font: bF, fontSize: 7.5, bold: true, color: ORANGE, characterSpacing: 1, margin: [0, 0, 0, 10] },
+                { text: 'Bakhokhele Mguca', font: hF, fontSize: 18, bold: true, color: DARK, margin: [0, 0, 0, 3] },
+                { text: 'Founder · MgucaTech Solutions', font: bF, fontSize: 9, color: '#777', margin: [0, 0, 0, 12] },
+                { text: 'admin@mgucatech.com', font: bF, fontSize: 10, color: TEAL, margin: [0, 0, 0, 4] },
+                { text: '+27 76 047 0141', font: bF, fontSize: 10, color: TEAL },
+              ], '#fff'),
             ],
-            margin: [12, 0, 0, 0],
           },
         ],
-        margin: [0, 0, 0, 16],
+      },
+
+      // ── PAGE 7: NEXT STEPS ─────────────────────────────────────────────────
+      { text: '', pageBreak: 'before' },
+      {
+        margin: [P, P * 1.3, P, 32],
+        stack: [
+          lbl('06  ·  NEXT STEPS'),
+          { text: '', margin: [0, 0, 0, 10] },
+          h1([['What happens', false, DARK], ['next.', true, TEAL]], 38),
+          sep(),
+          {
+            text: `You're all set, ${contact}. Here's what to do in the next 48 hours to get started.`,
+            font: bF, fontSize: 11, color: '#555', lineHeight: 1.65,
+          },
+        ],
+      },
+      ...[
+        ['1', 'Log in to your portal today',
+          'Go to client-portal.mgucatech.com and sign in with your credentials above. Explore your dashboard and verify your details are correct.'],
+        ['2', 'Send us your brand assets',
+          'Email or upload your logo, brand colours, FAQ document, and any content needed to build your chatbot flows and booking setup.'],
+        ['3', 'Schedule your kickoff call',
+          'Reply to this email or WhatsApp us at +27 76 047 0141 to book your onboarding session with Bakhokhele.'],
+        ['4', 'Expect your first build in 2 weeks',
+          'Once we have your assets, your chatbot and booking workflow will be ready for review within 14 days.'],
+      ].map(([n, title, desc], i) => ({
+        margin: [P, 0, P, i < 3 ? 22 : 0],
+        columns: [
+          {
+            width: 44,
+            table: { widths: [32], body: [[{ border: [false,false,false,false], fillColor: TEAL, text: n, font: bF, fontSize: 16, bold: true, color: '#fff', alignment: 'center', margin: [0, 9, 0, 9] }]] },
+            margin: [0, 2, 0, 0],
+          },
+          {
+            width: '*',
+            margin: [14, 0, 0, 0],
+            stack: [
+              { text: title, font: bF, fontSize: 13, bold: true, color: DARK },
+              { text: desc, font: bF, fontSize: 10.5, color: '#555', lineHeight: 1.55, margin: [0, 5, 0, 0] },
+            ],
+          },
+        ],
       })),
 
       {
-        table: { widths: ['*'], body: [[cell([
-          { text: 'MgucaTech Solutions  ·  Cape Town, South Africa  ·  admin@mgucatech.com  ·  +27 76 047 0141', fontSize: 9, color: '#aaa', alignment: 'center', margin: [0, 12, 0, 12] },
-        ], { fillColor: DARK })]] },
-        margin: [0, 24, 0, 0],
+        margin: [P, 48, P, P],
+        table: {
+          widths: ['*'],
+          body: [[tc([
+            { text: 'MgucaTech Solutions  ·  Cape Town, South Africa  ·  admin@mgucatech.com  ·  +27 76 047 0141', font: bF, fontSize: 9, color: '#aaa', alignment: 'center' },
+            { text: `Ubuntu in Tech  ·  ${plan} Package  ·  ${dateStr}`, font: bF, fontSize: 8, color: '#bbb', alignment: 'center', margin: [0, 4, 0, 0] },
+          ], { fillColor: DARK, margin: [20, 14, 20, 14] })]],
+        },
       },
+
     ],
 
-    defaultStyle: { font: fontName, fontSize: 11, color: DARK },
+    defaultStyle: { font: bF, fontSize: 11, color: DARK, lineHeight: 1.4 },
   };
 
   return new Promise((resolve, reject) => {
@@ -550,4 +749,4 @@ module.exports = async (req, res) => {
     console.error(error);
     return res.status(500).json({ error: error.message });
   }
-}; 
+};
