@@ -24,6 +24,14 @@ const T = {
 const font="'DM Sans',sans-serif";
 const serif="'Cormorant Garamond',Georgia,serif";
 const fmtRand = (v) => `R${Number(v).toLocaleString("en-ZA")}`;
+const BOOK_NOW_URL = import.meta.env.VITE_BOOK_NOW_URL || "https://mgtchat-20260516-1916.vercel.app/#book";
+const bookingUrlFor = (user) => {
+  const url = new URL(BOOK_NOW_URL);
+  if (user?.clientId) url.searchParams.set("clientId", user.clientId);
+  if (user?.clientName) url.searchParams.set("client", user.clientName);
+  return url.toString();
+};
+const openBookNow = (user) => window.open(bookingUrlFor(user), "_blank", "noopener,noreferrer");
 
 /* ─── seed data ───────────────────────────────────────────── */
 const INIT_QA = [
@@ -1421,7 +1429,7 @@ function QAView({ toast }) {
   );
 }
 
-function CalendarView({ toast }) {
+function CalendarView({ toast, user }) {
   const [year,setYear]=useState(2026);const [month,setMonth]=useState(4);
   const [marked,setMarked]=useState({"2026-5-1":"holiday","2026-5-8":"special","2026-5-15":"holiday"});
   const [hours,setHours]=useState({Sun:{open:false,from:"09:00",to:"18:00"},Mon:{open:true,from:"09:00",to:"18:00"},Tue:{open:true,from:"09:00",to:"18:00"},Wed:{open:true,from:"09:00",to:"18:00"},Thu:{open:true,from:"09:00",to:"18:00"},Fri:{open:false,from:"09:00",to:"18:00"},Sat:{open:false,from:"09:00",to:"14:00"}});
@@ -1433,8 +1441,13 @@ function CalendarView({ toast }) {
   const next=()=>{if(month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1);};
   return(
     <div style={{padding:"36px 40px",overflowY:"auto",flex:1}}>
-      <div style={{fontFamily:serif,fontSize:30,color:T.text,marginBottom:4}}>Calendar &amp; Hours</div>
-      <div style={{color:T.muted,fontSize:14,marginBottom:28}}>Mark holidays and manage business hours</div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,flexWrap:"wrap",marginBottom:28}}>
+        <div>
+          <div style={{fontFamily:serif,fontSize:30,color:T.text,marginBottom:4}}>Calendar &amp; Hours</div>
+          <div style={{color:T.muted,fontSize:14}}>Mark holidays, manage business hours, and open the live booking app.</div>
+        </div>
+        <Btn onClick={()=>openBookNow(user)}>Open Book Now</Btn>
+      </div>
       <div style={{display:"flex",gap:24,flexWrap:"wrap",alignItems:"flex-start"}}>
         <Card style={{flex:"1 1 320px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:20}}>
@@ -1475,6 +1488,17 @@ function CalendarView({ toast }) {
             </div>
           ))}
           <Btn onClick={()=>toast("Hours saved")} style={{marginTop:8}}>Save Hours</Btn>
+        </Card>
+        <Card style={{flex:"1 1 280px"}}>
+          <div style={{fontFamily:serif,fontSize:18,color:T.text,marginBottom:8}}>Book Now App</div>
+          <div style={{color:T.muted,fontSize:13,lineHeight:1.6,marginBottom:16}}>
+            Share this live booking link with customers or open it to test the client-facing booking flow.
+          </div>
+          <Input value={bookingUrlFor(user)} onChange={()=>{}} style={{fontSize:12,marginBottom:12}} />
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <Btn onClick={()=>openBookNow(user)}>Open booking app</Btn>
+            <Btn variant="secondary" onClick={()=>{navigator.clipboard?.writeText(bookingUrlFor(user));toast("Booking link copied");}}>Copy link</Btn>
+          </div>
         </Card>
       </div>
       {modal&&selDay&&(
@@ -1577,7 +1601,7 @@ function Team({ toast }) {
   );
 }
 
-function Overview({ setView }) {
+function Overview({ setView, user }) {
   const stats=[{label:"Active Responses",value:INIT_QA.filter(q=>q.active).length,icon:"💬",color:T.accent},{label:"Open Escalations",value:2,icon:"🔥",color:T.red},{label:"Approved Templates",value:INIT_TEMPLATES.filter(t=>t.status==="APPROVED").length,icon:"📝",color:T.blue},{label:"Opted-in Contacts",value:"10",icon:"👥",color:"#7c3aed"}];
   return(
     <div style={{padding:"36px 40px",overflowY:"auto",flex:1}}>
@@ -1596,8 +1620,8 @@ function Overview({ setView }) {
         <Card style={{flex:2,minWidth:280}}>
           <div style={{fontFamily:serif,fontSize:20,color:T.text,marginBottom:16}}>Quick Actions</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
-            {[{icon:"💬",label:"Add Q&A response",view:"qa"},{icon:"📅",label:"Update hours",view:"calendar"},{icon:"🤖",label:"Test your bot",view:"simulator"},{icon:"📣",label:"New broadcast",view:"broadcasts"},{icon:"📝",label:"Submit template",view:"templates"},{icon:"📊",label:"View analytics",view:"analytics"}].map(a=>(
-              <div key={a.label} onClick={()=>setView(a.view)} style={{padding:"14px",background:T.bg,borderRadius:12,cursor:"pointer",border:`1.5px solid ${T.border}`,transition:"all .15s"}}
+            {[{icon:"↗",label:"Open Book Now",external:true},{icon:"💬",label:"Add Q&A response",view:"qa"},{icon:"📅",label:"Update hours",view:"calendar"},{icon:"🤖",label:"Test your bot",view:"simulator"},{icon:"📣",label:"New broadcast",view:"broadcasts"},{icon:"📝",label:"Submit template",view:"templates"},{icon:"📊",label:"View analytics",view:"analytics"}].map(a=>(
+              <div key={a.label} onClick={()=>a.external ? openBookNow(user) : setView(a.view)} style={{padding:"14px",background:T.bg,borderRadius:12,cursor:"pointer",border:`1.5px solid ${T.border}`,transition:"all .15s"}}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor=T.accent;e.currentTarget.style.background=T.accentBg;}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.background=T.bg;}}>
                 <div style={{fontSize:20,marginBottom:8}}>{a.icon}</div>
@@ -1648,6 +1672,7 @@ export default function App({ user = null, onLogout = null }) {
     { id:"contacts",   icon:"👥", label:"Contacts"     },
     { id:"analytics",  icon:"📊", label:"Analytics"    },
     { group:"Operations" },
+    { id:"book-now",   icon:"↗", label:"Book Now", external:true },
     { id:"calendar",   icon:"📅", label:"Calendar"     },
     { id:"team",       icon:"🫂", label:"Team"          },
     { id:"billing",    icon:"💳", label:"Billing"       },
@@ -1688,7 +1713,7 @@ export default function App({ user = null, onLogout = null }) {
             );
             const active=view===item.id;
             return (
-              <button key={item.id} onClick={()=>setView(item.id)}
+              <button key={item.id} onClick={()=>item.external ? openBookNow(user) : setView(item.id)}
                 style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",
                   padding:"8px 12px",borderRadius:8,border:"none",cursor:"pointer",
                   background:active?"rgba(232,86,26,.14)":"transparent",
@@ -1723,7 +1748,7 @@ export default function App({ user = null, onLogout = null }) {
 
       {/* main */}
       <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
-        {view==="overview"   && <Overview setView={setView}/>}
+        {view==="overview"   && <Overview setView={setView} user={user}/>}
         {view==="qa"         && <QAView toast={showToast}/>}
         {view==="flows"      && <FlowBuilder toast={showToast}/>}
         {view==="simulator"  && <Simulator/>}
@@ -1733,7 +1758,7 @@ export default function App({ user = null, onLogout = null }) {
         {view==="broadcasts" && <Broadcasts toast={showToast}/>}
         {view==="contacts"   && <Contacts toast={showToast}/>}
         {view==="analytics"  && <Analytics/>}
-        {view==="calendar"   && <CalendarView toast={showToast}/>}
+        {view==="calendar"   && <CalendarView toast={showToast} user={user}/>}
         {view==="team"       && <Team toast={showToast}/>}
         {view==="billing"    && <Billing toast={showToast}/>}
         {view==="status"     && <Status/>}
