@@ -50,8 +50,8 @@ async function htmlToPdf(html) {
   const chromium = require('@sparticuz/chromium-min');
   const puppeteer = require('puppeteer-core');
 
-  // Use the version baked into the package so the URL never gets out of sync
-  const binaryUrl = `https://github.com/Sparticuz/chromium/releases/download/v${chromium.version}/chromium-v${chromium.version}-pack.tar`;
+  const version = chromium.version || '131.0.0';
+  const binaryUrl = `https://github.com/Sparticuz/chromium/releases/download/v${version}/chromium-v${version}-pack.tar`;
   const executablePath = await chromium.executablePath(binaryUrl);
 
   const browser = await puppeteer.launch({
@@ -102,13 +102,20 @@ function cell(stack, opts = {}) {
 function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, request }) {
   const PdfPrinter = require('pdfmake');
   const vfsModule = require('pdfmake/build/vfs_fonts');
-  const vfs = (vfsModule.pdfMake || {}).vfs || vfsModule.vfs || vfsModule;
+  const vfs = (vfsModule.pdfMake || {}).vfs || vfsModule.vfs || {};
+
+  function fontBuf(name) {
+    const raw = vfs[name];
+    if (!raw) throw new Error(`pdfmake vfs missing font: ${name}`);
+    return Buffer.from(raw, 'base64');
+  }
+
   const fonts = {
     Roboto: {
-      normal:      Buffer.from(vfs['Roboto-Regular.ttf'], 'base64'),
-      bold:        Buffer.from(vfs['Roboto-Medium.ttf'], 'base64'),
-      italics:     Buffer.from(vfs['Roboto-Italic.ttf'], 'base64'),
-      bolditalics: Buffer.from(vfs['Roboto-MediumItalic.ttf'], 'base64'),
+      normal:      fontBuf('Roboto-Regular.ttf'),
+      bold:        fontBuf('Roboto-Medium.ttf'),
+      italics:     fontBuf('Roboto-Italic.ttf'),
+      bolditalics: fontBuf('Roboto-MediumItalic.ttf'),
     },
   };
   const printer = new PdfPrinter(fonts);
@@ -444,15 +451,26 @@ module.exports = async (req, res) => {
     const pdfArgs = { company, contact: request.requester, portalEmail: email, portalPassword: password, request };
     const starterKitHtml = makeStarterKitHtml(pdfArgs);
 
-    let pdf;
-    let pdfMethod = 'puppeteer';
+    let pdf = null;
+    let pdfMethod = 'none';
     try {
       pdf = await htmlToPdf(starterKitHtml);
-    } catch (err) {
-      pdfMethod = `pdfmake-fallback(${err.message})`;
-      console.error('HTML→PDF failed:', err.message);
-      pdf = await makeStarterKitPdf(pdfArgs);
+      pdfMethod = 'puppeteer';
+    } catch (puppeteerErr) {
+      console.error('Puppeteer failed:', puppeteerErr.message);
+      try {
+        pdf = await makeStarterKitPdf(pdfArgs);
+        pdfMethod = 'pdfmake';
+      } catch (pdfmakeErr) {
+        console.error('pdfmake failed:', pdfmakeErr.message);
+        pdfMethod = `none(${pdfmakeErr.message})`;
+      }
     }
+
+    const attachments = [
+      { filename: `${slugify(company)}-starter-kit.html`, content: Buffer.from(starterKitHtml).toString('base64') },
+    ];
+    if (pdf) attachments.unshift({ filename: `${slugify(company)}-starter-kit.pdf`, content: pdf });
 
     await sendEmail({
       from: 'MgucaTECH <admin@mgucatech.com>',
@@ -460,10 +478,7 @@ module.exports = async (req, res) => {
       reply_to: 'admin@mgucatech.com',
       subject: 'Your MgucaTECH onboarding has been approved',
       html: starterKitHtml,
-      attachments: [
-        { filename: `${slugify(company)}-starter-kit.pdf`,  content: pdf },
-        { filename: `${slugify(company)}-starter-kit.html`, content: Buffer.from(starterKitHtml).toString('base64') },
-      ],
+      attachments,
     });
 
     return res.status(200).json({
