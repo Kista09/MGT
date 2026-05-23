@@ -6,7 +6,8 @@ const ORANGE = '#E8561A';
 const TEAL = '#0C4A4A';
 const DARK = '#1A1A1A';
 const CREAM = '#F8F4EF';
-const DEFAULT_CHROMIUM_BINARY_URL = 'https://o9768tmscbnw3506.public.blob.vercel-storage.com/chromium/chromium-v131.0.0-pack.tar';
+const DEFAULT_CHROMIUM_BINARY_URL = 'https://o9768tmscbnw3506.public.blob.vercel-storage.com/chromium/chromium-v141.0.0-pack.x64.tar';
+let chromiumExecutablePathPromise;
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -123,7 +124,8 @@ async function htmlToPdf(html) {
   const puppeteer = require('puppeteer-core');
 
   const binaryUrl = process.env.CHROMIUM_BINARY_URL || DEFAULT_CHROMIUM_BINARY_URL;
-  const executablePath = await chromium.executablePath(binaryUrl);
+  chromiumExecutablePathPromise ||= chromium.executablePath(binaryUrl);
+  const executablePath = await chromiumExecutablePathPromise;
 
   const browser = await puppeteer.launch({
     // Spread into a fresh array — Puppeteer mutates the args list internally
@@ -131,7 +133,7 @@ async function htmlToPdf(html) {
     args: [...chromium.args, '--no-sandbox', '--disable-setuid-sandbox'],
     defaultViewport: { width: 1440, height: 900 },
     executablePath,
-    headless: chromium.headless,
+    headless: 'shell',
   });
 
   try {
