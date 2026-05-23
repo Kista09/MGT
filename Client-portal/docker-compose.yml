@@ -1,0 +1,152 @@
+version: "3.9"
+
+# ══════════════════════════════════════════════════════════════
+# BotFlow — Local Development Stack
+#
+# Usage:
+#   docker compose up -d          → start everything
+#   docker compose logs -f api    → tail api logs
+#   docker compose down -v        → stop + wipe volumes
+#   docker compose exec postgres psql -U botflow botflow
+#
+# First run:
+#   cp .env.example .env          → fill in secrets
+#   docker compose up -d
+# ══════════════════════════════════════════════════════════════
+
+services:
+
+  # ── PostgreSQL 16 ────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    container_name: botflow-postgres
+    environment:
+      POSTGRES_DB:       botflow
+      POSTGRES_USER:     botflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATA:            /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Schema + seed run automatically on first start
+      - ./server/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test:     ["CMD-SHELL", "pg_isready -U botflow -d botflow"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+      start_period: 30s
+    networks:
+      - botflow
+
+  # ── Redis 7 (rate-limit / sessions / job queue) ──────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    container_name: botflow-redis
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD}
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test:     ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+    networks:
+      - botflow
+
+  # ── Node.js API ──────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development          # multi-stage: dev = hot-reload
+    restart: unless-stopped
+    container_name: botflow-api
+    environment:
+      NODE_ENV:           development
+      PORT:               3001
+      DATABASE_URL:       postgres://botflow:${POSTGRES_PASSWORD}@postgres:5432/botflow
+      REDIS_URL:          redis://:${REDIS_PASSWORD}@redis:6379
+      JWT_SECRET:         ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      CORS_ORIGINS:       http://localhost:5173,http://localhost:3000
+      ANTHROPIC_API_KEY:  ${ANTHROPIC_API_KEY}
+      # WhatsApp Business API
+      WHATSAPP_API_URL:   https://graph.facebook.com/v19.0
+      WHATSAPP_TOKEN:     ${WHATSAPP_TOKEN}
+      WHATSAPP_VERIFY_TOKEN: ${WHATSAPP_VERIFY_TOKEN}
+    volumes:
+      - ./server:/app/server:delegated   # hot-reload source
+      - /app/node_modules                # preserve container node_modules
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - botflow
+
+  # ── Vite Frontend (dev only) ─────────────────────────────────
+  frontend:
+    image: node:20-alpine
+    restart: unless-stopped
+    container_name: botflow-frontend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    environment:
+      VITE_API_URL: http://localhost:3001
+    volumes:
+      - .:/app:delegated
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api
+    networks:
+      - botflow
+
+  # ── pgAdmin (optional DB GUI) ────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    container_name: botflow-pgadmin
+    profiles: ["tools"]            # only starts with: docker compose --profile tools up
+    environment:
+      PGADMIN_DEFAULT_EMAIL:    admin@botflow.io
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - botflow
+
+# ── Networks ──────────────────────────────────────────────────
+networks:
+  botflow:
+    driver: bridge
+
+# ── Volumes ───────────────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local

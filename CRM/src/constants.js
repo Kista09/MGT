@@ -1,0 +1,99 @@
+export const C = {
+  bg:       "#F8F4EF",
+  surface:  "#FFFFFF",
+  card:     "#FFFFFF",
+  border:   "#E8E2DA",
+  accent:   "#E8561A",
+  accentDim:"#B84618",
+  accentBg: "#FDF0EB",
+  red:      "#B42318",
+  redBg:    "#FFF1F0",
+  yellow:   "#A16207",
+  yellowBg: "#FEF3C7",
+  blue:     "#0C4A4A",
+  blueBg:   "#E4F2F2",
+  purple:   "#6B4E71",
+  purpleBg: "#F3EEF5",
+  text:     "#1A1A1A",
+  muted:    "#6F6258",
+  subtle:   "#F3ECE3",
+  slate:    "#EFE7DC",
+  success:  "#0C4A4A",
+  successBg:"#E4F2F2",
+  dark:     "#1A1A1A",
+  teal:     "#0C4A4A",
+  cream:    "#F8F4EF",
+};
+
+export const PLAN_COLORS = {
+  Enterprise: { color: "#fff", bg: "#7c3aed" },
+  Scale:      { color: "#fff", bg: "#2563eb" },
+  Growth:     { color: "#fff", bg: "#1a9948" },
+};
+
+export const TYPE_COLORS = {
+  Support:   "#60a5fa",
+  Ops:       "#a855f7",
+  Marketing: "#fbbf24",
+  Sales:     "#25d366",
+};
+
+export const STAGE_CONFIG = {
+  Origination:   { color: "#94a3b8", bg: "#1a1f2e", probability: 5,  phase: "Source" },
+  Qualification: { color: "#a3bffa", bg: "#101a2d", probability: 15, phase: "Source" },
+  Discovery:     { color: "#f6c453", bg: "#29210d", probability: 25, phase: "Assess" },
+  Diligence:     { color: "#fb923c", bg: "#2a190d", probability: 40, phase: "Assess" },
+  "IC Review":   { color: "#b99cff", bg: "#1d1630", probability: 55, phase: "Approve" },
+  Proposal:      { color: "#7aa7ff", bg: "#101a2d", probability: 70, phase: "Approve" },
+  Negotiation:   { color: "#d6b86a", bg: "#261f10", probability: 85, phase: "Close" },
+  Closing:       { color: "#5ee0a0", bg: "#0d251a", probability: 95, phase: "Close" },
+  "Closed Won":  { color: "#22c55e", bg: "#0d2918", probability: 100, phase: "Closed" },
+  "Closed Lost": { color: "#f87171", bg: "#2a1114", probability: 0, phase: "Closed" },
+};
+
+export const NAV_ITEMS = [
+  { id: "dashboard", icon: "D",  label: "Executive" },
+  { id: "clients",   icon: "R",  label: "Relationships" },
+  { id: "pipeline",  icon: "M",  label: "Mandates" },
+  { id: "requests",  icon: "Q",  label: "Requests" },
+  { id: "followups", icon: "!",  label: "Follow-ups" },
+  { id: "bots",      icon: "O",  label: "Operations" },
+  { id: "analytics", icon: "A",  label: "Analytics" },
+  { id: "settings",  icon: "S",  label: "Settings"  },
+];
+
+export const PLANS      = ["Enterprise", "Scale", "Growth"];
+export const STATUSES   = ["Active", "Trial", "Churned"];
+export const BOT_TYPES  = ["Support", "Ops", "Marketing", "Sales"];
+export const BOT_STATUSES = ["Online", "Warning", "Offline", "Trial"];
+export const LANGUAGES  = ["AR/EN", "AR", "EN"];
+export const TASK_PRIORITIES = ["High", "Medium", "Low"];
+export const TASK_STATUSES = ["Open", "In Progress", "Done"];
+export const REQUEST_CATEGORIES = ["Reporting", "Portfolio Review", "Compliance", "Operations", "Billing", "Technical", "Other"];
+export const REQUEST_PRIORITIES = ["Critical", "High", "Medium", "Low"];
+export const REQUEST_STATUSES = ["New", "Approved", "Triaged", "In Progress", "Waiting on Client", "Resolved", "Closed"];
+export const INDUSTRIES = [
+  "Retail","Grocery","Sports","E-Commerce","Fintech",
+  "Logistics","Transport","Banking","Healthcare","SaaS",
+];
+
+export const pill = (color, bg) => ({
+  display:"inline-flex", alignItems:"center",
+  padding:"2px 10px", borderRadius:99,
+  fontSize:11, fontWeight:600, letterSpacing:.4,
+  color, background:bg, whiteSpace:"nowrap",
+});
+
+export const statusPill = (s) => {
+  if (s === "Active"  || s === "Online")  return pill(C.success, C.successBg);
+  if (s === "Trial")                       return pill(C.yellow, C.yellowBg);
+  if (s === "Churned" || s === "Offline") return pill(C.red, C.redBg);
+  if (s === "Warning")                     return pill(C.yellow, C.yellowBg);
+  return pill(C.muted, C.subtle);
+};
+
+export const font = {
+  body: "'DM Sans', sans-serif",
+  mono: "'DM Sans', sans-serif",
+  display: "'Cormorant Garamond', Georgia, serif",
+};
