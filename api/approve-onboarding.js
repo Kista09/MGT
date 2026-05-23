@@ -279,7 +279,7 @@ function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, requ
               {
                 table: { widths: ['*'], body: [[cell([
                   { text: 'WHATSAPP BUSINESS NUMBER', fontSize: 10, bold: true, color: ORANGE, margin: [16, 16, 16, 12] },
-                  { text: '+27 76 047 0141', fontSize: 24, bold: true, margin: [16, 0, 16, 10] },
+                  { text: '+27 76 047 0141', fontSize: 24, bold: true, noWrap: true, margin: [16, 0, 16, 10] },
                   { text: 'The MgucaTech support line. Your dedicated chatbot number is configured during onboarding. Message us here for setup queries.', fontSize: 10, color: '#666', lineHeight: 1.4, margin: [16, 0, 16, 16] },
                 ], { fillColor: CREAM })]] },
                 margin: [0, 0, 0, 14],
@@ -345,11 +345,16 @@ function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, requ
 
       {
         table: {
-          widths: ['*', '*', 'auto'],
+          // Fixed widths so the goal column can never be crowded out.
+          // 'auto' for the last column would size itself to the timeline text
+          // first, leaving the two '*' columns to split whatever remains — and
+          // if the timeline is long (e.g. "As soon as possible") that remainder
+          // can collapse to a single character.  Use fixed px instead.
+          widths: ['*', 90, 150],
           body: [[
             cell([{ text: 'Primary Goal', fontSize: 8, color: '#ccc', margin: [14, 10, 14, 3] }, { text: goal, bold: true, fontSize: 12, color: '#fff', margin: [14, 0, 14, 10] }], { fillColor: TEAL }),
-            cell([{ text: 'Package', fontSize: 8, color: '#ccc', margin: [14, 10, 14, 3] }, { text: plan, bold: true, fontSize: 12, color: '#fff', margin: [14, 0, 14, 10] }], { fillColor: TEAL }),
-            cell([{ text: 'Launch Timing', fontSize: 8, color: 'rgba(255,255,255,0.75)', margin: [14, 10, 14, 3] }, { text: timeline, bold: true, fontSize: 12, color: '#fff', margin: [14, 0, 14, 10] }], { fillColor: ORANGE }),
+            cell([{ text: 'Package',      fontSize: 8, color: '#ccc', margin: [14, 10, 14, 3] }, { text: plan, bold: true, fontSize: 12, color: '#fff', margin: [14, 0, 14, 10] }], { fillColor: TEAL }),
+            cell([{ text: 'Launch Timing', fontSize: 8, color: 'rgba(255,255,255,0.75)', margin: [14, 10, 14, 3] }, { text: timeline, bold: true, fontSize: 11, color: '#fff', margin: [14, 0, 14, 10] }], { fillColor: ORANGE }),
           ]],
         },
         margin: [0, 0, 0, 22],
@@ -544,4 +549,4 @@ module.exports = async (req, res) => {
     console.error(error);
     return res.status(500).json({ error: error.message });
   }
-};
+}; 
