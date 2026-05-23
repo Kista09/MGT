@@ -1,4 +1,4 @@
-import { C, NAV_ITEMS, font } from "../constants";
+import { C, NAV_GROUPS, font } from "../constants";
 import { useApp } from "../context";
 
 export default function Sidebar() {
@@ -36,26 +36,34 @@ export default function Sidebar() {
       </div>
 
       <nav style={{ padding:"10px 12px", flex:1 }}>
-        {NAV_ITEMS.map(item => {
-          const active = view === item.id || (view === "client-detail" && item.id === "clients");
-          return (
-            <button key={item.id} type="button" onClick={() => navigate(item.id)}
-              style={{ width:"100%", display:"flex", alignItems:"center", gap:12,
-                padding:"10px 12px", borderRadius:8, border:"none", cursor:"pointer",
-                background: active ? "rgba(232,86,26,0.13)" : "transparent",
-                color: active ? C.accent : "rgba(255,255,255,0.58)",
-                fontSize:14, fontWeight: active ? 700 : 500,
-                marginBottom:3, textAlign:"left", transition:"all .12s",
-                fontFamily:font.body }}
-              onMouseEnter={e => { if (!active) e.currentTarget.style.background = C.card; }}
-              onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}>
-              <span style={{ width:22, height:22, borderRadius:6, background: active ? C.accent : "rgba(255,255,255,0.07)",
-                color: active ? "#fff" : "rgba(255,255,255,0.45)", display:"inline-flex", alignItems:"center",
-                justifyContent:"center", fontSize:11, fontWeight:800, fontFamily:font.mono }}>{item.icon}</span>
-              {item.label}
-            </button>
-          );
-        })}
+        {NAV_GROUPS.map(group => (
+          <div key={group.label} style={{ marginBottom:10 }}>
+            <div style={{ padding:"8px 12px 6px", color:"rgba(255,255,255,0.34)",
+              fontSize:10, fontWeight:800, letterSpacing:.8, textTransform:"uppercase" }}>
+              {group.label}
+            </div>
+            {group.items.map(item => {
+              const active = view === item.id || (view === "client-detail" && item.id === "clients");
+              return (
+                <button key={item.id} type="button" onClick={() => navigate(item.id)}
+                  style={{ width:"100%", display:"flex", alignItems:"center", gap:12,
+                    padding:"10px 12px", borderRadius:8, border:"none", cursor:"pointer",
+                    background: active ? "rgba(232,86,26,0.13)" : "transparent",
+                    color: active ? C.accent : "rgba(255,255,255,0.58)",
+                    fontSize:14, fontWeight: active ? 700 : 500,
+                    marginBottom:3, textAlign:"left", transition:"all .12s",
+                    fontFamily:font.body }}
+                  onMouseEnter={e => { if (!active) e.currentTarget.style.background = C.card; }}
+                  onMouseLeave={e => { if (!active) e.currentTarget.style.background = "transparent"; }}>
+                  <span style={{ width:22, height:22, borderRadius:6, background: active ? C.accent : "rgba(255,255,255,0.07)",
+                    color: active ? "#fff" : "rgba(255,255,255,0.45)", display:"inline-flex", alignItems:"center",
+                    justifyContent:"center", fontSize:11, fontWeight:800, fontFamily:font.mono }}>{item.icon}</span>
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       <div style={{ padding:"14px 16px", borderTop:"1px solid rgba(255,255,255,0.08)" }}>

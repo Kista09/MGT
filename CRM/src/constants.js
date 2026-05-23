@@ -62,6 +62,21 @@ export const NAV_ITEMS = [
   { id: "settings",  icon: "S",  label: "Settings"  },
 ];
 
+export const NAV_GROUPS = [
+  {
+    label: "Workspace",
+    items: NAV_ITEMS.filter(item => ["dashboard", "clients", "pipeline"].includes(item.id)),
+  },
+  {
+    label: "Consultant",
+    items: NAV_ITEMS.filter(item => ["requests", "followups", "bots"].includes(item.id)),
+  },
+  {
+    label: "Admin",
+    items: NAV_ITEMS.filter(item => ["analytics", "settings"].includes(item.id)),
+  },
+];
+
 export const PLANS      = ["Enterprise", "Scale", "Growth"];
 export const STATUSES   = ["Active", "Trial", "Churned"];
 export const BOT_TYPES  = ["Support", "Ops", "Marketing", "Sales"];
