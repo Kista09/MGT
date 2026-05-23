@@ -184,7 +184,7 @@ async function htmlToPdf(html) {
       margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
     });
 
-    return pdfBuffer.toString('base64');
+    return Buffer.from(pdfBuffer).toString('base64');
   } finally {
     await browser.close();
   }
