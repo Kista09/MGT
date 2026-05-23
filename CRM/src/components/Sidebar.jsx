@@ -4,6 +4,26 @@ import { useApp } from "../context";
 export default function Sidebar() {
   const { state, dispatch, navigate } = useApp();
   const { view } = state.nav;
+  const today = new Date().toISOString().slice(0, 10);
+  const openRequests = (state.serviceRequests ?? []).filter(request =>
+    !["Resolved", "Closed"].includes(request.status)
+  );
+  const urgentFollowUps = (state.tasks ?? []).filter(task =>
+    task.status !== "Done" && task.dueDate <= today
+  );
+  const operationsAttention = (state.bots ?? []).filter(bot =>
+    ["Warning", "Offline"].includes(bot.status) || (bot.errorRate ?? 0) > 0.1
+  );
+  const attentionCounts = {
+    requests: openRequests.length,
+    followups: urgentFollowUps.length,
+    bots: operationsAttention.length,
+  };
+  const tendFirst = [
+    { id:"requests", label:"Requests", count:attentionCounts.requests, tone:C.red },
+    { id:"followups", label:"Follow-ups", count:attentionCounts.followups, tone:C.yellow },
+    { id:"bots", label:"Operations", count:attentionCounts.bots, tone:C.accent },
+  ].filter(item => item.count > 0)[0];
 
   return (
     <aside style={{ width:240, background:C.dark, borderRight:`1px solid rgba(255,255,255,0.08)`,
@@ -39,11 +59,21 @@ export default function Sidebar() {
         {NAV_GROUPS.map(group => (
           <div key={group.label} style={{ marginBottom:10 }}>
             <div style={{ padding:"8px 12px 6px", color:"rgba(255,255,255,0.34)",
-              fontSize:10, fontWeight:800, letterSpacing:.8, textTransform:"uppercase" }}>
-              {group.label}
+              fontSize:10, fontWeight:800, letterSpacing:.8, textTransform:"uppercase",
+              display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+              <span>{group.label}</span>
+              {group.label === "Consultant" && tendFirst && (
+                <button type="button" onClick={() => navigate(tendFirst.id)}
+                  style={{ border:"none", borderRadius:99, background:"rgba(255,255,255,0.08)",
+                    color:tendFirst.tone, cursor:"pointer", padding:"2px 7px",
+                    fontSize:9, fontWeight:900, letterSpacing:.5, textTransform:"uppercase" }}>
+                  Tend first
+                </button>
+              )}
             </div>
             {group.items.map(item => {
               const active = view === item.id || (view === "client-detail" && item.id === "clients");
+              const count = group.label === "Consultant" ? attentionCounts[item.id] : 0;
               return (
                 <button key={item.id} type="button" onClick={() => navigate(item.id)}
                   style={{ width:"100%", display:"flex", alignItems:"center", gap:12,
@@ -58,7 +88,16 @@ export default function Sidebar() {
                   <span style={{ width:22, height:22, borderRadius:6, background: active ? C.accent : "rgba(255,255,255,0.07)",
                     color: active ? "#fff" : "rgba(255,255,255,0.45)", display:"inline-flex", alignItems:"center",
                     justifyContent:"center", fontSize:11, fontWeight:800, fontFamily:font.mono }}>{item.icon}</span>
-                  {item.label}
+                  <span style={{ flex:1 }}>{item.label}</span>
+                  {count > 0 && (
+                    <span style={{ minWidth:20, height:20, borderRadius:99,
+                      background: active ? C.accent : "rgba(232,86,26,0.16)",
+                      color: active ? "#fff" : C.accent, display:"inline-flex",
+                      alignItems:"center", justifyContent:"center", fontSize:10,
+                      fontWeight:900, fontFamily:font.mono }}>
+                      {count > 99 ? "99+" : count}
+                    </span>
+                  )}
                 </button>
               );
             })}
