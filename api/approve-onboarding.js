@@ -101,23 +101,38 @@ function cell(stack, opts = {}) {
 
 function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, request }) {
   const PdfPrinter = require('pdfmake');
-  const vfsModule = require('pdfmake/build/vfs_fonts');
-  const vfs = (vfsModule.pdfMake || {}).vfs || vfsModule.vfs || {};
 
-  function fontBuf(name) {
-    const raw = vfs[name];
-    if (!raw) throw new Error(`pdfmake vfs missing font: ${name}`);
-    return Buffer.from(raw, 'base64');
+  let fonts;
+  let fontName = 'Roboto';
+  try {
+    const vfsModule = require('pdfmake/build/vfs_fonts');
+    const vfs = (vfsModule.pdfMake || {}).vfs || vfsModule.vfs || {};
+    const fontBuf = name => {
+      const raw = vfs[name];
+      if (!raw) throw new Error(`pdfmake vfs missing font: ${name}`);
+      return Buffer.from(raw, 'base64');
+    };
+    fonts = {
+      Roboto: {
+        normal:      fontBuf('Roboto-Regular.ttf'),
+        bold:        fontBuf('Roboto-Medium.ttf'),
+        italics:     fontBuf('Roboto-Italic.ttf'),
+        bolditalics: fontBuf('Roboto-MediumItalic.ttf'),
+      },
+    };
+  } catch (fontErr) {
+    console.warn('VFS fonts unavailable, using Helvetica:', fontErr.message);
+    fontName = 'Helvetica';
+    fonts = {
+      Helvetica: {
+        normal:      'Helvetica',
+        bold:        'Helvetica-Bold',
+        italics:     'Helvetica-Oblique',
+        bolditalics: 'Helvetica-BoldOblique',
+      },
+    };
   }
 
-  const fonts = {
-    Roboto: {
-      normal:      fontBuf('Roboto-Regular.ttf'),
-      bold:        fontBuf('Roboto-Medium.ttf'),
-      italics:     fontBuf('Roboto-Italic.ttf'),
-      bolditalics: fontBuf('Roboto-MediumItalic.ttf'),
-    },
-  };
   const printer = new PdfPrinter(fonts);
 
   const onboarding = request.onboarding || {};
@@ -392,7 +407,7 @@ function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, requ
       },
     ],
 
-    defaultStyle: { font: 'Roboto', fontSize: 11, color: DARK },
+    defaultStyle: { font: fontName, fontSize: 11, color: DARK },
   };
 
   return new Promise((resolve, reject) => {
@@ -451,26 +466,15 @@ module.exports = async (req, res) => {
     const pdfArgs = { company, contact: request.requester, portalEmail: email, portalPassword: password, request };
     const starterKitHtml = makeStarterKitHtml(pdfArgs);
 
-    let pdf = null;
-    let pdfMethod = 'none';
+    let pdf;
+    let pdfMethod = 'puppeteer';
     try {
       pdf = await htmlToPdf(starterKitHtml);
-      pdfMethod = 'puppeteer';
     } catch (puppeteerErr) {
       console.error('Puppeteer failed:', puppeteerErr.message);
-      try {
-        pdf = await makeStarterKitPdf(pdfArgs);
-        pdfMethod = 'pdfmake';
-      } catch (pdfmakeErr) {
-        console.error('pdfmake failed:', pdfmakeErr.message);
-        pdfMethod = `none(${pdfmakeErr.message})`;
-      }
+      pdfMethod = 'pdfmake';
+      pdf = await makeStarterKitPdf(pdfArgs);
     }
-
-    const attachments = [
-      { filename: `${slugify(company)}-starter-kit.html`, content: Buffer.from(starterKitHtml).toString('base64') },
-    ];
-    if (pdf) attachments.unshift({ filename: `${slugify(company)}-starter-kit.pdf`, content: pdf });
 
     await sendEmail({
       from: 'MgucaTECH <admin@mgucatech.com>',
@@ -478,7 +482,10 @@ module.exports = async (req, res) => {
       reply_to: 'admin@mgucatech.com',
       subject: 'Your MgucaTECH onboarding has been approved',
       html: starterKitHtml,
-      attachments,
+      attachments: [
+        { filename: `${slugify(company)}-starter-kit.pdf`,  content: pdf },
+        { filename: `${slugify(company)}-starter-kit.html`, content: Buffer.from(starterKitHtml).toString('base64') },
+      ],
     });
 
     return res.status(200).json({
