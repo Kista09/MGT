@@ -284,7 +284,9 @@
         <div class="summary-item"><span>Solution</span><strong id="s-product">Not selected</strong></div>
         <div class="summary-item"><span>Timeline</span><strong id="s-timeline">Not set</strong></div>
         <div class="summary-item"><span>Goal</span><strong id="s-goal">Not set</strong></div>
-        <a class="btn primary" id="mailto" href="mailto:admin@mgucatech.com?subject=MgucaTECH%20Onboarding%20Brief">Email brief <i class="ri-mail-send-line"></i></a>
+        <button class="btn primary" id="submit-brief" type="button">Send brief <i class="ri-mail-send-line"></i></button>
+        <a class="btn" id="mailto" href="mailto:admin@mgucatech.com?subject=MgucaTECH%20Onboarding%20Brief" style="margin-top:10px">Open email app</a>
+        <div id="send-status" style="margin-top:12px;font-size:.86rem;font-weight:700;"></div>
       </aside>
     </main>
   </div>
@@ -328,6 +330,23 @@
       });
     };
 
+    const buildMessage = data => [
+      `Company: ${data.company || ""}`,
+      `Sector: ${data.sector || ""}`,
+      `Lead: ${data.leadName || ""}`,
+      `Email: ${data.email || ""}`,
+      `WhatsApp: ${data.phone || ""}`,
+      `Location: ${data.location || ""}`,
+      `Products: ${data.product.join(", ")}`,
+      `Goal: ${data.goal || ""}`,
+      `Volume: ${data.volume || ""}`,
+      `Timeline: ${data.timeline || ""}`,
+      `Languages: ${data.language || ""}`,
+      `Systems: ${data.systems || ""}`,
+      `Handoff: ${data.handoff || ""}`,
+      `Notes: ${data.notes || ""}`
+    ].join("\n");
+
     const updateSummary = () => {
       const data = getData();
       document.getElementById("s-company").textContent = data.company || "Not set";
@@ -335,24 +354,52 @@
       document.getElementById("s-product").textContent = data.product.length ? data.product.join(", ") : "Not selected";
       document.getElementById("s-timeline").textContent = data.timeline || "Not set";
       document.getElementById("s-goal").textContent = data.goal || "Not set";
-      const body = [
-        `Company: ${data.company || ""}`,
-        `Sector: ${data.sector || ""}`,
-        `Lead: ${data.leadName || ""}`,
-        `Email: ${data.email || ""}`,
-        `WhatsApp: ${data.phone || ""}`,
-        `Location: ${data.location || ""}`,
-        `Products: ${data.product.join(", ")}`,
-        `Goal: ${data.goal || ""}`,
-        `Volume: ${data.volume || ""}`,
-        `Timeline: ${data.timeline || ""}`,
-        `Languages: ${data.language || ""}`,
-        `Systems: ${data.systems || ""}`,
-        `Handoff: ${data.handoff || ""}`,
-        `Notes: ${data.notes || ""}`
-      ].join("%0D%0A");
-      document.getElementById("mailto").href = `mailto:admin@mgucatech.com?subject=MgucaTECH%20Onboarding%20Brief&body=${body}`;
+      document.getElementById("mailto").href =
+        `mailto:admin@mgucatech.com?subject=${encodeURIComponent(`MgucaTECH Onboarding Brief - ${data.company || "New client"}`)}&body=${encodeURIComponent(buildMessage(data))}`;
       save();
+    };
+
+    const submitBrief = async () => {
+      updateSummary();
+      const data = getData();
+      const status = document.getElementById("send-status");
+      const submit = document.getElementById("submit-brief");
+      const required = ["company", "sector", "leadName", "email", "phone"];
+      const missing = required.filter(key => !String(data[key] || "").trim());
+      if (missing.length || !data.product.length) {
+        status.style.color = "#F77F00";
+        status.textContent = "Please complete organisation details and choose at least one solution.";
+        show(missing.length ? 0 : 1);
+        return;
+      }
+
+      submit.disabled = true;
+      submit.innerHTML = 'Sending... <i class="ri-loader-4-line"></i>';
+      status.style.color = "#7AADB8";
+      status.textContent = "Sending your onboarding brief...";
+
+      try {
+        const res = await fetch("/api/contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: data.leadName,
+            email: data.email,
+            subject: `Onboarding Brief - ${data.company}`,
+            message: buildMessage(data),
+          }),
+        });
+        const result = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(result.error || "Send failed");
+        status.style.color = "#2EC4B6";
+        status.textContent = "Brief sent. MgucaTECH will follow up shortly.";
+      } catch (error) {
+        status.style.color = "#F77F00";
+        status.textContent = "Could not send automatically. Use Open email app below as a fallback.";
+      } finally {
+        submit.disabled = false;
+        submit.innerHTML = 'Send brief <i class="ri-mail-send-line"></i>';
+      }
     };
 
     const show = index => {
@@ -370,11 +417,12 @@
     prev.addEventListener("click", () => show(current - 1));
     next.addEventListener("click", () => {
       if (current === forms.length - 1) {
-        document.getElementById("mailto").click();
+        submitBrief();
         return;
       }
       show(current + 1);
     });
+    document.getElementById("submit-brief").addEventListener("click", submitBrief);
 
     restore();
     show(0);
