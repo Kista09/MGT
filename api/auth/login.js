@@ -10,6 +10,7 @@ function getAdminUser(email, password) {
   const accounts = [
     { envEmail: 'SUPPORT_EMAIL', envPass: 'SUPPORT_PASSWORD', id: 'support', name: 'MgucaTech Support' },
     { envEmail: 'ADMIN_EMAIL',   envPass: 'ADMIN_PASSWORD',   id: 'admin',   name: 'MgucaTech Admin'   },
+    { envEmail: 'OWNER_EMAIL',   envPass: 'OWNER_PASSWORD',   id: 'owner',   name: 'MgucaTech Owner'   },
   ];
   for (const { envEmail, envPass, id, name } of accounts) {
     const e = (process.env[envEmail] || '').toLowerCase();
