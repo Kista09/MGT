@@ -19,6 +19,11 @@ function escapeHtml(value = '') {
     .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+function fieldValue(value, fallback = 'Not specified') {
+  if (Array.isArray(value)) return value.filter(Boolean).join(', ') || fallback;
+  return String(value || '').trim() || fallback;
+}
+
 function makeStarterKitHtml({ company, contact, portalEmail, portalPassword, request }) {
   const onboarding = request.onboarding || {};
   const templatePath = path.join(__dirname, '..', 'files', 'organicsmith-starter-kit.html');
@@ -33,6 +38,17 @@ function makeStarterKitHtml({ company, contact, portalEmail, portalPassword, req
     const loc = escapeHtml(onboarding.location || 'South Africa');
     const gol = escapeHtml(onboarding.goal     || 'Increase customers and improve access');
     const tl  = escapeHtml(onboarding.timeline || 'As soon as possible');
+    const products = escapeHtml(fieldValue(onboarding.product, 'MgucaTech services'));
+    const plan = escapeHtml(onboarding.package || 'Starter');
+    const billing = escapeHtml(onboarding.billingStatus || 'Not discussed');
+    const volume = escapeHtml(onboarding.volume || 'Under 500');
+    const systems = escapeHtml(onboarding.systems || 'Not specified');
+    const languages = escapeHtml(onboarding.language || 'English');
+    const decision = escapeHtml(onboarding.decisionStatus || 'Interested');
+    const whatsapp = escapeHtml(onboarding.phone || '+27 76 047 0141');
+    const consultant = escapeHtml(onboarding.consultantName || 'MgucaTech');
+    const consultantEmail = escapeHtml(onboarding.consultantEmail || 'admin@mgucatech.com');
+    const goalSummary = escapeHtml((onboarding.goal || 'Growth').replace(/\.$/, ''));
 
     // Order matters — replace the most specific strings first so a later,
     // shorter pattern does not partially re-match what a previous one produced.
@@ -44,6 +60,9 @@ function makeStarterKitHtml({ company, contact, portalEmail, portalPassword, req
       // Credentials (exact strings used in the HTML template)
       [/organicsmith@gmail\.com/g,               em],
       [/MGT-HPemqvGhcq/g,                        pw],
+      [/Bakhokhele Mguca/g,                       consultant],
+      [/admin@mgucatech\.com/g,                   consultantEmail],
+      [/\+27 76 047 0141/g,                       whatsapp],
       // Consultant card: remove the stale "(portal)" annotation so it reads
       // as just the email address regardless of who the client is
       [/ \(portal\)/g,                            ''],
@@ -57,8 +76,35 @@ function makeStarterKitHtml({ company, contact, portalEmail, portalPassword, req
       [/\bHealthcare\b/g,                        sec],
       // Goal and timeline
       [/Increase customers &amp; patient access/g, gol],
+      [/â†‘ Customers/g,                           goalSummary],
       [/As soon as possible/g,                   tl],
+      [/Starter Package/g,                        `${plan} Package`],
+      [/Starter Kit/g,                            `${plan} Kit`],
+      [/\bStarter\b/g,                            plan],
+      [/WhatsApp Â· Booking Â· Portal/g,           products],
+      [/patient/g,                                'client'],
+      [/patients/g,                               'clients'],
+      [/practice/g,                               'business'],
+      [/practice's/g,                             "business's"],
     ].forEach(([pattern, value]) => { html = html.replace(pattern, value); });
+
+    const serviceRequestHtml = `
+      <div class="consultant-card" style="margin-bottom:24px;">
+        <div class="c-label">Service Request Details</div>
+        <div class="c-detail"><strong>Products:</strong> ${products}</div>
+        <div class="c-detail"><strong>Package:</strong> ${plan}</div>
+        <div class="c-detail"><strong>Billing:</strong> ${billing}</div>
+        <div class="c-detail"><strong>Volume:</strong> ${volume}</div>
+        <div class="c-detail"><strong>Timeline:</strong> ${tl}</div>
+        <div class="c-detail"><strong>Systems:</strong> ${systems}</div>
+        <div class="c-detail"><strong>Languages:</strong> ${languages}</div>
+        <div class="c-detail"><strong>Decision:</strong> ${decision}</div>
+        <div class="c-detail"><strong>WhatsApp:</strong> ${whatsapp}</div>
+      </div>`;
+    html = html.replace(
+      /(\s*<div class="consultant-card">\s*<div class="c-label">Your Consultant<\/div>)/,
+      `${serviceRequestHtml}$1`,
+    );
 
     return html;
   } catch {
@@ -69,12 +115,6 @@ function makeStarterKitHtml({ company, contact, portalEmail, portalPassword, req
       <p>Password: ${escapeHtml(portalPassword)}</p>
     </body></html>`;
   }
-}
-
-function makeStarterKitPdfFromDesignedFile() {
-  const pdfPath = path.join(__dirname, '..', 'files', 'organicsmith-starter-kit.pdf');
-  if (!fs.existsSync(pdfPath)) return null;
-  return fs.readFileSync(pdfPath).toString('base64');
 }
 
 async function htmlToPdf(html) {
@@ -205,6 +245,13 @@ function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, requ
   const timeline = onboarding.timeline || 'As soon as possible';
   const sector   = onboarding.sector   || 'Business';
   const location = onboarding.location || 'South Africa';
+  const products = fieldValue(onboarding.product, 'MgucaTech services');
+  const billing  = onboarding.billingStatus || 'Not discussed';
+  const volume   = onboarding.volume || 'Under 500';
+  const systems  = onboarding.systems || 'Not specified';
+  const language = onboarding.language || 'English';
+  const decision = onboarding.decisionStatus || 'Interested';
+  const whatsapp = onboarding.phone || '+27 76 047 0141';
   const dateStr  = new Date().toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' });
 
   // ── Elephant background image
@@ -339,7 +386,11 @@ function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, requ
                   { text: 'LOCATION', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.45)', characterSpacing: 1, margin: [0, 0, 0, 3] },
                   { text: location, font: bF, fontSize: 11, color: '#fff', margin: [0, 0, 0, 12] },
                   { text: 'PACKAGE', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.45)', characterSpacing: 1, margin: [0, 0, 0, 3] },
-                  { text: plan, font: bF, fontSize: 11, bold: true, color: ORANGE },
+                  { text: plan, font: bF, fontSize: 11, bold: true, color: ORANGE, margin: [0, 0, 0, 12] },
+                  { text: 'APPROVED PRODUCTS', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.45)', characterSpacing: 1, margin: [0, 0, 0, 3] },
+                  { text: products, font: bF, fontSize: 10, color: '#fff', margin: [0, 0, 0, 12] },
+                  { text: 'BILLING / VOLUME', font: bF, fontSize: 7, bold: true, color: 'rgba(255,255,255,0.45)', characterSpacing: 1, margin: [0, 0, 0, 3] },
+                  { text: `${billing} · ${volume}`, font: bF, fontSize: 10, color: '#fff' },
                 ], { fillColor: TEAL, margin: [20, 22, 20, 22] })]],
                 },
               },
@@ -360,7 +411,8 @@ function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, requ
               { text: '', margin: [0, 12, 0, 0] },
               card([
                 { text: 'PRIMARY GOAL', font: bF, fontSize: 7, bold: true, color: ORANGE, characterSpacing: 1, margin: [0, 0, 0, 6] },
-                { text: goal, font: bF, fontSize: 12, color: '#fff', lineHeight: 1.45 },
+                { text: goal, font: bF, fontSize: 12, color: '#fff', lineHeight: 1.45, margin: [0, 0, 0, 10] },
+                { text: `Systems: ${systems}\nLanguages: ${language}\nDecision: ${decision}\nWhatsApp: ${whatsapp}`, font: bF, fontSize: 9.5, color: 'rgba(255,255,255,0.82)', lineHeight: 1.55 },
               ], TEAL),
             ],
           },
@@ -377,7 +429,7 @@ function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, requ
           h1([["What you're", false, DARK], ['getting.', true, TEAL]], 38),
           sep(),
           {
-            text: `The ${plan} package includes three integrated tools built to work together and grow with ${company}.`,
+            text: `The approved Service Request for ${company} includes: ${products}. Package: ${plan}. Billing: ${billing}. Volume: ${volume}. Systems: ${systems}. Languages: ${language}.`,
             font: bF, fontSize: 11, color: '#555', lineHeight: 1.6,
           },
         ],
@@ -594,7 +646,7 @@ function makeStarterKitPdf({ company, contact, portalEmail, portalPassword, requ
               card([
                 { text: 'WHATSAPP SUPPORT', font: bF, fontSize: 7.5, bold: true, color: ORANGE, characterSpacing: 1, margin: [0, 0, 0, 10] },
                 { text: '+27 76 047 0141', font: hF, fontSize: 28, bold: true, color: DARK, lineHeight: 1.1, margin: [0, 0, 0, 10] },
-                { text: 'The MgucaTech support line. Message us here for any setup queries or assistance during onboarding.', font: bF, fontSize: 10, color: '#666', lineHeight: 1.5 },
+                { text: `Client WhatsApp: ${whatsapp}. Message MgucaTech here for any setup queries or assistance during onboarding.`, font: bF, fontSize: 10, color: '#666', lineHeight: 1.5 },
               ], '#fff'),
               { text: '', margin: [0, 14, 0, 0] },
               card([
@@ -730,14 +782,8 @@ module.exports = async (req, res) => {
       pdf = await htmlToPdf(starterKitHtml);
     } catch (puppeteerErr) {
       console.error('Puppeteer failed:', puppeteerErr.message);
-      pdf = makeStarterKitPdfFromDesignedFile();
-      if (pdf) {
-        pdfMethod = 'designed-file';
-      } else {
-        console.error('Designed starter kit PDF missing, using pdfmake fallback');
-        pdfMethod = 'pdfmake';
-        pdf = await makeStarterKitPdf(pdfArgs);
-      }
+      pdfMethod = 'pdfmake';
+      pdf = await makeStarterKitPdf(pdfArgs);
     }
 
     await sendEmail({
