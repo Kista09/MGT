@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="shortcut icon" href="assets/img/favicon.png" type="image/png">
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@2.5.0/fonts/remixicon.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>MgucaTECH Consultant Capture</title>
+  <style>
+    :root {
+      --orange:#F77F00; --teal:#0A9396; --mint:#2EC4B6;
+      --bg:#061016; --panel:#0b1720; --card:#102231;
+      --text:#EDF4F7; --muted:#8db1bb; --line:rgba(141,177,187,.24);
+      --danger:#ffb86b; --ok:#44d7a8;
+      --head:'Space Grotesk',sans-serif; --body:'Inter',sans-serif;
+    }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      min-height:100vh; background:var(--bg); color:var(--muted);
+      font-family:var(--body); line-height:1.55;
+    }
+    body::before {
+      content:""; position:fixed; inset:0; z-index:-1;
+      background:
+        linear-gradient(rgba(6,16,22,.72), rgba(6,16,22,.96)),
+        url("assets/img/background.jpg") center/cover no-repeat;
+    }
+    a { color:inherit; text-decoration:none; }
+    button, input, select, textarea { font:inherit; }
+    .shell { max-width:1220px; margin:0 auto; padding:24px; }
+    .topbar { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:26px; }
+    .brand { display:flex; align-items:center; gap:12px; color:var(--text); font-family:var(--head); font-weight:700; }
+    .brand img { width:42px; height:42px; object-fit:contain; }
+    .badge { border:1px solid var(--line); border-radius:6px; padding:8px 12px; background:rgba(11,23,32,.76); color:var(--mint); font-weight:800; font-size:.78rem; letter-spacing:.08em; text-transform:uppercase; }
+    .hero { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:24px; align-items:end; margin-bottom:18px; }
+    .eyebrow { color:var(--mint); font-size:.78rem; font-weight:800; letter-spacing:.18em; text-transform:uppercase; margin-bottom:12px; }
+    h1 { color:var(--text); font-family:var(--head); font-size:clamp(2.1rem,5vw,4.4rem); line-height:1; max-width:820px; }
+    .hero p { max-width:760px; margin-top:14px; font-size:1rem; }
+    .note { border:1px solid var(--line); border-radius:8px; padding:16px; background:rgba(16,34,49,.78); }
+    .note strong { display:block; color:var(--text); margin-bottom:6px; font-family:var(--head); }
+    .layout { display:grid; grid-template-columns:1fr 330px; gap:20px; align-items:start; }
+    .panel { border:1px solid var(--line); border-radius:8px; background:rgba(11,23,32,.9); overflow:hidden; box-shadow:0 24px 80px rgba(0,0,0,.28); }
+    .panel-head { padding:20px 22px; border-bottom:1px solid var(--line); background:rgba(16,34,49,.68); }
+    .panel-head h2 { color:var(--text); font-family:var(--head); font-size:1.35rem; }
+    form { padding:22px; }
+    .section { margin-bottom:24px; }
+    .section h3 { color:var(--text); font-family:var(--head); font-size:1rem; margin-bottom:12px; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .field { display:flex; flex-direction:column; gap:7px; }
+    .full { grid-column:1/-1; }
+    label { color:var(--text); font-size:.82rem; font-weight:800; }
+    input, select, textarea {
+      width:100%; border:1px solid var(--line); border-radius:6px; background:rgba(4,12,17,.78);
+      color:var(--text); padding:12px 13px; outline:none;
+    }
+    textarea { min-height:102px; resize:vertical; }
+    input:focus, select:focus, textarea:focus { border-color:var(--mint); box-shadow:0 0 0 3px rgba(46,196,182,.12); }
+    .checks { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .check { border:1px solid var(--line); border-radius:8px; padding:11px 12px; color:var(--text); background:rgba(4,12,17,.5); display:flex; gap:9px; align-items:flex-start; }
+    .check input { width:auto; margin-top:4px; accent-color:var(--orange); }
+    .actions { display:flex; gap:12px; flex-wrap:wrap; align-items:center; border-top:1px solid var(--line); padding-top:18px; }
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; border:1px solid var(--line); border-radius:6px; background:rgba(16,34,49,.9); color:var(--text); padding:12px 16px; cursor:pointer; font-weight:900; }
+    .btn.primary { border-color:var(--orange); background:linear-gradient(135deg,var(--orange),#c86200); color:#fff; }
+    .summary { position:sticky; top:20px; padding:18px; }
+    .summary h3 { color:var(--text); font-family:var(--head); margin-bottom:10px; }
+    .item { border-top:1px solid var(--line); padding:12px 0; }
+    .item span { display:block; color:var(--mint); font-size:.72rem; font-weight:900; letter-spacing:.12em; text-transform:uppercase; margin-bottom:4px; }
+    .item strong { color:var(--text); font-size:.92rem; }
+    #status { font-size:.88rem; font-weight:800; }
+    @media (max-width:920px) { .hero, .layout { grid-template-columns:1fr; } .summary { position:static; } }
+    @media (max-width:640px) { .shell { padding:18px; } .grid, .checks { grid-template-columns:1fr; } .topbar { align-items:flex-start; flex-direction:column; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar">
+      <a href="index.html" class="brand">
+        <img src="assets/img/mgt-logo.svg" alt="MGT">
+        <span>MgucaTECH Consultant Capture</span>
+      </a>
+      <span class="badge">Internal onboarding</span>
+    </header>
+
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Consultant workspace</div>
+        <h1>Capture a client and send them into CRM onboarding.</h1>
+        <p>Use this when a consultant has already spoken to a client and needs to record the details, package fit, operational requirements, and next step for approval.</p>
+      </div>
+      <aside class="note">
+        <strong>CRM-ready</strong>
+        <p>Submitting this creates a request in the CRM Requests tab with source, consultant, package, and client details attached.</p>
+      </aside>
+    </section>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Client capture form</h2>
+        </div>
+        <form id="capture-form">
+          <div class="section">
+            <h3>Consultant</h3>
+            <div class="grid">
+              <div class="field">
+                <label for="consultantName">Consultant name</label>
+                <input id="consultantName" name="consultantName" autocomplete="name" required>
+              </div>
+              <div class="field">
+                <label for="consultantEmail">Consultant email</label>
+                <input id="consultantEmail" name="consultantEmail" type="email" autocomplete="email" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>Client</h3>
+            <div class="grid">
+              <div class="field">
+                <label for="company">Company / practice name</label>
+                <input id="company" name="company" autocomplete="organization" required>
+              </div>
+              <div class="field">
+                <label for="sector">Sector</label>
+                <select id="sector" name="sector" required>
+                  <option value="">Select sector</option>
+                  <option>Healthcare</option>
+                  <option>Retail</option>
+                  <option>Financial Services</option>
+                  <option>Education</option>
+                  <option>Hospitality</option>
+                  <option>Professional Services</option>
+                  <option>Other</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="leadName">Client contact</label>
+                <input id="leadName" name="leadName" autocomplete="name" required>
+              </div>
+              <div class="field">
+                <label for="email">Client email</label>
+                <input id="email" name="email" type="email" autocomplete="email" required>
+              </div>
+              <div class="field">
+                <label for="phone">Client WhatsApp</label>
+                <input id="phone" name="phone" autocomplete="tel" placeholder="+27 ..." required>
+              </div>
+              <div class="field">
+                <label for="location">Location</label>
+                <input id="location" name="location" placeholder="City, province">
+              </div>
+              <div class="field full">
+                <label for="website">Website / social profile</label>
+                <input id="website" name="website" placeholder="https://...">
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>Solution</h3>
+            <div class="checks">
+              <label class="check"><input type="checkbox" name="product" value="WhatsApp chatbot">WhatsApp chatbot</label>
+              <label class="check"><input type="checkbox" name="product" value="Booking workflow">Booking workflow</label>
+              <label class="check"><input type="checkbox" name="product" value="Client portal">Client portal</label>
+              <label class="check"><input type="checkbox" name="product" value="Internal CRM">Internal CRM</label>
+            </div>
+            <div class="grid" style="margin-top:14px">
+              <div class="field">
+                <label for="package">Package fit</label>
+                <select id="package" name="package">
+                  <option>Starter</option>
+                  <option>Growth</option>
+                  <option>Scale</option>
+                  <option>Custom</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="decisionStatus">Decision status</label>
+                <select id="decisionStatus" name="decisionStatus">
+                  <option>Interested</option>
+                  <option>Ready to onboard</option>
+                  <option>Needs proposal</option>
+                  <option>Needs follow-up</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="billingStatus">Billing status</label>
+                <select id="billingStatus" name="billingStatus">
+                  <option>Not discussed</option>
+                  <option>Quote requested</option>
+                  <option>Invoice needed</option>
+                  <option>Paid</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="timeline">Target launch timing</label>
+                <select id="timeline" name="timeline">
+                  <option>As soon as possible</option>
+                  <option>Within 2 weeks</option>
+                  <option>Within 30 days</option>
+                  <option>Planning phase</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="volume">Monthly conversation estimate</label>
+                <select id="volume" name="volume">
+                  <option>Under 500</option>
+                  <option>500 - 2,000</option>
+                  <option>2,000 - 10,000</option>
+                  <option>10,000+</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="language">Languages</label>
+                <input id="language" name="language" placeholder="English, isiXhosa, isiZulu...">
+              </div>
+              <div class="field full">
+                <label for="systems">Existing systems / data sources</label>
+                <input id="systems" name="systems" placeholder="CRM, booking calendar, spreadsheets, POS, EMR...">
+              </div>
+              <div class="field full">
+                <label for="goal">Client goal</label>
+                <textarea id="goal" name="goal" required placeholder="What outcome did the client ask for?"></textarea>
+              </div>
+              <div class="field full">
+                <label for="handoff">Human handoff and support notes</label>
+                <textarea id="handoff" name="handoff" placeholder="When must a person take over? Who handles escalations?"></textarea>
+              </div>
+              <div class="field full">
+                <label for="notes">Consultant notes</label>
+                <textarea id="notes" name="notes" placeholder="Pricing notes, concerns, approval blockers, or next meeting date."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="btn primary" type="submit" id="submit">Capture and send to CRM <i class="ri-send-plane-line"></i></button>
+            <button class="btn" type="reset">Clear form</button>
+            <span id="status"></span>
+          </div>
+        </form>
+      </section>
+
+      <aside class="panel summary">
+        <h3>CRM preview</h3>
+        <div class="item"><span>Company</span><strong id="s-company">Not set</strong></div>
+        <div class="item"><span>Contact</span><strong id="s-contact">Not set</strong></div>
+        <div class="item"><span>Products</span><strong id="s-products">Not selected</strong></div>
+        <div class="item"><span>Decision</span><strong id="s-decision">Interested</strong></div>
+        <div class="item"><span>Consultant</span><strong id="s-consultant">Not set</strong></div>
+      </aside>
+    </main>
+  </div>
+
+  <script>
+    const form = document.getElementById("capture-form");
+    const status = document.getElementById("status");
+    const submit = document.getElementById("submit");
+
+    const getData = () => {
+      const data = Object.fromEntries(new FormData(form).entries());
+      data.product = [...document.querySelectorAll('input[name="product"]:checked')].map(input => input.value);
+      data.source = "consultant-capture";
+      return data;
+    };
+
+    const buildMessage = data => [
+      `Company: ${data.company || ""}`,
+      `Sector: ${data.sector || ""}`,
+      `Lead: ${data.leadName || ""}`,
+      `Email: ${data.email || ""}`,
+      `WhatsApp: ${data.phone || ""}`,
+      `Location: ${data.location || ""}`,
+      `Website: ${data.website || ""}`,
+      `Products: ${data.product.join(", ")}`,
+      `Package: ${data.package || ""}`,
+      `Decision: ${data.decisionStatus || ""}`,
+      `Billing: ${data.billingStatus || ""}`,
+      `Goal: ${data.goal || ""}`,
+      `Volume: ${data.volume || ""}`,
+      `Timeline: ${data.timeline || ""}`,
+      `Languages: ${data.language || ""}`,
+      `Systems: ${data.systems || ""}`,
+      `Handoff: ${data.handoff || ""}`,
+      `Consultant: ${data.consultantName || ""}`,
+      `Consultant Email: ${data.consultantEmail || ""}`,
+      `Notes: ${data.notes || ""}`
+    ].join("\n");
+
+    const updatePreview = () => {
+      const data = getData();
+      document.getElementById("s-company").textContent = data.company || "Not set";
+      document.getElementById("s-contact").textContent = data.leadName ? `${data.leadName} (${data.email || "no email"})` : "Not set";
+      document.getElementById("s-products").textContent = data.product.length ? data.product.join(", ") : "Not selected";
+      document.getElementById("s-decision").textContent = data.decisionStatus || "Interested";
+      document.getElementById("s-consultant").textContent = data.consultantName || "Not set";
+    };
+
+    form.addEventListener("input", updatePreview);
+    form.addEventListener("reset", () => setTimeout(updatePreview, 0));
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+      updatePreview();
+      const data = getData();
+      if (!data.product.length) {
+        status.style.color = "var(--danger)";
+        status.textContent = "Choose at least one solution.";
+        return;
+      }
+
+      submit.disabled = true;
+      submit.innerHTML = 'Sending... <i class="ri-loader-4-line"></i>';
+      status.style.color = "var(--muted)";
+      status.textContent = "Sending to CRM...";
+
+      try {
+        const response = await fetch("/api/contact", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: data.leadName,
+            email: data.email,
+            subject: `Onboarding Brief - ${data.company}`,
+            message: buildMessage(data),
+            onboarding: data,
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Capture failed");
+        status.style.color = "var(--ok)";
+        status.textContent = result.crmSynced ? "Captured. Sync CRM Requests to view it." : "Captured, but CRM storage was not confirmed.";
+        form.reset();
+        updatePreview();
+      } catch (error) {
+        status.style.color = "var(--danger)";
+        status.textContent = "Could not send. Check the details and try again.";
+      } finally {
+        submit.disabled = false;
+        submit.innerHTML = 'Capture and send to CRM <i class="ri-send-plane-line"></i>';
+      }
+    });
+
+    updatePreview();
+  </script>
+</body>
+</html>

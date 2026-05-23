@@ -23,9 +23,15 @@ function addDays(days) {
 function makeCrmRequest({ name, email, subject, message, onboarding }) {
   const company = onboarding?.company || subject.replace(/^Onboarding Brief -\s*/i, '').trim() || 'New onboarding lead';
   const products = Array.isArray(onboarding?.product) ? onboarding.product.join(', ') : '';
+  const isConsultantCapture = onboarding?.source === 'consultant-capture';
+  const sourcePage = isConsultantCapture ? 'mgucatech.com/consultant-onboarding.html' : 'mgucatech.com/onboarding.html';
   const summary = [
+    onboarding?.consultantName && `Consultant: ${onboarding.consultantName}`,
+    onboarding?.consultantEmail && `Consultant email: ${onboarding.consultantEmail}`,
     onboarding?.goal && `Goal: ${onboarding.goal}`,
     products && `Products: ${products}`,
+    onboarding?.package && `Package: ${onboarding.package}`,
+    onboarding?.billingStatus && `Billing: ${onboarding.billingStatus}`,
     onboarding?.volume && `Volume: ${onboarding.volume}`,
     onboarding?.timeline && `Timeline: ${onboarding.timeline}`,
     onboarding?.systems && `Systems: ${onboarding.systems}`,
@@ -48,10 +54,20 @@ function makeCrmRequest({ name, email, subject, message, onboarding }) {
     description: summary,
     dueDate: addDays(2),
     owner: 'Admin',
-    channel: 'Onboarding',
-    notes: `Sector: ${onboarding?.sector || 'Not specified'}\nWhatsApp: ${onboarding?.phone || 'Not provided'}\nLocation: ${onboarding?.location || 'Not provided'}\nSource: mgucatech.com/onboarding.html`,
+    channel: isConsultantCapture ? 'Consultant Capture' : 'Onboarding',
+    notes: [
+      `Sector: ${onboarding?.sector || 'Not specified'}`,
+      `WhatsApp: ${onboarding?.phone || 'Not provided'}`,
+      `Location: ${onboarding?.location || 'Not provided'}`,
+      onboarding?.website && `Website: ${onboarding.website}`,
+      onboarding?.consultantName && `Consultant: ${onboarding.consultantName}`,
+      onboarding?.consultantEmail && `Consultant email: ${onboarding.consultantEmail}`,
+      onboarding?.decisionStatus && `Decision status: ${onboarding.decisionStatus}`,
+      `Source: ${sourcePage}`,
+    ].filter(Boolean).join('\n'),
     receivedAt: new Date().toISOString(),
     source: 'onboarding',
+    captureSource: isConsultantCapture ? 'consultant' : 'client',
     company,
     onboarding: onboarding || null,
   };
