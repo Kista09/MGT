@@ -6,6 +6,7 @@ const ORANGE = '#E8561A';
 const TEAL = '#0C4A4A';
 const DARK = '#1A1A1A';
 const CREAM = '#F8F4EF';
+const DEFAULT_CHROMIUM_BINARY_URL = 'https://o9768tmscbnw3506.public.blob.vercel-storage.com/chromium/chromium-v131.0.0-pack.tar';
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -121,9 +122,7 @@ async function htmlToPdf(html) {
   const chromium = require('@sparticuz/chromium-min');
   const puppeteer = require('puppeteer-core');
 
-  const version = chromium.version || '131.0.0';
-  const binaryUrl = process.env.CHROMIUM_BINARY_URL
-    || `https://github.com/Sparticuz/chromium/releases/download/v${version}/chromium-v${version}-pack.tar`;
+  const binaryUrl = process.env.CHROMIUM_BINARY_URL || DEFAULT_CHROMIUM_BINARY_URL;
   const executablePath = await chromium.executablePath(binaryUrl);
 
   const browser = await puppeteer.launch({
@@ -241,7 +240,7 @@ module.exports = async (req, res) => {
       pdf = await htmlToPdf(starterKitHtml);
     } catch (puppeteerErr) {
       console.error('Puppeteer failed:', puppeteerErr.message);
-      throw new Error('Starter kit PDF render failed. The PDF must be generated from the personalized OrganicSmith starter kit design.');
+      throw new Error(`Starter kit PDF render failed: ${puppeteerErr.message}`);
     }
 
     await sendEmail({
