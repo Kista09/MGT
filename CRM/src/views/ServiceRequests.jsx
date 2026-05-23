@@ -118,6 +118,75 @@ function RequestForm({ form, setForm, errors, clients }) {
   );
 }
 
+function fieldVal(v) {
+  if (Array.isArray(v)) return v.filter(Boolean).join(", ") || null;
+  const s = String(v ?? "").trim();
+  return s || null;
+}
+
+function InfoCell({ label, value }) {
+  const v = fieldVal(value);
+  if (!v) return <div />;
+  return (
+    <div>
+      <div style={{ fontSize:9, fontWeight:800, letterSpacing:.6, textTransform:"uppercase", color:C.muted, marginBottom:2 }}>{label}</div>
+      <div style={{ fontSize:12, color:C.text, fontWeight:500, lineHeight:1.35 }}>{v}</div>
+    </div>
+  );
+}
+
+function OnboardingGrid({ onboarding: o }) {
+  const groups = [
+    { label:"Client", cells:[
+      ["Company",  o.company], ["Sector",   o.sector],   ["Location", o.location],
+      ["WhatsApp", o.phone],   ["Website",  o.website],
+    ]},
+    { label:"Package", cells:[
+      ["Products", fieldVal(o.product)], ["Package",  o.package],
+      ["Goal",     o.goal],              ["Timeline", o.timeline],
+    ]},
+    { label:"Business Details", cells:[
+      ["Volume",    o.volume],  ["Billing",   o.billingStatus || o.billing],
+      ["Decision",  o.decisionStatus || o.decision],
+      ["Systems",   o.systems], ["Languages", o.language],
+    ]},
+    { label:"Captured By", cells:[
+      ["Consultant", o.consultantName], ["Email", o.consultantEmail],
+    ]},
+  ].filter(g => g.cells.some(([, v]) => fieldVal(v)));
+
+  return (
+    <div style={{ border:`1px solid ${C.border}`, borderRadius:8, overflow:"hidden", marginBottom:12 }}>
+      {groups.map((group, gi) => {
+        const cells = group.cells.filter(([, v]) => fieldVal(v));
+        if (!cells.length) return null;
+        return (
+          <div key={group.label} style={{ borderBottom: gi < groups.length - 1 ? `1px solid ${C.border}` : "none" }}>
+            <div style={{ background:C.subtle, padding:"4px 12px", fontSize:9, fontWeight:800, letterSpacing:.8, textTransform:"uppercase", color:C.muted }}>
+              {group.label}
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3, 1fr)", gap:"10px 16px", padding:"10px 12px" }}>
+              {cells.map(([label, value]) => <InfoCell key={label} label={label} value={value} />)}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ApprovalTrail({ notes }) {
+  const KEYS = ["Approved for onboarding", "Client portal access granted", "Approval email"];
+  const lines = (notes ?? "").split("\n").map(l => l.trim()).filter(l => KEYS.some(k => l.startsWith(k)));
+  if (!lines.length) return null;
+  return (
+    <div style={{ background:C.successBg, border:`1px solid ${C.success}`, borderRadius:6, padding:"9px 12px", marginBottom:12 }}>
+      <div style={{ color:C.success, fontSize:9, fontWeight:800, letterSpacing:.6, textTransform:"uppercase", marginBottom:5 }}>Approval Trail</div>
+      {lines.map((line, i) => <div key={i} style={{ color:C.success, fontSize:11, lineHeight:1.5 }}>{line}</div>)}
+    </div>
+  );
+}
+
 export default function ServiceRequests() {
   const { state, dispatch, navigate, toast } = useApp();
   const [queue, setQueue] = useState("Open");
@@ -346,37 +415,51 @@ export default function ServiceRequests() {
           const delta = daysUntil(request.dueDate);
           const dueColor = delta < 0 ? C.red : delta === 0 ? C.yellow : C.muted;
           return (
-            <article key={request.id} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:18 }}>
-              <div style={{ display:"flex", justifyContent:"space-between", gap:12, marginBottom:10 }}>
+            <article key={request.id} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:20, display:"flex", flexDirection:"column" }}>
+
+              {/* Header */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, marginBottom:6 }}>
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontSize:15, fontWeight:800, lineHeight:1.35 }}>{request.subject}</div>
                   <button type="button" onClick={() => client && navigate("client-detail", client.id)}
                     style={{ background:"transparent", border:"none", color:C.muted, cursor:"pointer",
-                      padding:0, fontSize:12, marginTop:4, textAlign:"left" }}>
+                      padding:0, fontSize:12, marginTop:3, textAlign:"left" }}>
                     {client?.name ?? "Unknown relationship"} · {request.requester}
                   </button>
                 </div>
-                <span style={requestStatusStyle(request.status)}>{request.status}</span>
+                <span style={{ ...requestStatusStyle(request.status), flexShrink:0 }}>{request.status}</span>
               </div>
 
-              <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
+              {/* Pills */}
+              <div style={{ display:"flex", gap:7, flexWrap:"wrap", marginBottom:14 }}>
                 <span style={priorityStyle(request.priority)}>{request.priority}</span>
-                <span style={{ ...pill(C.blue, C.blueBg) }}>{request.category}</span>
-                <span style={{ ...pill(dueColor, C.surface) }}>{delta < 0 ? `${Math.abs(delta)}d overdue` : delta === 0 ? "Due today" : formatDateShort(request.dueDate)}</span>
-                <span style={{ ...pill(C.muted, C.subtle) }}>{request.channel}</span>
+                <span style={pill(C.blue, C.blueBg)}>{request.category}</span>
+                <span style={pill(dueColor, C.surface)}>{delta < 0 ? `${Math.abs(delta)}d overdue` : delta === 0 ? "Due today" : formatDateShort(request.dueDate)}</span>
+                {request.source === "onboarding"
+                  ? <span style={pill(C.purple, C.purpleBg)}>Onboarding</span>
+                  : <span style={pill(C.muted, C.subtle)}>{request.channel}</span>}
               </div>
 
-              <p style={{ margin:"0 0 14px", color:C.muted, fontSize:13, lineHeight:1.5 }}>{request.description}</p>
+              {/* Structured onboarding data or plain description */}
+              {request.onboarding
+                ? <OnboardingGrid onboarding={request.onboarding} />
+                : request.description
+                  ? <p style={{ margin:"0 0 12px", color:C.muted, fontSize:13, lineHeight:1.5 }}>{request.description}</p>
+                  : null}
 
-              {request.notes && (
-                <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:"9px 10px", marginBottom:12 }}>
-                  <div style={{ color:C.muted, fontSize:10, fontWeight:800, letterSpacing:.5, textTransform:"uppercase", marginBottom:4 }}>Internal Notes</div>
-                  <div style={{ color:C.text, fontSize:12, lineHeight:1.45 }}>{request.notes}</div>
-                </div>
-              )}
+              {/* Approval trail (onboarding) or full notes (other requests) */}
+              {request.onboarding
+                ? <ApprovalTrail notes={request.notes} />
+                : request.notes && (
+                    <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:"9px 10px", marginBottom:12 }}>
+                      <div style={{ color:C.muted, fontSize:9, fontWeight:800, letterSpacing:.6, textTransform:"uppercase", marginBottom:4 }}>Internal Notes</div>
+                      <div style={{ color:C.text, fontSize:12, lineHeight:1.45 }}>{request.notes}</div>
+                    </div>
+                  )}
 
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}>
-                <span style={{ color:C.muted, fontSize:11 }}>Owner: {request.owner} · Received {formatDateShort(request.receivedAt?.slice(0, 10))}</span>
+              {/* Footer */}
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginTop:"auto", paddingTop:12, borderTop:`1px solid ${C.border}` }}>
+                <span style={{ color:C.muted, fontSize:11 }}>Owner: {request.owner} · {formatDateShort(request.receivedAt?.slice(0, 10))}</span>
                 <div style={{ display:"flex", gap:6 }}>
                   {!["Resolved", "Closed"].includes(request.status) && (
                     <button type="button" onClick={() => closeRequest(request)}
@@ -387,7 +470,7 @@ export default function ServiceRequests() {
                     <button type="button" disabled={approvingId === request.id} onClick={() => approveOnboarding(request)}
                       style={{ background:C.successBg, border:`1px solid ${C.success}`, color:C.success,
                         borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:800, cursor:approvingId === request.id ? "wait" : "pointer" }}>
-                      {approvingId === request.id ? "Approving..." : "Approve"}
+                      {approvingId === request.id ? "Approving…" : "Approve"}
                     </button>
                   )}
                   <button type="button" onClick={() => openEdit(request)}
