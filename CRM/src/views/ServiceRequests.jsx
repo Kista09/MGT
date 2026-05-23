@@ -124,6 +124,67 @@ function fieldVal(v) {
   return s || null;
 }
 
+// Parse "Key: Value Key: Value …" text (stored in request.description / notes)
+// into a structured object. Handles both "Consultant Capture" and "Onboarding" formats.
+function parseRequestData(request) {
+  if (request.onboarding && typeof request.onboarding === "object") return request.onboarding;
+  const raw = (request.description ?? "").replace(/\n|`n/g, " ");
+  if (!raw.trim()) return null;
+
+  // [fieldName, regex] — longer/more-specific patterns listed first so
+  // "Consultant email" is found before the bare "Consultant" pattern.
+  const FIELDS = [
+    ["consultantEmail", /consultant\s+email/i],
+    ["decisionStatus",  /decision\s+status/i],
+    ["consultantName",  /consultant/i],
+    ["company",         /company/i],
+    ["sector",          /sector/i],
+    ["location",        /location/i],
+    ["phone",           /whatsapp/i],
+    ["website",         /website/i],
+    ["product",         /products?/i],
+    ["package",         /package/i],
+    ["goal",            /goal/i],
+    ["timeline",        /timeline/i],
+    ["billing",         /billing/i],
+    ["volume",          /volume/i],
+    ["decision",        /decision/i],
+    ["systems",         /systems?/i],
+    ["language",        /languages?/i],
+    ["lead",            /lead/i],
+    ["email",           /email/i],
+  ];
+
+  // Find every "Label:" occurrence with its span
+  const hits = [];
+  for (const [field, rx] of FIELDS) {
+    const gr = new RegExp(rx.source + "\\s*:", "gi");
+    let m;
+    while ((m = gr.exec(raw)) !== null) {
+      hits.push({ field, start: m.index, end: m.index + m[0].length });
+    }
+  }
+  hits.sort((a, b) => a.start - b.start);
+
+  // Remove overlapping matches (shorter key matched inside a longer one)
+  const kept = [];
+  for (const h of hits) {
+    const prev = kept[kept.length - 1];
+    if (!prev || h.start >= prev.end) kept.push(h);
+  }
+
+  // Extract the text between consecutive hits as the value for each key
+  const result = {};
+  for (let i = 0; i < kept.length; i++) {
+    const { field, end } = kept[i];
+    const nextStart = i + 1 < kept.length ? kept[i + 1].start : raw.length;
+    const value = raw.slice(end, nextStart).trim().replace(/\s+/g, " ");
+    if (value && !result[field]) result[field] = value;
+  }
+
+  return Object.keys(result).length >= 3 ? result : null;
+}
+
 function InfoCell({ label, value }) {
   const v = fieldVal(value);
   if (!v) return <div />;
@@ -138,20 +199,24 @@ function InfoCell({ label, value }) {
 function OnboardingGrid({ onboarding: o }) {
   const groups = [
     { label:"Client", cells:[
-      ["Company",  o.company], ["Sector",   o.sector],   ["Location", o.location],
-      ["WhatsApp", o.phone],   ["Website",  o.website],
+      ["Company",  o.company],  ["Email",    o.email],
+      ["Sector",   o.sector],   ["Location", o.location],
+      ["WhatsApp", o.phone],    ["Website",  o.website],
     ]},
     { label:"Package", cells:[
       ["Products", fieldVal(o.product)], ["Package",  o.package],
       ["Goal",     o.goal],              ["Timeline", o.timeline],
     ]},
     { label:"Business Details", cells:[
-      ["Volume",    o.volume],  ["Billing",   o.billingStatus || o.billing],
+      ["Volume",    o.volume],
+      ["Billing",   o.billingStatus || o.billing],
       ["Decision",  o.decisionStatus || o.decision],
-      ["Systems",   o.systems], ["Languages", o.language],
+      ["Systems",   o.systems],
+      ["Languages", o.language],
     ]},
     { label:"Captured By", cells:[
-      ["Consultant", o.consultantName], ["Email", o.consultantEmail],
+      ["Consultant", o.consultantName || o.lead],
+      ["Email",      o.consultantEmail],
     ]},
   ].filter(g => g.cells.some(([, v]) => fieldVal(v)));
 
@@ -176,8 +241,13 @@ function OnboardingGrid({ onboarding: o }) {
 }
 
 function ApprovalTrail({ notes }) {
+  if (!notes) return null;
+  // Notes may be a single long string without newlines — use regex to find sentences
   const KEYS = ["Approved for onboarding", "Client portal access granted", "Approval email"];
-  const lines = (notes ?? "").split("\n").map(l => l.trim()).filter(l => KEYS.some(k => l.startsWith(k)));
+  const lines = KEYS.map(k => {
+    const m = notes.match(new RegExp(k + "[^.]*\\.", "i"));
+    return m ? m[0].trim() : null;
+  }).filter(Boolean);
   if (!lines.length) return null;
   return (
     <div style={{ background:C.successBg, border:`1px solid ${C.success}`, borderRadius:6, padding:"9px 12px", marginBottom:12 }}>
@@ -414,6 +484,7 @@ export default function ServiceRequests() {
           const client = clientMap.get(request.clientId);
           const delta = daysUntil(request.dueDate);
           const dueColor = delta < 0 ? C.red : delta === 0 ? C.yellow : C.muted;
+          const ob = parseRequestData(request);
           return (
             <article key={request.id} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:20, display:"flex", flexDirection:"column" }}>
 
@@ -441,14 +512,14 @@ export default function ServiceRequests() {
               </div>
 
               {/* Structured onboarding data or plain description */}
-              {request.onboarding
-                ? <OnboardingGrid onboarding={request.onboarding} />
+              {ob
+                ? <OnboardingGrid onboarding={ob} />
                 : request.description
                   ? <p style={{ margin:"0 0 12px", color:C.muted, fontSize:13, lineHeight:1.5 }}>{request.description}</p>
                   : null}
 
               {/* Approval trail (onboarding) or full notes (other requests) */}
-              {request.onboarding
+              {ob
                 ? <ApprovalTrail notes={request.notes} />
                 : request.notes && (
                     <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:"9px 10px", marginBottom:12 }}>
