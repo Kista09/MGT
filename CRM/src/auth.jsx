@@ -17,7 +17,7 @@ const DEV_STAFF = [
 ];
 
 function isInternalUser(user) {
-  return user?.role === "superadmin" || user?.email?.endsWith("@mgucatech.com");
+  return user?.role === "normal_client_pool" || user?.role === "superadmin" || user?.email?.endsWith("@mgucatech.com");
 }
 
 async function loginInternal(email, password) {
@@ -79,7 +79,12 @@ function normalizeUser(user) {
   return {
     name,
     email: user.email,
-    role: user.role === "superadmin" ? "MgucaTECH Admin" : (user.role ?? "Internal CRM"),
+    role: user.role === "superadmin"
+      ? "MgucaTECH Admin"
+      : user.role === "normal_client_pool"
+        ? "Normal Client Pool"
+        : (user.role ?? "Internal CRM"),
+    accessRole: user.role,
     avatar: user.avatar ?? name.slice(0, 1).toUpperCase(),
   };
 }

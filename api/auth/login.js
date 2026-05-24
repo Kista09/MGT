@@ -27,6 +27,31 @@ function getAdminUser(email, password) {
   return null;
 }
 
+function normalClientPoolEmails() {
+  const configured = process.env.NORMAL_CLIENT_POOL_EMAILS || process.env.NORMAL_CLIENT_POOL_EMAIL || '';
+  return [...new Set([
+    'organicsmith@gmail.com',
+    ...configured.split(',').map(value => String(value).trim().toLowerCase()).filter(Boolean),
+  ])];
+}
+
+function getNormalClientPoolUser(email, password) {
+  const accountPassword = (process.env.NORMAL_CLIENT_POOL_PASSWORD || process.env.PRIVATE_CLIENT_PASSWORD || '').trim();
+  if (!accountPassword || !normalClientPoolEmails().includes(email) || password.trim() !== accountPassword) {
+    return null;
+  }
+  return {
+    id: `normal-client-pool-${email.replace(/[^a-z0-9]+/g, '-')}`,
+    email,
+    name: 'OrganicSmith Normal Client Pool',
+    role: 'normal_client_pool',
+    clientId: null,
+    clientName: 'Normal Client Pool',
+    plan: null,
+    portalApproved: true,
+  };
+}
+
 module.exports = async (req, res) => {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -37,10 +62,12 @@ module.exports = async (req, res) => {
 
   const norm = String(email).trim().toLowerCase();
   const admin = getAdminUser(norm, password);
+  const normalClientPool = getNormalClientPoolUser(norm, password);
 
   if (audience === 'consultant_suite' || audience === 'internal_crm') {
-    if (!admin) return res.status(401).json({ error: 'Invalid staff credentials' });
-    return res.status(200).json({ accessToken: makeToken(admin), user: publicUser(admin) });
+    const user = admin || (audience === 'internal_crm' ? normalClientPool : null);
+    if (!user) return res.status(401).json({ error: 'Invalid staff credentials' });
+    return res.status(200).json({ accessToken: makeToken(user), user: publicUser(user) });
   }
 
   if (audience !== 'client_portal') return res.status(403).json({ error: 'Invalid portal audience' });

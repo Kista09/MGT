@@ -59,11 +59,15 @@ function setCors(req, res) {
 
 function privateEmails() {
   const configured = process.env.PRIVATE_CLIENT_EMAILS || process.env.PRIVATE_CLIENT_EMAIL || '';
-  const defaults = ['organicsmith@gmail.com', 'organicsmith@gmmail.com'];
+  const normalPoolEmails = (process.env.NORMAL_CLIENT_POOL_EMAILS || process.env.NORMAL_CLIENT_POOL_EMAIL || 'organicsmith@gmail.com')
+    .split(',')
+    .map(normalizeEmail)
+    .filter(Boolean);
+  const defaults = ['organicsmith@gmmail.com'];
   return [...new Set([
     ...configured.split(',').map(normalizeEmail).filter(Boolean),
     ...defaults,
-  ])];
+  ])].filter(email => !normalPoolEmails.includes(email));
 }
 
 function privateAccount() {

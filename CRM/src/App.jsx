@@ -22,6 +22,7 @@ import Settings    from "./views/Settings";
 function AppInner({ onLogout }) {
   const { state, dispatch } = useApp();
   const { view, clientId } = state.nav;
+  const normalClientPoolOnly = state.user?.accessRole === "normal_client_pool";
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -38,6 +39,12 @@ function AppInner({ onLogout }) {
     return () => window.removeEventListener("keydown", handler);
   }, [dispatch]);
 
+  useEffect(() => {
+    if (normalClientPoolOnly && view === "private-clients") {
+      dispatch({ type: "NAVIGATE", view: "clients" });
+    }
+  }, [dispatch, normalClientPoolOnly, view]);
+
   const views = {
     today:          <Today />,
     dashboard:      <Dashboard />,
@@ -47,7 +54,7 @@ function AppInner({ onLogout }) {
     requests:       <ServiceRequests />,
     followups:      <FollowUps />,
     bots:           <Bots />,
-    "private-clients": <PrivateClients />,
+    "private-clients": normalClientPoolOnly ? <Clients /> : <PrivateClients />,
     analytics:      <Analytics />,
     settings:       <Settings />,
   };
