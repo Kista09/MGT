@@ -5,6 +5,7 @@ import Modal, { FormRow, inputStyle, selectStyle } from "../components/Modal";
 import { formatDateShort, todayISO } from "../utils";
 
 const API_URL = "https://mgucatech.com/api/private-clients";
+const CRM_TOKEN_KEY = "mgucatech_crm_access_token";
 const TOKEN_KEY = "mgucatech_private_client_token";
 const PRIVATE_USER_KEY = "mgucatech_private_client_user";
 
@@ -27,7 +28,9 @@ function sensitivityStyle(sensitivity) {
 }
 
 async function privateRequest(payload = null) {
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = payload
+    ? localStorage.getItem(TOKEN_KEY)
+    : localStorage.getItem(CRM_TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
   const response = await fetch(API_URL, {
     method: payload ? "POST" : "GET",
     headers: {
@@ -51,9 +54,6 @@ function AccessGate() {
     event.preventDefault();
     setLoading(true);
     try {
-      if (email.trim().toLowerCase().endsWith("@mgucatech.com")) {
-        throw new Error("Staff credentials unlock the CRM only. Use the private-client account for this tab.");
-      }
       const data = await privateRequest({ action: "private_login", email, password });
       localStorage.setItem(TOKEN_KEY, data.accessToken);
       localStorage.setItem(PRIVATE_USER_KEY, JSON.stringify(data.user));
@@ -76,18 +76,6 @@ function AccessGate() {
         <p style={{ color:C.muted, fontSize:14, lineHeight:1.6, margin:"0 0 18px" }}>
           This area is separate from normal CRM relationships. Sign in with the private-client credentials before viewing restricted client records.
         </p>
-        <div style={{
-          background:C.accentBg,
-          border:`1px solid ${C.border}`,
-          color:C.muted,
-          borderRadius:8,
-          padding:"10px 12px",
-          fontSize:12,
-          lineHeight:1.5,
-          marginBottom:18,
-        }}>
-          Staff accounts such as admin@mgucatech.com do not unlock private records. Use the approved private-client account only.
-        </div>
         <form onSubmit={login} style={{ padding:0 }}>
           <FormRow label="Private client email">
             <input

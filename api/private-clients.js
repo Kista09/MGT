@@ -82,14 +82,17 @@ function readPrivateSession(req) {
   if (!token) return null;
   try {
     const session = readToken(token);
-    return session.role === 'private_client' ? session : null;
+    return session;
   } catch {
     return null;
   }
 }
 
 function isPrivateSession(session) {
-  return privateAccount().emails.includes(normalizeEmail(session?.email));
+  const email = normalizeEmail(session?.email);
+  return session?.role === 'private_client'
+    ? privateAccount().emails.includes(email)
+    : ['admin', 'consultant', 'support', 'owner', 'superadmin'].includes(session?.role) || email.endsWith('@mgucatech.com');
 }
 
 module.exports = async (req, res) => {
