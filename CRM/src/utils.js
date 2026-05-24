@@ -72,7 +72,7 @@ export function buildPriorityQueue(state) {
       const client = state.clients.find(item => item.id === request.clientId);
       const due = daysUntil(request.dueDate);
       return {
-        id: `request-${request.id}`,
+        id: `request-${request.requestNumber || request.id}`,
         type: "Request",
         nav: "requests",
         title: request.subject,

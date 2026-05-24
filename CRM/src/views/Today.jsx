@@ -90,7 +90,7 @@ export default function Today() {
               const steps = ["Approved", "Portal Created", "Assets Received", "Bot Configured", "Testing", "Live"];
               const active = request.status === "Live" ? 6 : request.portalGranted ? 2 : request.status === "Approved" ? 1 : 0;
               return (
-                <div key={request.id} style={{ marginBottom:16 }}>
+                <div key={request.requestNumber || request.id} style={{ marginBottom:16 }}>
                   <div style={{ display:"flex", justifyContent:"space-between", gap:10, marginBottom:7 }}>
                     <div style={{ fontSize:13, fontWeight:800 }}>{request.company ?? request.requester}</div>
                     <div style={{ color:C.muted, fontSize:11 }}>{active}/{steps.length}</div>

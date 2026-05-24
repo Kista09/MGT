@@ -51,7 +51,7 @@ export default function ClientDetail({ clientId }) {
     .reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
   const timeline = [
     ...clientRequests.map(request => ({
-      id: `request-${request.id}`,
+      id: `request-${request.requestNumber || request.id}`,
       date: request.receivedAt?.slice(0, 10) ?? request.dueDate,
       label: `Request ${request.status}`,
       detail: request.subject,

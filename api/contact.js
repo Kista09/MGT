@@ -21,6 +21,12 @@ function addDays(days) {
   return date.toISOString().slice(0, 10);
 }
 
+function makeServiceRequestNumber() {
+  const stamp = Date.now().toString(36).toUpperCase();
+  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `MGT-SR-${stamp}-${rand}`;
+}
+
 function readConsultantSession(req, onboarding) {
   if (onboarding?.source !== 'consultant-capture') return null;
 
@@ -67,10 +73,12 @@ function makeCrmRequest({ name, email, subject, message, onboarding }) {
     message,
   ].filter(Boolean).join('\n');
 
-  const id = `onboarding-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const requestNumber = makeServiceRequestNumber();
+  const externalId = `onboarding-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   return {
-    id,
-    externalId: id,
+    id: requestNumber,
+    requestNumber,
+    externalId,
     clientId: null,
     requester: name,
     email,
@@ -103,7 +111,7 @@ function makeCrmRequest({ name, email, subject, message, onboarding }) {
 
 async function storeCrmRequest(record) {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return false;
-  await put(`crm-requests/${record.id}.json`, JSON.stringify(record, null, 2), {
+  await put(`crm-requests/${record.requestNumber || record.id}.json`, JSON.stringify(record, null, 2), {
     access: 'public',
     contentType: 'application/json',
     addRandomSuffix: false,

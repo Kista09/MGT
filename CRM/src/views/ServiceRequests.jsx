@@ -52,6 +52,10 @@ function serviceRequestNumber(request = {}) {
   return `MGT-SR-${String(match ? Number(match[1]) : 0).padStart(4, "0")}`;
 }
 
+function serviceRequestId(request = {}) {
+  return request.requestNumber || request.id;
+}
+
 function LifecycleBar({ status }) {
   const current = status === "Resolved" || status === "Closed" ? "Support" : status;
   const active = Math.max(0, SERVICE_LIFECYCLE.indexOf(current));
@@ -724,7 +728,7 @@ export default function ServiceRequests() {
   };
 
   const approveOnboarding = async (request) => {
-    setApprovingId(request.id);
+    setApprovingId(serviceRequestId(request));
     const approvedAt = new Date().toISOString();
     try {
       const response = await fetch("https://mgucatech.com/api/approve-onboarding", {
@@ -762,7 +766,7 @@ export default function ServiceRequests() {
   };
 
   const confirmDelete = () => {
-    dispatch({ type:"DELETE_SERVICE_REQUEST", id: deleteRequest.id });
+    dispatch({ type:"DELETE_SERVICE_REQUEST", id: serviceRequestId(deleteRequest) });
     toast("Request deleted", "x", "warning");
     setDeleteRequest(null);
   };
@@ -831,7 +835,7 @@ export default function ServiceRequests() {
           const dueColor = delta < 0 ? C.red : delta === 0 ? C.yellow : C.muted;
           const ob = parseRequestData(request);
           return (
-            <article key={request.id} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:20, display:"flex", flexDirection:"column" }}>
+            <article key={serviceRequestId(request)} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:20, display:"flex", flexDirection:"column" }}>
 
               {/* Header */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, marginBottom:6 }}>
@@ -889,10 +893,10 @@ export default function ServiceRequests() {
                         borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:800, cursor:"pointer" }}>Resolve</button>
                   )}
                   {request.source === "onboarding" && !["Approved", "Resolved", "Closed"].includes(request.status) && (
-                    <button type="button" disabled={approvingId === request.id} onClick={() => approveOnboarding(request)}
+                    <button type="button" disabled={approvingId === serviceRequestId(request)} onClick={() => approveOnboarding(request)}
                       style={{ background:C.successBg, border:`1px solid ${C.success}`, color:C.success,
-                        borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:800, cursor:approvingId === request.id ? "wait" : "pointer" }}>
-                      {approvingId === request.id ? "Approving…" : "Approve"}
+                        borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:800, cursor:approvingId === serviceRequestId(request) ? "wait" : "pointer" }}>
+                      {approvingId === serviceRequestId(request) ? "Approving…" : "Approve"}
                     </button>
                   )}
                   <button type="button" onClick={() => openEdit(request)}

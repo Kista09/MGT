@@ -85,6 +85,7 @@ function addDaysISO(days) {
 
 function requestFollowUp(request, owner = "Admin") {
   const urgent = request.priority === "Critical" || request.priority === "High" || request.onboarding?.timeline === "As soon as possible";
+  const srNumber = request.requestNumber || request.id;
   return {
     id: `t${generateId()}`,
     clientId: Number(request.clientId || 0),
@@ -93,20 +94,19 @@ function requestFollowUp(request, owner = "Admin") {
     dueDate: urgent ? addDaysISO(1) : addDaysISO(3),
     priority: urgent ? "High" : "Medium",
     status: "Open",
-    notes: `Auto-created from service request ${request.id}. Confirm next action, billing status, and onboarding blockers.`,
-    requestId: request.id,
+    notes: `Auto-created from service request ${srNumber}. Confirm next action, billing status, and onboarding blockers.`,
+    requestId: srNumber,
   };
 }
 
-function requestNumberValue(request = {}) {
-  const source = request.requestNumber || (/^sr\d{1,5}$/i.test(String(request.id || "")) ? request.id : "");
-  const match = String(source).match(/(\d+)$/);
-  return match ? Number(match[1]) : 0;
+function makeServiceRequestNumber() {
+  const stamp = Date.now().toString(36).toUpperCase();
+  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return `MGT-SR-${stamp}-${rand}`;
 }
 
-function nextServiceRequestNumber(requests = [], offset = 0) {
-  const max = requests.reduce((highest, request) => Math.max(highest, requestNumberValue(request)), 0);
-  return `MGT-SR-${String(max + offset + 1).padStart(4, "0")}`;
+function requestIdentity(request = {}) {
+  return request.requestNumber || request.id || request.externalId;
 }
 
 const REQUEST_AUDIT_FIELDS = {
@@ -283,10 +283,11 @@ function reducer(state, action) {
 
     /* ── Bots ────────────────────────────────────────────────── */
     case "ADD_SERVICE_REQUEST": {
+      const requestNumber = action.request.requestNumber ?? makeServiceRequestNumber();
       const request = {
         ...action.request,
-        id: `sr${generateId()}`,
-        requestNumber: action.request.requestNumber ?? nextServiceRequestNumber(state.serviceRequests),
+        id: requestNumber,
+        requestNumber,
         receivedAt: new Date().toISOString(),
         status: action.request.status ?? "New",
       };
@@ -308,16 +309,24 @@ function reducer(state, action) {
       };
     }
     case "IMPORT_SERVICE_REQUESTS": {
-      const existingIds = new Set(state.serviceRequests.map(request => request.externalId ?? request.id));
+      const existingIds = new Set(state.serviceRequests.flatMap(request => [
+        request.externalId,
+        request.requestNumber,
+        request.id,
+      ].filter(Boolean)));
       const imported = (action.requests ?? [])
-        .filter(request => !existingIds.has(request.externalId ?? request.id))
-        .map((request, index) => ({
-          ...request,
-          imported: true,
-          requestNumber: request.requestNumber ?? nextServiceRequestNumber(state.serviceRequests, index),
-          status: request.status ?? "New",
-          clientId: request.clientId ?? null,
-        }));
+        .filter(request => !existingIds.has(request.externalId ?? request.requestNumber ?? request.id))
+        .map(request => {
+          const requestNumber = request.requestNumber ?? makeServiceRequestNumber();
+          return {
+            ...request,
+            id: requestNumber,
+            requestNumber,
+            imported: true,
+            status: request.status ?? "New",
+            clientId: request.clientId ?? null,
+          };
+        });
 
       if (!imported.length) return state;
 
@@ -350,7 +359,7 @@ function reducer(state, action) {
       return {
         ...state,
         serviceRequests: state.serviceRequests.map(request => {
-          if (request.id !== action.request.id) return request;
+          if (requestIdentity(request) !== requestIdentity(action.request)) return request;
           const updated = { ...request, ...action.request };
           const changes = requestChanges(request, updated);
           if (!changes.length) return updated;
@@ -376,7 +385,7 @@ function reducer(state, action) {
     case "DELETE_SERVICE_REQUEST":
       return {
         ...state,
-        serviceRequests: state.serviceRequests.filter(request => request.id !== action.id),
+        serviceRequests: state.serviceRequests.filter(request => requestIdentity(request) !== action.id),
         auditLog: addAudit(state, "Service request deleted", String(action.id)),
       };
 
