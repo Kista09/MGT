@@ -64,9 +64,10 @@ export function FormRow({ label, error, children }) {
 
 export const inputStyle = {
   width:"100%", background:C.surface, border:`1px solid ${C.border}`, borderRadius:8,
-  color:"#dff0df", padding:"9px 14px", fontSize:13, outline:"none", boxSizing:"border-box",
+  color:C.text, padding:"9px 14px", fontSize:13, fontWeight:600, outline:"none", boxSizing:"border-box",
+  caretColor:C.accent,
 };
 
 export const selectStyle = {
-  ...inputStyle, cursor:"pointer", appearance:"none",
+  ...inputStyle, cursor:"pointer",
 };
