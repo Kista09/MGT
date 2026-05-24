@@ -86,6 +86,7 @@ function buildOnboardingDescription(onboarding = {}, fallback = "") {
     onboarding.location && `Location: ${onboarding.location}`,
     onboarding.website && `Website: ${onboarding.website}`,
     products && `Products: ${products}`,
+    onboarding.privateClient && `Private Client: ${onboarding.privateClient}`,
     onboarding.package && `Package: ${onboarding.package}`,
     (onboarding.decisionStatus || onboarding.decision) && `Decision: ${onboarding.decisionStatus || onboarding.decision}`,
     (onboarding.billingStatus || onboarding.billing) && `Billing: ${onboarding.billingStatus || onboarding.billing}`,
@@ -105,7 +106,7 @@ function buildOnboardingDescription(onboarding = {}, fallback = "") {
 function parseInternalNotes(notes = "") {
   const text = String(notes || "");
   const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
-  const result = { source: "", approvedBy: "", approvedDate: "", portalEmail: "", starterKitSent: false, extra: "" };
+  const result = { source: "", approvedBy: "", approvedDate: "", portalEmail: "", starterKitSent: false, extra: "", extraLines: [] };
   const extra = [];
 
   for (const line of lines) {
@@ -123,17 +124,21 @@ function parseInternalNotes(notes = "") {
     }
   }
 
+  result.extraLines = extra.length ? extra : [""];
   result.extra = extra.join("\n");
   return result;
 }
 
 function buildInternalNotes(notes = {}, fallback = "") {
+  const extraLines = Array.isArray(notes.extraLines)
+    ? notes.extraLines.map(line => String(line || "").trim()).filter(Boolean)
+    : String(notes.extra || "").split(/\n+/).map(line => line.trim()).filter(Boolean);
   const lines = [
     notes.source && `Source: ${notes.source}`,
     notes.approvedBy && notes.approvedDate && `Approved for onboarding by ${notes.approvedBy} on ${notes.approvedDate}.`,
     notes.portalEmail && `Client portal access granted to ${notes.portalEmail}.`,
     notes.starterKitSent && "Approval email and starter-kit PDF sent.",
-    notes.extra,
+    ...extraLines,
   ].filter(Boolean);
   return lines.length ? lines.join("\n") : fallback;
 }
@@ -152,6 +157,21 @@ function RequestForm({ form, setForm, errors, clients }) {
       ...prev,
       internalNotes: { ...(prev.internalNotes ?? {}), [key]: value },
     }));
+  };
+  const setInternalNoteLine = (index) => (event) => {
+    setForm(prev => {
+      const internalNotes = prev.internalNotes ?? {};
+      const extraLines = [...(internalNotes.extraLines ?? [""])];
+      extraLines[index] = event.target.value;
+      return { ...prev, internalNotes: { ...internalNotes, extraLines, extra: extraLines.join("\n") } };
+    });
+  };
+  const addInternalNoteLine = () => {
+    setForm(prev => {
+      const internalNotes = prev.internalNotes ?? {};
+      const extraLines = [...(internalNotes.extraLines ?? [""]), ""];
+      return { ...prev, internalNotes: { ...internalNotes, extraLines, extra: extraLines.join("\n") } };
+    });
   };
   const onboarding = form.onboarding;
   const internalNotes = form.internalNotes;
@@ -208,6 +228,11 @@ function RequestForm({ form, setForm, errors, clients }) {
             </FormRow>
             <FormRow label="Package">
               <input value={onboarding.package ?? ""} onChange={setOnboarding("package")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Private Client">
+              <select value={onboarding.privateClient ?? "No"} onChange={setOnboarding("privateClient")} style={selectStyle}>
+                {["No", "Yes"].map(value => <option key={value}>{value}</option>)}
+              </select>
             </FormRow>
             <FormRow label="Billing">
               <input value={onboarding.billingStatus ?? onboarding.billing ?? ""} onChange={setOnboarding("billingStatus")} style={inputStyle} />
@@ -288,7 +313,13 @@ function RequestForm({ form, setForm, errors, clients }) {
             </div>
             <div style={{ gridColumn:"1/-1" }}>
               <FormRow label="Additional Internal Notes">
-                <textarea value={internalNotes.extra ?? ""} onChange={setInternalNote("extra")} style={{ ...inputStyle, minHeight:72, resize:"vertical" }} />
+                {(internalNotes.extraLines ?? [internalNotes.extra ?? ""]).map((line, index) => (
+                  <input key={index} value={line} onChange={setInternalNoteLine(index)} style={{ ...inputStyle, marginBottom:8 }} placeholder={`Internal note line ${index + 1}`} />
+                ))}
+                <button type="button" onClick={addInternalNoteLine}
+                  style={{ background:C.subtle, border:"none", color:C.muted, borderRadius:6, padding:"7px 10px", fontSize:11, fontWeight:800, cursor:"pointer" }}>
+                  + Add note line
+                </button>
               </FormRow>
             </div>
           </div>
@@ -321,6 +352,7 @@ function parseRequestData(request) {
   // "Consultant email" is found before the bare "Consultant" pattern.
   const FIELDS = [
     ["consultantEmail", /consultant\s+email/i],
+    ["privateClient",   /private\s+client/i],
     ["decisionStatus",  /decision\s+status/i],
     ["consultantName",  /consultant/i],
     ["handoff",         /handoff/i],
@@ -393,6 +425,7 @@ function OnboardingGrid({ onboarding: o }) {
     ]},
     { label:"Package", cells:[
       ["Products", fieldVal(o.product)], ["Package",  o.package],
+      ["Private",  o.privateClient],
       ["Goal",     o.goal],              ["Timeline", o.timeline],
     ]},
     { label:"Business Details", cells:[

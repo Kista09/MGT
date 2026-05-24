@@ -229,6 +229,7 @@
               <label class="check"><input type="checkbox" name="product" value="Requests">Requests</label>
               <label class="check"><input type="checkbox" name="product" value="Follow-ups">Follow-ups</label>
               <label class="check"><input type="checkbox" name="product" value="Operations">Operations</label>
+              <label class="check"><input type="checkbox" name="privateClient" value="Yes">Private client</label>
             </div>
             <div class="grid" style="margin-top:14px">
               <div class="field">
@@ -356,6 +357,7 @@
     const getData = () => {
       const data = Object.fromEntries(new FormData(form).entries());
       data.product = [...document.querySelectorAll('input[name="product"]:checked')].map(input => input.value);
+      data.privateClient = document.querySelector('input[name="privateClient"]')?.checked ? "Yes" : "No";
       data.source = "consultant-capture";
       return data;
     };
@@ -369,6 +371,7 @@
       `Location: ${data.location || ""}`,
       `Website: ${data.website || ""}`,
       `Products: ${data.product.join(", ")}`,
+      `Private Client: ${data.privateClient || "No"}`,
       `Package: ${data.package || ""}`,
       `Decision: ${data.decisionStatus || ""}`,
       `Billing: ${data.billingStatus || ""}`,
