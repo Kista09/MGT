@@ -1,5 +1,6 @@
 
 const { put } = require('@vercel/blob');
+const { readToken } = require('./_portal');
 
 function escapeHtml(value = '') {
   return String(value)
@@ -18,6 +19,31 @@ function addDays(days) {
   const date = new Date();
   date.setDate(date.getDate() + days);
   return date.toISOString().slice(0, 10);
+}
+
+function readConsultantSession(req, onboarding) {
+  if (onboarding?.source !== 'consultant-capture') return null;
+
+  const header = String(req.headers.authorization || '');
+  const token = header.replace(/^Bearer\s+/i, '').trim();
+  if (!token) {
+    const error = new Error('Consultant login required');
+    error.statusCode = 401;
+    throw error;
+  }
+
+  try {
+    const session = readToken(token);
+    const role = String(session.role || '').toLowerCase();
+    const email = String(session.email || '').toLowerCase();
+    const allowed = ['admin', 'owner', 'support', 'consultant'].includes(role) || email.endsWith('@mgucatech.com');
+    if (!allowed) throw new Error('Invalid consultant session');
+    return session;
+  } catch (err) {
+    const error = new Error(err.message || 'Consultant login required');
+    error.statusCode = 401;
+    throw error;
+  }
 }
 
 function makeCrmRequest({ name, email, subject, message, onboarding }) {
@@ -87,7 +113,7 @@ async function storeCrmRequest(record) {
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
@@ -99,6 +125,12 @@ module.exports = async (req, res) => {
   }
 
   try {
+    const consultantSession = readConsultantSession(req, onboarding);
+    if (consultantSession && onboarding) {
+      onboarding.consultantEmail = consultantSession.email || onboarding.consultantEmail;
+      onboarding.consultantName = consultantSession.name || onboarding.consultantName;
+    }
+
     const sendEmail = (payload) => fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -219,6 +251,6 @@ module.exports = async (req, res) => {
     res.status(200).json({ success: true, autoReply: true, crmSynced });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: err.message });
+    res.status(err.statusCode || 500).json({ error: err.message });
   }
 };

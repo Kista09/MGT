@@ -28,7 +28,26 @@
     ::selection { background:var(--orange-light); color:#fff; }
     a { color:inherit; text-decoration:none; }
     button, input, select, textarea { font:inherit; }
+    .login-shell {
+      min-height:100vh; display:grid; place-items:center; padding:22px;
+      background:
+        linear-gradient(rgba(26,26,26,.82), rgba(26,26,26,.82)),
+        url("assets/img/background.jpg") center/cover no-repeat;
+    }
+    .login-card {
+      width:min(430px,100%); border:1px solid rgba(255,255,255,.12); border-radius:8px;
+      background:rgba(26,26,26,.94); color:rgba(255,255,255,.72); padding:28px;
+      box-shadow:var(--shadow);
+    }
+    .login-card .brand { margin-bottom:22px; }
+    .login-card h1 { font-size:2.4rem; margin-bottom:10px; }
+    .login-card p { margin-bottom:22px; }
+    .login-card label { color:#fff; }
+    .login-card input { border-color:rgba(255,255,255,.18); background:rgba(255,255,255,.06); color:#fff; }
+    .login-card .field { margin-bottom:14px; }
+    .login-error { min-height:22px; margin-top:12px; color:#ffb4a2; font-weight:800; font-size:.86rem; }
     .shell { max-width:1240px; margin:0 auto; padding:22px; }
+    .shell.locked { display:none; }
     .topbar {
       display:flex; align-items:center; justify-content:space-between; gap:16px;
       margin-bottom:18px; background:var(--dark); border-radius:8px; padding:14px 16px;
@@ -37,6 +56,7 @@
     .brand { display:flex; align-items:center; gap:12px; color:#fff; font-family:var(--head); font-size:1.18rem; font-weight:700; line-height:1; }
     .brand img { width:38px; height:38px; object-fit:contain; background:#fff; border-radius:8px; padding:4px; }
     .badge { border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:8px 12px; background:rgba(255,255,255,.05); color:var(--orange-light); font-weight:800; font-size:.72rem; letter-spacing:.12em; text-transform:uppercase; }
+    .userbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
     .hero {
       display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:24px; align-items:end;
       margin-bottom:20px; background:var(--dark); border-radius:8px; padding:34px;
@@ -86,17 +106,42 @@
     .item strong { color:var(--text); font-size:.92rem; }
     #status { font-size:.88rem; font-weight:800; }
     @media (max-width:920px) { .hero, .layout { grid-template-columns:1fr; } .summary { position:static; } }
-    @media (max-width:640px) { .shell { padding:18px; } .grid, .checks { grid-template-columns:1fr; } .topbar { align-items:flex-start; flex-direction:column; } }
+    @media (max-width:640px) { .shell { padding:18px; } .grid, .checks { grid-template-columns:1fr; } .topbar { align-items:flex-start; flex-direction:column; } .userbar { justify-content:flex-start; } }
   </style>
 </head>
 <body>
-  <div class="shell">
+  <section class="login-shell" id="login-screen">
+    <form class="login-card" id="consultant-login">
+      <a href="index.html" class="brand">
+        <img src="assets/img/mgt-logo.svg" alt="MGT">
+        <span>MgucaTECH</span>
+      </a>
+      <div class="eyebrow">Consultant access</div>
+      <h1>Sign in.</h1>
+      <p>Use your MgucaTECH consultant credentials to capture onboarding briefs and send them to the CRM.</p>
+      <div class="field">
+        <label for="login-email">Email</label>
+        <input id="login-email" name="email" type="email" autocomplete="username" placeholder="you@mgucatech.com" required>
+      </div>
+      <div class="field">
+        <label for="login-password">Password</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn primary" id="login-submit" type="submit">Sign in <i class="ri-arrow-right-line"></i></button>
+      <div class="login-error" id="login-error" role="alert"></div>
+    </form>
+  </section>
+
+  <div class="shell locked" id="consultant-app">
     <header class="topbar">
       <a href="index.html" class="brand">
         <img src="assets/img/mgt-logo.svg" alt="MGT">
         <span>MgucaTECH Consultant Capture</span>
       </a>
-      <span class="badge">Internal request desk</span>
+      <div class="userbar">
+        <span class="badge" id="consultant-badge">Internal request desk</span>
+        <button class="btn" type="button" id="logout" style="padding:8px 12px;">Sign out</button>
+      </div>
     </header>
 
     <section class="hero">
@@ -274,9 +319,37 @@
   </div>
 
   <script>
+    const TOKEN_KEY = "mgucatech_consultant_access_token";
+    const USER_KEY = "mgucatech_consultant_user";
+    const loginScreen = document.getElementById("login-screen");
+    const consultantApp = document.getElementById("consultant-app");
+    const loginForm = document.getElementById("consultant-login");
+    const loginSubmit = document.getElementById("login-submit");
+    const loginError = document.getElementById("login-error");
+    const consultantBadge = document.getElementById("consultant-badge");
+    const logout = document.getElementById("logout");
     const form = document.getElementById("capture-form");
     const status = document.getElementById("status");
     const submit = document.getElementById("submit");
+
+    const readUser = () => {
+      try { return JSON.parse(localStorage.getItem(USER_KEY) || "null"); }
+      catch { return null; }
+    };
+
+    const showLogin = () => {
+      loginScreen.style.display = "grid";
+      consultantApp.classList.add("locked");
+    };
+
+    const showApp = user => {
+      loginScreen.style.display = "none";
+      consultantApp.classList.remove("locked");
+      consultantBadge.textContent = user?.name ? `${user.name} · consultant` : "Consultant workspace";
+      document.getElementById("consultantName").value ||= user?.name || "";
+      document.getElementById("consultantEmail").value ||= user?.email || "";
+      updatePreview();
+    };
 
     const getData = () => {
       const data = Object.fromEntries(new FormData(form).entries());
@@ -318,11 +391,23 @@
     };
 
     form.addEventListener("input", updatePreview);
-    form.addEventListener("reset", () => setTimeout(updatePreview, 0));
+    form.addEventListener("reset", () => setTimeout(() => {
+      const user = readUser();
+      document.getElementById("consultantName").value = user?.name || "";
+      document.getElementById("consultantEmail").value = user?.email || "";
+      updatePreview();
+    }, 0));
     form.addEventListener("submit", async event => {
       event.preventDefault();
       updatePreview();
       const data = getData();
+      const token = localStorage.getItem(TOKEN_KEY);
+      if (!token) {
+        status.style.color = "var(--danger)";
+        status.textContent = "Sign in as a consultant before sending.";
+        showLogin();
+        return;
+      }
       if (!data.product.length) {
         status.style.color = "var(--danger)";
         status.textContent = "Choose at least one solution.";
@@ -337,7 +422,7 @@
       try {
         const response = await fetch("/api/contact", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({
             name: data.leadName,
             email: data.email,
@@ -354,14 +439,55 @@
         updatePreview();
       } catch (error) {
         status.style.color = "var(--danger)";
-        status.textContent = "Could not send. Check the details and try again.";
+        status.textContent = error.message || "Could not send. Check the details and try again.";
+        if (/login|session|credential/i.test(error.message || "")) showLogin();
       } finally {
         submit.disabled = false;
         submit.innerHTML = 'Capture and send to CRM <i class="ri-send-plane-line"></i>';
       }
     });
 
-    updatePreview();
+    loginForm.addEventListener("submit", async event => {
+      event.preventDefault();
+      loginError.textContent = "";
+      loginSubmit.disabled = true;
+      loginSubmit.innerHTML = 'Signing in... <i class="ri-loader-4-line"></i>';
+
+      try {
+        const credentials = Object.fromEntries(new FormData(loginForm).entries());
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: credentials.email,
+            password: credentials.password,
+            audience: "consultant_suite",
+          }),
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || "Invalid consultant credentials");
+        localStorage.setItem(TOKEN_KEY, result.accessToken);
+        localStorage.setItem(USER_KEY, JSON.stringify(result.user));
+        loginForm.reset();
+        showApp(result.user);
+      } catch (error) {
+        loginError.textContent = error.message || "Could not sign in.";
+      } finally {
+        loginSubmit.disabled = false;
+        loginSubmit.innerHTML = 'Sign in <i class="ri-arrow-right-line"></i>';
+      }
+    });
+
+    logout.addEventListener("click", () => {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+      showLogin();
+    });
+
+    const token = localStorage.getItem(TOKEN_KEY);
+    const user = readUser();
+    if (token && user) showApp(user);
+    else showLogin();
   </script>
 </body>
 </html>
