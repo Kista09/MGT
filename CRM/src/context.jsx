@@ -34,6 +34,7 @@ function getInitial() {
       return {
         ...INITIAL_STATE,
         ...parsed,
+        user: INITIAL_STATE.user,
         pipeline: normalizePipeline(parsed.pipeline ?? INITIAL_STATE.pipeline),
         tasks: parsed.tasks ?? INITIAL_STATE.tasks,
         serviceRequests: parsed.serviceRequests ?? INITIAL_STATE.serviceRequests,
