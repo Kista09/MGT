@@ -5,7 +5,7 @@ import { generateId } from "./utils";
 
 const STORAGE_KEY = "mgucatech_crm_v2";
 const SR_PREFIX = "MGT-SR-0000-";
-const SR_UUID_RE = /^MGT-SR-0000-[0-9A-F]{8}-[0-9A-F]{4}-[1-5][0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i;
+const SR_SHORT_RE = /^MGT-SR-0000-[0-9A-Z]{8}$/i;
 const STAGE_ALIASES = {
   Lead: "Origination",
   Demo: "Discovery",
@@ -101,9 +101,9 @@ function requestFollowUp(request, owner = "Admin") {
   };
 }
 
-function uuidFromNumber(value) {
-  const suffix = String(Math.max(1, Number(value) || 1).toString(16)).toUpperCase().padStart(12, "0").slice(-12);
-  return `${SR_PREFIX}00000000-0000-4000-8000-${suffix}`;
+function shortIdFromNumber(value) {
+  const suffix = String(Math.max(1, Number(value) || 1).toString(16)).toUpperCase().padStart(8, "0").slice(-8);
+  return `${SR_PREFIX}${suffix}`;
 }
 
 function makeUuid() {
@@ -118,7 +118,7 @@ function makeServiceRequestNumber(existingRequests = []) {
   const existing = new Set(existingRequests.map(request => normalizeServiceRequestNumber(request.requestNumber || request.id)).filter(Boolean));
   let requestNumber;
   do {
-    requestNumber = `${SR_PREFIX}${makeUuid().toUpperCase()}`;
+    requestNumber = `${SR_PREFIX}${makeUuid().replace(/-/g, "").slice(-8).toUpperCase()}`;
   } while (existing.has(requestNumber));
   return requestNumber;
 }
@@ -126,11 +126,16 @@ function makeServiceRequestNumber(existingRequests = []) {
 function normalizeServiceRequestNumber(value) {
   if (!value) return null;
   const str = String(value).trim();
-  if (SR_UUID_RE.test(str)) return str.toUpperCase();
+  if (SR_SHORT_RE.test(str)) return str.toUpperCase();
+  const prefixed = str.match(/^MGT-SR-0000-([0-9A-Z-]{9,})$/i);
+  if (prefixed) {
+    const compact = prefixed[1].replace(/-/g, "").toUpperCase();
+    if (compact) return `${SR_PREFIX}${compact.slice(-8).padStart(8, "0")}`;
+  }
   const numbered = str.match(/^MGT-SR-(\d+)$/i);
-  if (numbered) return uuidFromNumber(numbered[1]);
+  if (numbered) return shortIdFromNumber(numbered[1]);
   const longMatch = str.match(/^MGT-SR-0{3,}-0*(\d+)$/i);
-  if (longMatch) return uuidFromNumber(longMatch[1]);
+  if (longMatch) return shortIdFromNumber(longMatch[1]);
   return null;
 }
 
@@ -150,7 +155,7 @@ function migrateServiceRequests(requests) {
   return requests.map(request => {
     const normalized = normalizeServiceRequest(request);
     const id = normalized.requestNumber;
-    const valid = id && SR_UUID_RE.test(id) && !seen.has(id);
+    const valid = id && SR_SHORT_RE.test(id) && !seen.has(id);
     if (valid) {
       seen.add(id);
       pool.push(normalized);

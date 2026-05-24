@@ -27,7 +27,7 @@ function makeServiceRequestNumber() {
       const value = Math.floor(Math.random() * 16);
       return (char === 'x' ? value : (value & 0x3) | 0x8).toString(16);
     });
-  return `MGT-SR-0000-${uuid.toUpperCase()}`;
+  return `MGT-SR-0000-${uuid.replace(/-/g, '').slice(-8).toUpperCase()}`;
 }
 
 function readConsultantSession(req, onboarding) {

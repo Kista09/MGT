@@ -13,11 +13,11 @@ async function readJsonBlob(url) {
 }
 
 const SR_PREFIX = 'MGT-SR-0000-';
-const SR_UUID_RE = /^MGT-SR-0000-[0-9A-F]{8}-[0-9A-F]{4}-[1-5][0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i;
+const SR_SHORT_RE = /^MGT-SR-0000-[0-9A-Z]{8}$/i;
 
-function uuidFromNumber(value) {
-  const suffix = String(Math.max(1, Number(value) || 1).toString(16)).toUpperCase().padStart(12, '0').slice(-12);
-  return `${SR_PREFIX}00000000-0000-4000-8000-${suffix}`;
+function shortIdFromNumber(value) {
+  const suffix = String(Math.max(1, Number(value) || 1).toString(16)).toUpperCase().padStart(8, '0').slice(-8);
+  return `${SR_PREFIX}${suffix}`;
 }
 
 function makeServiceRequestNumber() {
@@ -26,24 +26,29 @@ function makeServiceRequestNumber() {
       const value = Math.floor(Math.random() * 16);
       return (char === 'x' ? value : (value & 0x3) | 0x8).toString(16);
     });
-  return `${SR_PREFIX}${uuid.toUpperCase()}`;
+  return `${SR_PREFIX}${uuid.replace(/-/g, '').slice(-8).toUpperCase()}`;
 }
 
 function normalizeServiceRequestNumber(value) {
   if (!value) return null;
   const raw = String(value).trim();
-  if (SR_UUID_RE.test(raw)) return raw.toUpperCase();
+  if (SR_SHORT_RE.test(raw)) return raw.toUpperCase();
+  const prefixed = raw.match(/^MGT-SR-0000-([0-9A-Z-]{9,})$/i);
+  if (prefixed) {
+    const compact = prefixed[1].replace(/-/g, '').toUpperCase();
+    if (compact) return `${SR_PREFIX}${compact.slice(-8).padStart(8, '0')}`;
+  }
   const numbered = raw.match(/^MGT-SR-(\d+)$/i);
-  if (numbered) return uuidFromNumber(numbered[1]);
+  if (numbered) return shortIdFromNumber(numbered[1]);
   const oldLong = raw.match(/^MGT-SR-0{3,}-0*(\d+)$/i);
-  if (oldLong) return uuidFromNumber(oldLong[1]);
+  if (oldLong) return shortIdFromNumber(oldLong[1]);
   return null;
 }
 
 function normalizeServiceRequest(request, index, seen) {
   let requestNumber = normalizeServiceRequestNumber(request.requestNumber)
     || normalizeServiceRequestNumber(request.id)
-    || uuidFromNumber(index + 1);
+    || shortIdFromNumber(index + 1);
   while (seen.has(requestNumber)) {
     requestNumber = makeServiceRequestNumber();
   }

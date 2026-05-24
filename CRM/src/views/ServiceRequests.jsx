@@ -50,13 +50,18 @@ function serviceRequestNumber(request = {}) {
   const value = request.requestNumber || request.id;
   if (!value) return "MGT-SR-????";
   const str = String(value).trim();
-  if (/^MGT-SR-0000-[0-9A-F]{8}-[0-9A-F]{4}-[1-5][0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i.test(str)) {
+  if (/^MGT-SR-0000-[0-9A-Z]{8}$/i.test(str)) {
     return str.toUpperCase();
+  }
+  const prefixed = str.match(/^MGT-SR-0000-([0-9A-Z-]{9,})$/i);
+  if (prefixed) {
+    const compact = prefixed[1].replace(/-/g, "").toUpperCase();
+    return `MGT-SR-0000-${compact.slice(-8).padStart(8, "0")}`;
   }
   const numbered = str.match(/^MGT-SR-(\d+)$/i) || str.match(/^MGT-SR-0{3,}-0*(\d+)$/i);
   if (numbered) {
-    const suffix = String(Math.max(1, Number(numbered[1]) || 1).toString(16)).toUpperCase().padStart(12, "0").slice(-12);
-    return `MGT-SR-0000-00000000-0000-4000-8000-${suffix}`;
+    const suffix = String(Math.max(1, Number(numbered[1]) || 1).toString(16)).toUpperCase().padStart(8, "0").slice(-8);
+    return `MGT-SR-0000-${suffix}`;
   }
   return str;
 }
