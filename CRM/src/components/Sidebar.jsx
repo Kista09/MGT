@@ -2,10 +2,16 @@ import { C, NAV_GROUPS, font } from "../constants";
 import { useApp } from "../context";
 import { buildPriorityQueue } from "../utils";
 
+function canAccessPrivateClients(user) {
+  const email = (user?.email ?? "").toLowerCase();
+  return email.endsWith("@mgucatech.com")
+    || ["admin", "consultant", "support", "owner", "superadmin"].includes(user?.accessRole);
+}
+
 export default function Sidebar() {
   const { state, dispatch, navigate } = useApp();
   const { view } = state.nav;
-  const normalClientPoolOnly = state.user?.accessRole === "normal_client_pool";
+  const privateAccess = canAccessPrivateClients(state.user);
   const today = new Date().toISOString().slice(0, 10);
   const openRequests = (state.serviceRequests ?? []).filter(request =>
     !["Resolved", "Closed"].includes(request.status)
@@ -61,7 +67,7 @@ export default function Sidebar() {
       <nav style={{ padding:"10px 12px", flex:1 }}>
         {NAV_GROUPS.map(group => ({
           ...group,
-          items: group.items.filter(item => !(normalClientPoolOnly && item.id === "private-clients")),
+          items: group.items.filter(item => privateAccess || item.id !== "private-clients"),
         })).map(group => (
           <div key={group.label} style={{ marginBottom:10 }}>
             <div style={{ padding:"8px 12px 6px", color:"rgba(255,255,255,0.34)",

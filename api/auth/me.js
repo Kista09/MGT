@@ -17,6 +17,12 @@ module.exports = async (req, res) => {
   try {
     const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const session = readToken(token);
+    if (
+      ['admin', 'consultant', 'support', 'owner', 'superadmin', 'normal_client_pool'].includes(session.role)
+      || String(session.email || '').toLowerCase().endsWith('@mgucatech.com')
+    ) {
+      return res.status(200).json(publicUser(session));
+    }
     const user = await readPortalUser(session.email);
     if (!user || !user.portalApproved) return res.status(401).json({ error: 'Session expired' });
     return res.status(200).json(publicUser(user));

@@ -2,11 +2,17 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { C, NAV_ITEMS, font } from "../constants";
 import { useApp } from "../context";
 
+function canAccessPrivateClients(user) {
+  const email = (user?.email ?? "").toLowerCase();
+  return email.endsWith("@mgucatech.com")
+    || ["admin", "consultant", "support", "owner", "superadmin"].includes(user?.accessRole);
+}
+
 export default function CommandPalette() {
   const { state, dispatch, navigate } = useApp();
   const [q, setQ] = useState("");
   const inputRef = useRef(null);
-  const normalClientPoolOnly = state.user?.accessRole === "normal_client_pool";
+  const privateAccess = canAccessPrivateClients(state.user);
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
@@ -14,11 +20,11 @@ export default function CommandPalette() {
     const lq = q.trim().toLowerCase();
     if (!lq) {
       return NAV_ITEMS
-        .filter(n => !(normalClientPoolOnly && n.id === "private-clients"))
+        .filter(n => privateAccess || n.id !== "private-clients")
         .map(n => ({ type:"nav", label:n.label, sub:"Navigate", nav:n.id }));
     }
     const nav = NAV_ITEMS
-      .filter(n => !(normalClientPoolOnly && n.id === "private-clients"))
+      .filter(n => privateAccess || n.id !== "private-clients")
       .filter(n => n.label.toLowerCase().includes(lq))
       .map(n => ({ type:"nav", label:n.label, sub:"Navigate to", nav:n.id }));
     const clients = state.clients
@@ -38,7 +44,7 @@ export default function CommandPalette() {
       .slice(0, 3)
       .map(r => ({ type:"request", label:r.subject, sub:r.status }));
     return [...nav, ...clients, ...bots, ...tasks, ...requests];
-  }, [normalClientPoolOnly, q, state.clients, state.bots, state.tasks, state.serviceRequests]);
+  }, [privateAccess, q, state.clients, state.bots, state.tasks, state.serviceRequests]);
 
   const [selected, setSelected] = useState(0);
 
@@ -52,7 +58,7 @@ export default function CommandPalette() {
 
   const activate = (r) => {
     dispatch({ type: "CLOSE_COMMAND_PALETTE" });
-    if (normalClientPoolOnly && r.nav === "private-clients") return;
+    if (!privateAccess && r.nav === "private-clients") return;
     if (r.type === "nav") navigate(r.nav);
     else if (r.type === "client") navigate("client-detail", r.id);
     else if (r.type === "bot") navigate("bots");

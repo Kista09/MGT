@@ -19,10 +19,16 @@ import PrivateClients from "./views/ConfidentialClients";
 import Analytics   from "./views/Analytics";
 import Settings    from "./views/Settings";
 
+function canAccessPrivateClients(user) {
+  const email = (user?.email ?? "").toLowerCase();
+  return email.endsWith("@mgucatech.com")
+    || ["admin", "consultant", "support", "owner", "superadmin"].includes(user?.accessRole);
+}
+
 function AppInner({ onLogout }) {
   const { state, dispatch } = useApp();
   const { view, clientId } = state.nav;
-  const normalClientPoolOnly = state.user?.accessRole === "normal_client_pool";
+  const privateAccess = canAccessPrivateClients(state.user);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -40,10 +46,10 @@ function AppInner({ onLogout }) {
   }, [dispatch]);
 
   useEffect(() => {
-    if (normalClientPoolOnly && view === "private-clients") {
+    if (!privateAccess && view === "private-clients") {
       dispatch({ type: "NAVIGATE", view: "clients" });
     }
-  }, [dispatch, normalClientPoolOnly, view]);
+  }, [dispatch, privateAccess, view]);
 
   const views = {
     today:          <Today />,
@@ -54,7 +60,7 @@ function AppInner({ onLogout }) {
     requests:       <ServiceRequests />,
     followups:      <FollowUps />,
     bots:           <Bots />,
-    "private-clients": normalClientPoolOnly ? <Clients /> : <PrivateClients />,
+    "private-clients": privateAccess ? <PrivateClients /> : <Clients />,
     analytics:      <Analytics />,
     settings:       <Settings />,
   };
