@@ -90,10 +90,24 @@ function AccessGate() {
         </div>
         <form onSubmit={login} style={{ padding:0 }}>
           <FormRow label="Private client email">
-            <input value={email} onChange={event => setEmail(event.target.value)} style={inputStyle} type="email" />
+            <input
+              value={email}
+              onChange={event => setEmail(event.target.value)}
+              style={inputStyle}
+              type="email"
+              autoComplete="off"
+              spellCheck="false"
+              placeholder="organicsmith@gmmail.com"
+            />
           </FormRow>
           <FormRow label="Private client password">
-            <input value={password} onChange={event => setPassword(event.target.value)} style={inputStyle} type="password" />
+            <input
+              value={password}
+              onChange={event => setPassword(event.target.value)}
+              style={inputStyle}
+              type="password"
+              autoComplete="new-password"
+            />
           </FormRow>
           <button type="submit" disabled={loading}
             style={{ background:C.accent, color:"#000", border:"none", borderRadius:8, padding:"10px 16px", fontSize:13, fontWeight:900, cursor:loading ? "wait" : "pointer" }}>
