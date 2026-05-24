@@ -57,9 +57,18 @@ function setCors(req, res) {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
 
+function privateEmails() {
+  const configured = process.env.PRIVATE_CLIENT_EMAILS || process.env.PRIVATE_CLIENT_EMAIL || '';
+  const defaults = ['organicsmith@gmail.com', 'organicsmith@gmmail.com'];
+  return [...new Set([
+    ...configured.split(',').map(normalizeEmail).filter(Boolean),
+    ...defaults,
+  ])];
+}
+
 function privateAccount() {
   return {
-    email: normalizeEmail(process.env.PRIVATE_CLIENT_EMAIL || 'organicsmith@gmail.com'),
+    emails: privateEmails(),
     password: process.env.PRIVATE_CLIENT_PASSWORD || '',
   };
 }
@@ -76,7 +85,7 @@ function readPrivateSession(req) {
 }
 
 function isPrivateSession(session) {
-  return normalizeEmail(session?.email) === privateAccount().email;
+  return privateAccount().emails.includes(normalizeEmail(session?.email));
 }
 
 module.exports = async (req, res) => {
@@ -90,13 +99,14 @@ module.exports = async (req, res) => {
       if (action !== 'private_login') return res.status(400).json({ error: 'Unknown private-client action' });
 
       const account = privateAccount();
-      if (!account.password || normalizeEmail(email) !== account.email || password !== account.password) {
+      const norm = normalizeEmail(email);
+      if (!account.password || !account.emails.includes(norm) || password !== account.password) {
         return res.status(401).json({ error: 'Invalid private client credentials' });
       }
 
       const user = {
-        id: 'private-client-organicsmith',
-        email: account.email,
+        id: `private-client-${norm.replace(/[^a-z0-9]+/g, '-')}`,
+        email: norm,
         name: 'OrganicSmith Private Client',
         role: 'private_client',
         clientId: null,
