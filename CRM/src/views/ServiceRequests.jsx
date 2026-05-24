@@ -515,6 +515,32 @@ function ApprovalTrail({ notes }) {
 }
 
 function RequestAuditTrail({ trail = [] }) {
+  const cleanNoteBlock = (value = "", part = "last") => {
+    const chunks = String(value || "")
+      .replace(/^Internal notes:\s*/i, "")
+      .split(/\s+â†’\s+|\s+→\s+/)
+      .map(chunk => chunk.trim())
+      .filter(Boolean);
+    return (part === "first" ? chunks[0] : chunks[chunks.length - 1]) || "";
+  };
+  const addedInternalNote = (before = "", after = "") => {
+    const previous = cleanNoteBlock(before, "first");
+    const next = cleanNoteBlock(after, "last");
+    if (!next) return "";
+    if (previous && next.startsWith(previous)) return next.slice(previous.length).trim();
+    const previousLines = new Set(uniqueInternalNoteLines(previous.split(/\n+/)).map(line => internalNoteKey(line)));
+    return uniqueInternalNoteLines(next.split(/\n+/))
+      .filter(line => !previousLines.has(internalNoteKey(line)))
+      .join(" ")
+      .trim();
+  };
+  const visibleChanges = (changes = []) => changes
+    .map(change => {
+      if (change.field !== "notes") return change;
+      const added = addedInternalNote(change.before, change.after);
+      return added ? { ...change, label: "Added note", before: "", after: added } : null;
+    })
+    .filter(Boolean);
   const items = trail.slice(0, 3);
   if (!items.length) return null;
   return (
@@ -535,13 +561,13 @@ function RequestAuditTrail({ trail = [] }) {
               {[item.consultantEmail || item.amendedByEmail || item.actorEmail, item.consultantRole].filter(Boolean).join(" · ")}
             </div>
           )}
-          {(item.changes ?? []).slice(0, 4).map(change => (
+          {visibleChanges(item.changes).slice(0, 4).map(change => (
             <div key={change.field} style={{ color:C.muted, fontSize:11, lineHeight:1.45 }}>
-              <strong style={{ color:C.accent }}>{change.label}:</strong> {change.before} → {change.after}
+              <strong style={{ color:C.accent }}>{change.label}:</strong> {change.before ? `${change.before} → ` : ""}{change.after}
             </div>
           ))}
-          {(item.changes ?? []).length > 4 && (
-            <div style={{ color:C.muted, fontSize:11, marginTop:2 }}>+{item.changes.length - 4} more changes</div>
+          {visibleChanges(item.changes).length > 4 && (
+            <div style={{ color:C.muted, fontSize:11, marginTop:2 }}>+{visibleChanges(item.changes).length - 4} more changes</div>
           )}
         </div>
       ))}
