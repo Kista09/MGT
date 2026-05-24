@@ -146,7 +146,7 @@ export default function ConfidentialClients() {
   const [editClient, setEditClient] = useState(null);
   const [form, setForm] = useState(BLANK_CLIENT);
   const [loading, setLoading] = useState(true);
-  const [accessState, setAccessState] = useState({ approved: false, canApprove: false, clients: [], access: { requests: [] }, pendingRequest: null });
+  const [accessState, setAccessState] = useState({ approved: false, canApprove: false, clients: [], access: { requests: [] }, pendingRequest: null, message: "" });
   const [loadError, setLoadError] = useState("");
 
   const loadConfidential = async () => {
@@ -160,6 +160,7 @@ export default function ConfidentialClients() {
         clients: data.clients ?? [],
         access: data.access ?? { requests: [] },
         pendingRequest: data.pendingRequest ?? null,
+        message: data.message ?? "",
       });
     } catch (error) {
       setLoadError(error.message ?? "Could not load confidential client access");
@@ -259,6 +260,12 @@ export default function ConfidentialClients() {
           + Add Confidential Client
         </button>
       </div>
+
+      {accessState.message && (
+        <div style={{ background:C.yellowBg, border:`1px solid ${C.yellow}`, color:C.yellow, borderRadius:8, padding:"12px 14px", fontSize:13, fontWeight:800, marginBottom:18 }}>
+          {accessState.message}
+        </div>
+      )}
 
       {canApprove && pendingRequests.length > 0 && (
         <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:10, padding:18, marginBottom:18 }}>
