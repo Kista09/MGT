@@ -135,6 +135,35 @@ function parseInternalNotes(notes = "") {
   return result;
 }
 
+function internalNoteKey(line = "") {
+  const value = String(line || "").trim();
+  if (/^Source:/i.test(value)) return "initial:source";
+  if (/^Approved for onboarding by/i.test(value)) return "initial:approval";
+  if (/^Client portal access granted to/i.test(value)) return "initial:portal";
+  if (/^Approval email and starter-kit PDF sent\.?$/i.test(value)) return "initial:starter-kit";
+  return `line:${value.toLowerCase()}`;
+}
+
+function uniqueInternalNoteLines(lines = []) {
+  const seen = new Set();
+  return lines
+    .map(line => String(line || "").replace(/^Internal notes:\s*/i, "").trim())
+    .filter(Boolean)
+    .filter(line => {
+      const key = internalNoteKey(line);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function mergeInternalNotes(...blocks) {
+  const lines = blocks
+    .flatMap(block => String(block || "").split(/\n+|\s+→\s+/))
+    .map(line => line.trim());
+  return uniqueInternalNoteLines(lines).join("\n");
+}
+
 function buildInternalNotes(notes = {}, fallback = "") {
   const extraLines = Array.isArray(notes.extraLines)
     ? notes.extraLines.map(line => String(line || "").trim()).filter(Boolean)
@@ -146,7 +175,8 @@ function buildInternalNotes(notes = {}, fallback = "") {
     notes.starterKitSent && "Approval email and starter-kit PDF sent.",
     ...extraLines,
   ].filter(Boolean);
-  return lines.length ? lines.join("\n") : fallback;
+  const uniqueLines = uniqueInternalNoteLines(lines);
+  return uniqueLines.length ? uniqueLines.join("\n") : fallback;
 }
 
 function RequestForm({ form, setForm, errors, clients }) {
@@ -687,7 +717,7 @@ export default function ServiceRequests() {
           approvedBy: state.user.name,
           portalGranted: true,
           portalUser: data.portalUser,
-          notes: request.notes ? `${request.notes}\n${approvalNote}` : approvalNote,
+          notes: mergeInternalNotes(request.notes, approvalNote),
         },
       });
       toast("Portal access granted and email sent", "ok");
