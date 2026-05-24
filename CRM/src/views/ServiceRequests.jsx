@@ -47,9 +47,7 @@ function requestStatusStyle(status) {
 }
 
 function serviceRequestNumber(request = {}) {
-  if (request.requestNumber) return String(request.requestNumber).replace(/^MGT-SR-000-/, "MGT-SR-0000-");
-  const match = String(request.id || "").match(/(\d+)$/);
-  return `MGT-SR-0000-${String(match ? Number(match[1]) : 0).padStart(15, "0")}`;
+  return request.requestNumber || request.id || "MGT-SR-???";
 }
 
 function serviceRequestId(request = {}) {

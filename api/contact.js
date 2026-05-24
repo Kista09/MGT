@@ -21,10 +21,10 @@ function addDays(days) {
   return date.toISOString().slice(0, 10);
 }
 
-function makeServiceRequestNumber() {
+function makeExternalRequestId() {
   const stamp = Date.now().toString(36).toUpperCase().padStart(9, '0');
   const rand = Math.random().toString(36).slice(2, 8).toUpperCase().padEnd(6, '0');
-  return `MGT-SR-0000-${stamp}${rand}`;
+  return `MGT-EXT-${stamp}${rand}`;
 }
 
 function readConsultantSession(req, onboarding) {
@@ -73,7 +73,7 @@ function makeCrmRequest({ name, email, subject, message, onboarding }) {
     message,
   ].filter(Boolean).join('\n');
 
-  const requestNumber = makeServiceRequestNumber();
+  const requestNumber = makeExternalRequestId();
   const externalId = `onboarding-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   return {
     id: requestNumber,

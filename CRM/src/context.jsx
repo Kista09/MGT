@@ -3,7 +3,7 @@ import { INITIAL_STATE } from "./data";
 import { STAGE_CONFIG } from "./constants";
 import { generateId } from "./utils";
 
-const STORAGE_KEY = "mgucatech_crm_v1";
+const STORAGE_KEY = "mgucatech_crm_v2";
 const STAGE_ALIASES = {
   Lead: "Origination",
   Demo: "Discovery",
@@ -37,7 +37,7 @@ function getInitial() {
         user: INITIAL_STATE.user,
         pipeline: normalizePipeline(parsed.pipeline ?? INITIAL_STATE.pipeline),
         tasks: parsed.tasks ?? INITIAL_STATE.tasks,
-        serviceRequests: (parsed.serviceRequests ?? INITIAL_STATE.serviceRequests).map(normalizeServiceRequest),
+        serviceRequests: migrateServiceRequests(parsed.serviceRequests ?? INITIAL_STATE.serviceRequests),
         consultants: parsed.consultants ?? INITIAL_STATE.consultants,
         onboardingChecklist: parsed.onboardingChecklist ?? INITIAL_STATE.onboardingChecklist,
         billing: parsed.billing ?? INITIAL_STATE.billing,
@@ -99,15 +99,25 @@ function requestFollowUp(request, owner = "Admin") {
   };
 }
 
-function makeServiceRequestNumber() {
-  const stamp = Date.now().toString(36).toUpperCase().padStart(9, "0");
-  const rand = Math.random().toString(36).slice(2, 8).toUpperCase().padEnd(6, "0");
-  return `MGT-SR-0000-${stamp}${rand}`;
+function makeServiceRequestNumber(existingRequests = []) {
+  const nums = existingRequests.map(r => {
+    const m = String(r.requestNumber || r.id || "").match(/^MGT-SR-(\d+)$/);
+    return m ? parseInt(m[1], 10) : 0;
+  });
+  const next = nums.length ? Math.max(0, ...nums) + 1 : 1;
+  return `MGT-SR-${String(next).padStart(3, "0")}`;
 }
 
 function normalizeServiceRequestNumber(value) {
-  if (!value) return value;
-  return String(value).replace(/^MGT-SR-000-/, "MGT-SR-0000-");
+  if (!value) return null;
+  const str = String(value);
+  if (/^MGT-SR-\d+$/.test(str)) return str;
+  const longMatch = str.match(/^MGT-SR-0{3,}-0*(\d+)$/);
+  if (longMatch) {
+    const n = parseInt(longMatch[1], 10);
+    if (n > 0) return `MGT-SR-${String(n).padStart(3, "0")}`;
+  }
+  return null;
 }
 
 function normalizeServiceRequest(request) {
@@ -118,6 +128,26 @@ function normalizeServiceRequest(request) {
     id: requestNumber,
     requestNumber,
   };
+}
+
+function migrateServiceRequests(requests) {
+  const pool = [];
+  const seen = new Set();
+  return requests.map(request => {
+    const normalized = normalizeServiceRequest(request);
+    const id = normalized.requestNumber;
+    const valid = id && /^MGT-SR-\d+$/.test(id) && !seen.has(id);
+    if (valid) {
+      seen.add(id);
+      pool.push(normalized);
+      return normalized;
+    }
+    const requestNumber = makeServiceRequestNumber(pool);
+    seen.add(requestNumber);
+    const fixed = { ...normalized, id: requestNumber, requestNumber };
+    pool.push(fixed);
+    return fixed;
+  });
 }
 
 function requestIdentity(request = {}) {
@@ -298,7 +328,7 @@ function reducer(state, action) {
 
     /* ── Bots ────────────────────────────────────────────────── */
     case "ADD_SERVICE_REQUEST": {
-      const requestNumber = normalizeServiceRequestNumber(action.request.requestNumber) ?? makeServiceRequestNumber();
+      const requestNumber = normalizeServiceRequestNumber(action.request.requestNumber) ?? makeServiceRequestNumber(state.serviceRequests);
       const request = {
         ...action.request,
         id: requestNumber,
@@ -329,11 +359,12 @@ function reducer(state, action) {
         normalizeServiceRequestNumber(request.requestNumber),
         normalizeServiceRequestNumber(request.id),
       ].filter(Boolean)));
+      let pool = [...state.serviceRequests];
       const imported = (action.requests ?? [])
         .filter(request => !existingIds.has(request.externalId ?? normalizeServiceRequestNumber(request.requestNumber) ?? normalizeServiceRequestNumber(request.id)))
         .map(request => {
-          const requestNumber = normalizeServiceRequestNumber(request.requestNumber) ?? makeServiceRequestNumber();
-          return {
+          const requestNumber = normalizeServiceRequestNumber(request.requestNumber) ?? makeServiceRequestNumber(pool);
+          const record = {
             ...request,
             id: requestNumber,
             requestNumber,
@@ -341,6 +372,8 @@ function reducer(state, action) {
             status: request.status ?? "New",
             clientId: request.clientId ?? null,
           };
+          pool = [record, ...pool];
+          return record;
         });
 
       if (!imported.length) return state;
