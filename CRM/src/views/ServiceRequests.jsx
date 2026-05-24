@@ -104,7 +104,13 @@ function buildOnboardingDescription(onboarding = {}, fallback = "") {
 }
 
 function parseInternalNotes(notes = "") {
-  const text = String(notes || "");
+  const text = String(notes || "")
+    .replace(/^Internal notes:\s*/i, "")
+    .split(/\s+→\s+/)[0]
+    .replace(/\s+(Source|Sector|WhatsApp|Location|Consultant email|Consultant|Decision status|Decision):/gi, "\n$1:")
+    .replace(/\s+(Approved for onboarding by\s+.+?\s+on\s+\d{4}-\d{2}-\d{2}\.)/gi, "\n$1")
+    .replace(/\s+(Client portal access granted to\s+.+?\.)/gi, "\n$1")
+    .replace(/\s+(Approval email and starter-kit PDF sent\.)/gi, "\n$1");
   const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
   const result = { source: "", approvedBy: "", approvedDate: "", portalEmail: "", starterKitSent: false, extra: "", extraLines: [] };
   const extra = [];
