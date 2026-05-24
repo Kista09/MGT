@@ -17,7 +17,7 @@ const DEV_STAFF = [
 ];
 
 function isInternalUser(user) {
-  return user?.role === "superadmin" || user?.email?.endsWith("@mgucatech.com");
+  return user?.role === "private_client" || user?.role === "superadmin" || user?.email?.endsWith("@mgucatech.com");
 }
 
 async function loginInternal(email, password) {

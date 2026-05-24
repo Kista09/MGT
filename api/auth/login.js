@@ -26,6 +26,27 @@ function getAdminUser(email, password) {
   return null;
 }
 
+function getPrivateClientUser(email, password) {
+  const configured = process.env.PRIVATE_CLIENT_EMAILS || process.env.PRIVATE_CLIENT_EMAIL || '';
+  const emails = [...new Set([
+    ...configured.split(',').map(value => String(value).trim().toLowerCase()).filter(Boolean),
+    'organicsmith@gmail.com',
+    'organicsmith@gmmail.com',
+  ])];
+  const pass = process.env.PRIVATE_CLIENT_PASSWORD || '';
+  if (!pass || !emails.includes(email) || password !== pass) return null;
+  return {
+    id: `private-client-${email.replace(/[^a-z0-9]+/g, '-')}`,
+    email,
+    name: 'OrganicSmith Private Client',
+    role: 'private_client',
+    clientId: null,
+    clientName: 'Private Clients',
+    plan: null,
+    portalApproved: true,
+  };
+}
+
 module.exports = async (req, res) => {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -36,10 +57,12 @@ module.exports = async (req, res) => {
 
   const norm = String(email).trim().toLowerCase();
   const admin = getAdminUser(norm, password);
+  const privateClient = getPrivateClientUser(norm, password);
 
   if (audience === 'consultant_suite' || audience === 'internal_crm') {
-    if (!admin) return res.status(401).json({ error: 'Invalid consultant credentials' });
-    return res.status(200).json({ accessToken: makeToken(admin), user: publicUser(admin) });
+    const user = admin || (audience === 'internal_crm' ? privateClient : null);
+    if (!user) return res.status(401).json({ error: 'Invalid staff credentials' });
+    return res.status(200).json({ accessToken: makeToken(user), user: publicUser(user) });
   }
 
   if (audience !== 'client_portal') return res.status(403).json({ error: 'Invalid portal audience' });
