@@ -915,7 +915,7 @@ export default function ServiceRequests() {
                   )}
                   <button type="button" onClick={() => openEdit(request)}
                     style={{ background:C.subtle, border:"none", color:C.muted,
-                      borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:800, cursor:"pointer" }}>Edit</button>
+                      borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:800, cursor:"pointer" }}>Capture</button>
                   <button type="button" onClick={() => setDeleteRequest(request)}
                     style={{ background:C.redBg, border:"none", color:C.red,
                       borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:800, cursor:"pointer" }}>Del</button>
@@ -937,7 +937,7 @@ export default function ServiceRequests() {
       )}
 
       {editRequest && (
-        <Modal title={`Edit Request - ${editRequest.subject}`} onClose={() => setEditRequest(null)} onSave={saveEdit} size="lg">
+        <Modal title={`Capture Request - ${editRequest.subject}`} onClose={() => setEditRequest(null)} onSave={saveEdit} size="lg">
           <RequestForm form={form} setForm={setForm} errors={errors} clients={state.clients} />
         </Modal>
       )}
