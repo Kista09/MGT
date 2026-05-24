@@ -15,6 +15,7 @@ import Pipeline    from "./views/Pipeline";
 import ServiceRequests from "./views/ServiceRequests";
 import FollowUps   from "./views/FollowUps";
 import Bots        from "./views/Bots";
+import ConfidentialClients from "./views/ConfidentialClients";
 import Analytics   from "./views/Analytics";
 import Settings    from "./views/Settings";
 
@@ -46,6 +47,7 @@ function AppInner({ onLogout }) {
     requests:       <ServiceRequests />,
     followups:      <FollowUps />,
     bots:           <Bots />,
+    confidential:   <ConfidentialClients />,
     analytics:      <Analytics />,
     settings:       <Settings />,
   };

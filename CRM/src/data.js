@@ -141,6 +141,38 @@ export const INITIAL_CONSULTANTS = [
   { id:"consultant-3", name:"Operations Desk", email:"admin@mgucatech.com", role:"Operations", active:true, focus:"Go-live readiness, incidents, and Book Now setup" },
 ];
 
+export const INITIAL_CONFIDENTIAL_CLIENTS = [
+  {
+    id:"cc1",
+    name:"Board-Level Retainer",
+    contact:"Executive Sponsor",
+    sector:"Strategic advisory",
+    sensitivity:"High",
+    status:"Restricted",
+    owner:"Bakhokhele Mguca",
+    nda:"Signed",
+    nextReview:"2026-06-01",
+    notes:"Access limited to approved consultants. Keep commercial terms and decision-maker details out of general client notes.",
+  },
+  {
+    id:"cc2",
+    name:"Regulated Onboarding Lead",
+    contact:"Compliance Lead",
+    sector:"Financial services",
+    sensitivity:"Critical",
+    status:"Approval Required",
+    owner:"MgucaTECH Admin",
+    nda:"Pending",
+    nextReview:"2026-05-31",
+    notes:"Requires POPIA-safe handling and explicit approval before sharing documents or screenshots.",
+  },
+];
+
+export const INITIAL_CONFIDENTIAL_ACCESS = {
+  approvedEmails: ["admin@mgucatech.com"],
+  requests: [],
+};
+
 export const INITIAL_ONBOARDING_CHECKLIST = [
   "Submit logo, brand colours, and business profile",
   "Confirm WhatsApp number, operating hours, and handoff contact",
@@ -168,6 +200,8 @@ export const INITIAL_STATE = {
   notifications: INITIAL_NOTIFICATIONS,
   billing: INITIAL_BILLING,
   consultants: INITIAL_CONSULTANTS,
+  confidentialClients: INITIAL_CONFIDENTIAL_CLIENTS,
+  confidentialAccess: INITIAL_CONFIDENTIAL_ACCESS,
   onboardingChecklist: INITIAL_ONBOARDING_CHECKLIST,
   auditLog: INITIAL_AUDIT_LOG,
   tasks: INITIAL_TASKS,

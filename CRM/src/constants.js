@@ -59,6 +59,7 @@ export const NAV_ITEMS = [
   { id: "requests",  icon: "Q",  label: "Requests" },
   { id: "followups", icon: "!",  label: "Follow-ups" },
   { id: "bots",      icon: "O",  label: "Operations" },
+  { id: "confidential", icon: "C", label: "Confidential" },
   { id: "analytics", icon: "A",  label: "Analytics" },
   { id: "settings",  icon: "S",  label: "Settings"  },
 ];
@@ -74,7 +75,7 @@ export const NAV_GROUPS = [
   },
   {
     label: "Admin",
-    items: NAV_ITEMS.filter(item => ["analytics", "settings"].includes(item.id)),
+    items: NAV_ITEMS.filter(item => ["confidential", "analytics", "settings"].includes(item.id)),
   },
 ];
 
