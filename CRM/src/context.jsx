@@ -37,7 +37,7 @@ function getInitial() {
         user: INITIAL_STATE.user,
         pipeline: normalizePipeline(parsed.pipeline ?? INITIAL_STATE.pipeline),
         tasks: parsed.tasks ?? INITIAL_STATE.tasks,
-        serviceRequests: parsed.serviceRequests ?? INITIAL_STATE.serviceRequests,
+        serviceRequests: (parsed.serviceRequests ?? INITIAL_STATE.serviceRequests).map(normalizeServiceRequest),
         consultants: parsed.consultants ?? INITIAL_STATE.consultants,
         onboardingChecklist: parsed.onboardingChecklist ?? INITIAL_STATE.onboardingChecklist,
         billing: parsed.billing ?? INITIAL_STATE.billing,
@@ -102,11 +102,26 @@ function requestFollowUp(request, owner = "Admin") {
 function makeServiceRequestNumber() {
   const stamp = Date.now().toString(36).toUpperCase().padStart(9, "0");
   const rand = Math.random().toString(36).slice(2, 8).toUpperCase().padEnd(6, "0");
-  return `MGT-SR-000-${stamp}${rand}`;
+  return `MGT-SR-0000-${stamp}${rand}`;
+}
+
+function normalizeServiceRequestNumber(value) {
+  if (!value) return value;
+  return String(value).replace(/^MGT-SR-000-/, "MGT-SR-0000-");
+}
+
+function normalizeServiceRequest(request) {
+  const requestNumber = normalizeServiceRequestNumber(request.requestNumber);
+  if (!requestNumber) return request;
+  return {
+    ...request,
+    id: requestNumber,
+    requestNumber,
+  };
 }
 
 function requestIdentity(request = {}) {
-  return request.requestNumber || request.id || request.externalId;
+  return normalizeServiceRequestNumber(request.requestNumber) || normalizeServiceRequestNumber(request.id) || request.externalId;
 }
 
 const REQUEST_AUDIT_FIELDS = {
@@ -283,7 +298,7 @@ function reducer(state, action) {
 
     /* ── Bots ────────────────────────────────────────────────── */
     case "ADD_SERVICE_REQUEST": {
-      const requestNumber = action.request.requestNumber ?? makeServiceRequestNumber();
+      const requestNumber = normalizeServiceRequestNumber(action.request.requestNumber) ?? makeServiceRequestNumber();
       const request = {
         ...action.request,
         id: requestNumber,
@@ -311,13 +326,13 @@ function reducer(state, action) {
     case "IMPORT_SERVICE_REQUESTS": {
       const existingIds = new Set(state.serviceRequests.flatMap(request => [
         request.externalId,
-        request.requestNumber,
-        request.id,
+        normalizeServiceRequestNumber(request.requestNumber),
+        normalizeServiceRequestNumber(request.id),
       ].filter(Boolean)));
       const imported = (action.requests ?? [])
-        .filter(request => !existingIds.has(request.externalId ?? request.requestNumber ?? request.id))
+        .filter(request => !existingIds.has(request.externalId ?? normalizeServiceRequestNumber(request.requestNumber) ?? normalizeServiceRequestNumber(request.id)))
         .map(request => {
-          const requestNumber = request.requestNumber ?? makeServiceRequestNumber();
+          const requestNumber = normalizeServiceRequestNumber(request.requestNumber) ?? makeServiceRequestNumber();
           return {
             ...request,
             id: requestNumber,

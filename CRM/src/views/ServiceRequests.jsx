@@ -47,13 +47,13 @@ function requestStatusStyle(status) {
 }
 
 function serviceRequestNumber(request = {}) {
-  if (request.requestNumber) return request.requestNumber;
+  if (request.requestNumber) return String(request.requestNumber).replace(/^MGT-SR-000-/, "MGT-SR-0000-");
   const match = String(request.id || "").match(/(\d+)$/);
-  return `MGT-SR-${String(match ? Number(match[1]) : 0).padStart(4, "0")}`;
+  return `MGT-SR-0000-${String(match ? Number(match[1]) : 0).padStart(15, "0")}`;
 }
 
 function serviceRequestId(request = {}) {
-  return request.requestNumber || request.id;
+  return serviceRequestNumber(request) || request.id;
 }
 
 function LifecycleBar({ status }) {
