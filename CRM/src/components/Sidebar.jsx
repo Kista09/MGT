@@ -5,7 +5,6 @@ import { buildPriorityQueue } from "../utils";
 export default function Sidebar() {
   const { state, dispatch, navigate } = useApp();
   const { view } = state.nav;
-  const privateClientOnly = state.user?.role === "private_client";
   const today = new Date().toISOString().slice(0, 10);
   const openRequests = (state.serviceRequests ?? []).filter(request =>
     !["Resolved", "Closed"].includes(request.status)
@@ -59,16 +58,13 @@ export default function Sidebar() {
       </div>
 
       <nav style={{ padding:"10px 12px", flex:1 }}>
-        {(privateClientOnly
-          ? [{ label: "Private", items: [{ id:"private-clients", icon:"P", label:"Private Clients" }] }]
-          : NAV_GROUPS
-        ).map(group => (
+        {NAV_GROUPS.map(group => (
           <div key={group.label} style={{ marginBottom:10 }}>
             <div style={{ padding:"8px 12px 6px", color:"rgba(255,255,255,0.34)",
               fontSize:10, fontWeight:800, letterSpacing:.8, textTransform:"uppercase",
               display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
               <span>{group.label}</span>
-              {!privateClientOnly && group.label === "Consultant" && tendFirst && (
+              {group.label === "Consultant" && tendFirst && (
                 <button type="button" onClick={() => navigate(tendFirst.id)}
                   style={{ border:"none", borderRadius:99, background:"rgba(255,255,255,0.08)",
                     color:tendFirst.tone, cursor:"pointer", padding:"2px 7px",

@@ -22,7 +22,6 @@ import Settings    from "./views/Settings";
 function AppInner({ onLogout }) {
   const { state, dispatch } = useApp();
   const { view, clientId } = state.nav;
-  const privateClientOnly = state.user?.role === "private_client";
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -38,12 +37,6 @@ function AppInner({ onLogout }) {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [dispatch]);
-
-  useEffect(() => {
-    if (privateClientOnly && view !== "private-clients") {
-      dispatch({ type: "NAVIGATE", view: "private-clients" });
-    }
-  }, [dispatch, privateClientOnly, view]);
 
   const views = {
     today:          <Today />,
@@ -64,8 +57,8 @@ function AppInner({ onLogout }) {
       minHeight:"100vh", display:"flex", overflowX:"hidden" }}>
       <Sidebar />
       <div style={{ flex:1, overflow:"hidden", display:"flex", flexDirection:"column" }}>
-        {!privateClientOnly && <Navbar />}
-        {privateClientOnly ? views["private-clients"] : (views[view] ?? <Dashboard />)}
+        <Navbar />
+        {views[view] ?? <Dashboard />}
       </div>
       <Toasts />
       <button
