@@ -4,6 +4,8 @@ import { STAGE_CONFIG } from "./constants";
 import { generateId } from "./utils";
 
 const STORAGE_KEY = "mgucatech_crm_v2";
+const SR_PREFIX = "MGT-SR-0000-";
+const SR_UUID_RE = /^MGT-SR-0000-[0-9A-F]{8}-[0-9A-F]{4}-[1-5][0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i;
 const STAGE_ALIASES = {
   Lead: "Origination",
   Demo: "Discovery",
@@ -99,24 +101,36 @@ function requestFollowUp(request, owner = "Admin") {
   };
 }
 
-function makeServiceRequestNumber(existingRequests = []) {
-  const nums = existingRequests.map(r => {
-    const m = String(r.requestNumber || r.id || "").match(/^MGT-SR-(\d+)$/);
-    return m ? parseInt(m[1], 10) : 0;
+function uuidFromNumber(value) {
+  const suffix = String(Math.max(1, Number(value) || 1).toString(16)).toUpperCase().padStart(12, "0").slice(-12);
+  return `${SR_PREFIX}00000000-0000-4000-8000-${suffix}`;
+}
+
+function makeUuid() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, char => {
+    const value = Math.floor(Math.random() * 16);
+    return (char === "x" ? value : (value & 0x3) | 0x8).toString(16);
   });
-  const next = nums.length ? Math.max(0, ...nums) + 1 : 1;
-  return `MGT-SR-${String(next).padStart(3, "0")}`;
+}
+
+function makeServiceRequestNumber(existingRequests = []) {
+  const existing = new Set(existingRequests.map(request => normalizeServiceRequestNumber(request.requestNumber || request.id)).filter(Boolean));
+  let requestNumber;
+  do {
+    requestNumber = `${SR_PREFIX}${makeUuid().toUpperCase()}`;
+  } while (existing.has(requestNumber));
+  return requestNumber;
 }
 
 function normalizeServiceRequestNumber(value) {
   if (!value) return null;
-  const str = String(value);
-  if (/^MGT-SR-\d+$/.test(str)) return str;
-  const longMatch = str.match(/^MGT-SR-0{3,}-0*(\d+)$/);
-  if (longMatch) {
-    const n = parseInt(longMatch[1], 10);
-    if (n > 0) return `MGT-SR-${String(n).padStart(3, "0")}`;
-  }
+  const str = String(value).trim();
+  if (SR_UUID_RE.test(str)) return str.toUpperCase();
+  const numbered = str.match(/^MGT-SR-(\d+)$/i);
+  if (numbered) return uuidFromNumber(numbered[1]);
+  const longMatch = str.match(/^MGT-SR-0{3,}-0*(\d+)$/i);
+  if (longMatch) return uuidFromNumber(longMatch[1]);
   return null;
 }
 
@@ -136,7 +150,7 @@ function migrateServiceRequests(requests) {
   return requests.map(request => {
     const normalized = normalizeServiceRequest(request);
     const id = normalized.requestNumber;
-    const valid = id && /^MGT-SR-\d+$/.test(id) && !seen.has(id);
+    const valid = id && SR_UUID_RE.test(id) && !seen.has(id);
     if (valid) {
       seen.add(id);
       pool.push(normalized);

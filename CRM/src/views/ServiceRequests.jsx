@@ -47,7 +47,18 @@ function requestStatusStyle(status) {
 }
 
 function serviceRequestNumber(request = {}) {
-  return request.requestNumber || request.id || "MGT-SR-???";
+  const value = request.requestNumber || request.id;
+  if (!value) return "MGT-SR-????";
+  const str = String(value).trim();
+  if (/^MGT-SR-0000-[0-9A-F]{8}-[0-9A-F]{4}-[1-5][0-9A-F]{3}-[89AB][0-9A-F]{3}-[0-9A-F]{12}$/i.test(str)) {
+    return str.toUpperCase();
+  }
+  const numbered = str.match(/^MGT-SR-(\d+)$/i) || str.match(/^MGT-SR-0{3,}-0*(\d+)$/i);
+  if (numbered) {
+    const suffix = String(Math.max(1, Number(numbered[1]) || 1).toString(16)).toUpperCase().padStart(12, "0").slice(-12);
+    return `MGT-SR-0000-00000000-0000-4000-8000-${suffix}`;
+  }
+  return str;
 }
 
 function serviceRequestId(request = {}) {

@@ -21,10 +21,13 @@ function addDays(days) {
   return date.toISOString().slice(0, 10);
 }
 
-function makeExternalRequestId() {
-  const stamp = Date.now().toString(36).toUpperCase().padStart(9, '0');
-  const rand = Math.random().toString(36).slice(2, 8).toUpperCase().padEnd(6, '0');
-  return `MGT-EXT-${stamp}${rand}`;
+function makeServiceRequestNumber() {
+  const uuid = globalThis.crypto?.randomUUID?.()
+    || 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, char => {
+      const value = Math.floor(Math.random() * 16);
+      return (char === 'x' ? value : (value & 0x3) | 0x8).toString(16);
+    });
+  return `MGT-SR-0000-${uuid.toUpperCase()}`;
 }
 
 function readConsultantSession(req, onboarding) {
@@ -73,7 +76,7 @@ function makeCrmRequest({ name, email, subject, message, onboarding }) {
     message,
   ].filter(Boolean).join('\n');
 
-  const requestNumber = makeExternalRequestId();
+  const requestNumber = makeServiceRequestNumber();
   const externalId = `onboarding-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   return {
     id: requestNumber,
