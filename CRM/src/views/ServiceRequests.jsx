@@ -451,14 +451,21 @@ function RequestAuditTrail({ trail = [] }) {
   return (
     <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:"9px 10px", marginBottom:12 }}>
       <div style={{ color:C.muted, fontSize:9, fontWeight:800, letterSpacing:.6, textTransform:"uppercase", marginBottom:7 }}>
-        Amendment Audit Trail
+        Consultant Amendment Audit
       </div>
       {items.map((item, index) => (
         <div key={item.id ?? index} style={{ padding:index > 0 ? "8px 0 0" : 0, marginTop:index > 0 ? 8 : 0, borderTop:index > 0 ? `1px solid ${C.border}` : "none" }}>
           <div style={{ display:"flex", justifyContent:"space-between", gap:10, marginBottom:5 }}>
-            <strong style={{ color:C.text, fontSize:12 }}>{item.actor || "System"}</strong>
+            <strong style={{ color:C.text, fontSize:12 }}>
+              Consultant: {item.consultantName || item.amendedBy || item.actor || "System"}
+            </strong>
             <span style={{ color:C.muted, fontSize:10 }}>{new Date(item.time).toLocaleString("en-ZA")}</span>
           </div>
+          {(item.consultantEmail || item.amendedByEmail || item.actorEmail || item.consultantRole) && (
+            <div style={{ color:C.muted, fontSize:10, marginBottom:5 }}>
+              {[item.consultantEmail || item.amendedByEmail || item.actorEmail, item.consultantRole].filter(Boolean).join(" · ")}
+            </div>
+          )}
           {(item.changes ?? []).slice(0, 4).map(change => (
             <div key={change.field} style={{ color:C.muted, fontSize:11, lineHeight:1.45 }}>
               <strong style={{ color:C.accent }}>{change.label}:</strong> {change.before} → {change.after}

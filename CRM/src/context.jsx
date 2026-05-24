@@ -134,6 +134,14 @@ function requestChanges(before = {}, after = {}) {
     }));
 }
 
+function requestConsultant(state) {
+  return {
+    name: state.user?.name ?? "System",
+    email: state.user?.email ?? "",
+    role: state.user?.role ?? "Internal CRM",
+  };
+}
+
 function reducer(state, action) {
   switch (action.type) {
 
@@ -332,13 +340,19 @@ function reducer(state, action) {
           const updated = { ...request, ...action.request };
           const changes = requestChanges(request, updated);
           if (!changes.length) return updated;
+          const consultant = requestConsultant(state);
           return {
             ...updated,
             auditTrail: [{
               id: generateId(),
               time: new Date().toISOString(),
-              actor: state.user?.name ?? "System",
-              actorEmail: state.user?.email ?? "",
+              consultantName: consultant.name,
+              consultantEmail: consultant.email,
+              consultantRole: consultant.role,
+              amendedBy: consultant.name,
+              amendedByEmail: consultant.email,
+              actor: consultant.name,
+              actorEmail: consultant.email,
               changes,
             }, ...(request.auditTrail ?? [])].slice(0, 25),
           };
