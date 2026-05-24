@@ -22,9 +22,9 @@ function addDays(days) {
 }
 
 function makeServiceRequestNumber() {
-  const stamp = Date.now().toString(36).toUpperCase();
-  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
-  return `MGT-SR-${stamp}-${rand}`;
+  const stamp = Date.now().toString(36).toUpperCase().padStart(9, '0');
+  const rand = Math.random().toString(36).slice(2, 8).toUpperCase().padEnd(6, '0');
+  return `MGT-SR-000-${stamp}${rand}`;
 }
 
 function readConsultantSession(req, onboarding) {
