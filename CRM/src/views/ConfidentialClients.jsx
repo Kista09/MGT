@@ -1,8 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { C, font, pill } from "../constants";
 import { useApp } from "../context";
 import Modal, { FormRow, inputStyle, selectStyle } from "../components/Modal";
 import { formatDateShort, todayISO } from "../utils";
+
+const API_URL = "https://mgucatech.com/api/confidential-clients";
+const TOKEN_KEY = "mgucatech_crm_access_token";
 
 const BLANK_CLIENT = {
   name: "",
@@ -22,12 +25,6 @@ function canApproveConfidentialAccess(user) {
     user?.email === "admin@mgucatech.com";
 }
 
-function hasConfidentialAccess(state) {
-  const email = state.user?.email ?? "";
-  return (state.confidentialAccess?.approvedEmails ?? []).includes(email) ||
-    canApproveConfidentialAccess(state.user);
-}
-
 function sensitivityStyle(sensitivity) {
   if (sensitivity === "Critical") return pill("#fff", C.red);
   if (sensitivity === "High") return pill(C.accent, C.accentBg);
@@ -35,12 +32,17 @@ function sensitivityStyle(sensitivity) {
 }
 
 function AccessGate({ pendingRequest, canApprove }) {
-  const { dispatch, toast } = useApp();
+  const { toast } = useApp();
   const [reason, setReason] = useState("");
 
-  const requestAccess = () => {
-    dispatch({ type: "REQUEST_CONFIDENTIAL_ACCESS", reason });
-    toast("Confidential client access requested", "!");
+  const requestAccess = async () => {
+    try {
+      await confidentialRequest({ action: "request_access", reason });
+      toast("Confidential client access requested", "!");
+      window.dispatchEvent(new CustomEvent("confidential-access-updated"));
+    } catch (error) {
+      toast(error.message ?? "Could not request confidential access", "!", "warning");
+    }
   };
 
   return (
@@ -78,6 +80,21 @@ function AccessGate({ pendingRequest, canApprove }) {
       </div>
     </div>
   );
+}
+
+async function confidentialRequest(payload = null) {
+  const token = localStorage.getItem(TOKEN_KEY);
+  const response = await fetch(API_URL, {
+    method: payload ? "POST" : "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: payload ? JSON.stringify(payload) : undefined,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error ?? "Confidential client request failed");
+  return data;
 }
 
 function ConfidentialForm({ form, setForm }) {
@@ -124,17 +141,63 @@ function ConfidentialForm({ form, setForm }) {
 }
 
 export default function ConfidentialClients() {
-  const { state, dispatch, toast } = useApp();
+  const { state, toast } = useApp();
   const [addOpen, setAddOpen] = useState(false);
   const [editClient, setEditClient] = useState(null);
   const [form, setForm] = useState(BLANK_CLIENT);
+  const [loading, setLoading] = useState(true);
+  const [accessState, setAccessState] = useState({ approved: false, canApprove: false, clients: [], access: { requests: [] }, pendingRequest: null });
+  const [loadError, setLoadError] = useState("");
 
-  const approved = hasConfidentialAccess(state);
-  const canApprove = canApproveConfidentialAccess(state.user);
-  const pendingRequests = (state.confidentialAccess?.requests ?? []).filter(item => item.status === "Pending");
-  const pendingRequest = pendingRequests.find(item => item.email === state.user?.email);
+  const loadConfidential = async () => {
+    setLoading(true);
+    setLoadError("");
+    try {
+      const data = await confidentialRequest();
+      setAccessState({
+        approved: !!data.approved,
+        canApprove: !!data.canApprove,
+        clients: data.clients ?? [],
+        access: data.access ?? { requests: [] },
+        pendingRequest: data.pendingRequest ?? null,
+      });
+    } catch (error) {
+      setLoadError(error.message ?? "Could not load confidential client access");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const clients = useMemo(() => state.confidentialClients ?? [], [state.confidentialClients]);
+  useEffect(() => {
+    loadConfidential();
+    const handler = () => loadConfidential();
+    window.addEventListener("confidential-access-updated", handler);
+    return () => window.removeEventListener("confidential-access-updated", handler);
+  }, []);
+
+  const approved = accessState.approved;
+  const canApprove = accessState.canApprove || canApproveConfidentialAccess(state.user);
+  const pendingRequests = (accessState.access?.requests ?? []).filter(item => item.status === "Pending");
+  const pendingRequest = accessState.pendingRequest || pendingRequests.find(item => item.email === state.user?.email);
+  const clients = useMemo(() => accessState.clients ?? [], [accessState.clients]);
+
+  if (loading) {
+    return (
+      <div style={{ padding:32, overflowY:"auto", flex:1 }}>
+        <div style={{ color:C.muted, fontSize:14 }}>Loading confidential access...</div>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div style={{ padding:32, overflowY:"auto", flex:1 }}>
+        <div style={{ background:C.redBg, border:`1px solid ${C.red}`, color:C.red, borderRadius:8, padding:14, fontSize:13, fontWeight:800 }}>
+          {loadError}
+        </div>
+      </div>
+    );
+  }
 
   if (!approved) return <AccessGate pendingRequest={pendingRequest} canApprove={canApprove} />;
 
@@ -148,25 +211,40 @@ export default function ConfidentialClients() {
     setEditClient(client);
   };
 
-  const saveAdd = () => {
+  const saveAdd = async () => {
     if (!form.name.trim()) {
       toast("Confidential client name is required", "!", "warning");
       return;
     }
-    dispatch({ type:"ADD_CONFIDENTIAL_CLIENT", client: form });
-    toast("Confidential client added", "ok");
-    setAddOpen(false);
+    try {
+      const data = await confidentialRequest({ action:"add_client", client: form });
+      setAccessState(prev => ({ ...prev, clients: data.clients ?? prev.clients, access: data.access ?? prev.access }));
+      toast("Confidential client added", "ok");
+      setAddOpen(false);
+    } catch (error) {
+      toast(error.message ?? "Could not add confidential client", "!", "warning");
+    }
   };
 
-  const saveEdit = () => {
-    dispatch({ type:"UPDATE_CONFIDENTIAL_CLIENT", client: form });
-    toast("Confidential client updated", "ok");
-    setEditClient(null);
+  const saveEdit = async () => {
+    try {
+      const data = await confidentialRequest({ action:"update_client", client: form });
+      setAccessState(prev => ({ ...prev, clients: data.clients ?? prev.clients, access: data.access ?? prev.access }));
+      toast("Confidential client updated", "ok");
+      setEditClient(null);
+    } catch (error) {
+      toast(error.message ?? "Could not update confidential client", "!", "warning");
+    }
   };
 
-  const approveAccess = request => {
-    dispatch({ type:"APPROVE_CONFIDENTIAL_ACCESS", requestId: request.id });
-    toast(`Access approved for ${request.name}`, "ok");
+  const approveAccess = async request => {
+    try {
+      const data = await confidentialRequest({ action:"approve_access", requestId: request.id });
+      setAccessState(prev => ({ ...prev, access: data.access ?? prev.access, canApprove: !!data.canApprove }));
+      toast(`Access approved for ${request.name}`, "ok");
+    } catch (error) {
+      toast(error.message ?? "Could not approve access", "!", "warning");
+    }
   };
 
   return (

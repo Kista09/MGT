@@ -38,8 +38,6 @@ function getInitial() {
         tasks: parsed.tasks ?? INITIAL_STATE.tasks,
         serviceRequests: parsed.serviceRequests ?? INITIAL_STATE.serviceRequests,
         consultants: parsed.consultants ?? INITIAL_STATE.consultants,
-        confidentialClients: parsed.confidentialClients ?? INITIAL_STATE.confidentialClients,
-        confidentialAccess: parsed.confidentialAccess ?? INITIAL_STATE.confidentialAccess,
         onboardingChecklist: parsed.onboardingChecklist ?? INITIAL_STATE.onboardingChecklist,
         billing: parsed.billing ?? INITIAL_STATE.billing,
         auditLog: parsed.auditLog ?? INITIAL_STATE.auditLog,
@@ -414,74 +412,6 @@ function reducer(state, action) {
       };
 
     /* ── Toasts ──────────────────────────────────────────────── */
-    case "REQUEST_CONFIDENTIAL_ACCESS": {
-      const email = state.user?.email ?? "";
-      const existing = (state.confidentialAccess?.requests ?? []).find(item =>
-        item.email === email && item.status === "Pending"
-      );
-      if (existing) return state;
-      const request = {
-        id: `car-${generateId()}`,
-        name: state.user?.name ?? "Unknown consultant",
-        email,
-        role: state.user?.role ?? "Consultant",
-        reason: action.reason ?? "",
-        status: "Pending",
-        requestedAt: new Date().toISOString(),
-      };
-      return {
-        ...state,
-        confidentialAccess: {
-          approvedEmails: state.confidentialAccess?.approvedEmails ?? [],
-          requests: [request, ...(state.confidentialAccess?.requests ?? [])],
-        },
-        auditLog: addAudit(state, "Confidential client access requested", email),
-      };
-    }
-
-    case "APPROVE_CONFIDENTIAL_ACCESS": {
-      const requests = state.confidentialAccess?.requests ?? [];
-      const target = requests.find(item => item.id === action.requestId);
-      if (!target) return state;
-      const approvedEmails = new Set(state.confidentialAccess?.approvedEmails ?? []);
-      approvedEmails.add(target.email);
-      return {
-        ...state,
-        confidentialAccess: {
-          approvedEmails: [...approvedEmails],
-          requests: requests.map(item => item.id === action.requestId
-            ? { ...item, status: "Approved", approvedAt: new Date().toISOString(), approvedBy: state.user?.name ?? "System" }
-            : item),
-        },
-        auditLog: addAudit(state, "Confidential client access approved", target.email),
-      };
-    }
-
-    case "ADD_CONFIDENTIAL_CLIENT": {
-      const client = {
-        ...action.client,
-        id: `cc${generateId()}`,
-        createdAt: new Date().toISOString(),
-        createdBy: state.user?.name ?? "System",
-      };
-      return {
-        ...state,
-        confidentialClients: [client, ...(state.confidentialClients ?? [])],
-        auditLog: addAudit(state, "Confidential client added", client.name),
-      };
-    }
-
-    case "UPDATE_CONFIDENTIAL_CLIENT":
-      return {
-        ...state,
-        confidentialClients: (state.confidentialClients ?? []).map(item =>
-          item.id === action.client.id
-            ? { ...item, ...action.client, updatedAt: new Date().toISOString(), updatedBy: state.user?.name ?? "System" }
-            : item
-        ),
-        auditLog: addAudit(state, "Confidential client updated", action.client.name),
-      };
-
     case "ADD_TOAST":
       return { ...state, toasts: [{ id: generateId(), message: action.message, toastType: action.toastType ?? "success", icon: action.icon ?? "✓" }, ...state.toasts] };
     case "REMOVE_TOAST":

@@ -15,17 +15,11 @@ export default function Sidebar() {
   const operationsAttention = (state.bots ?? []).filter(bot =>
     ["Warning", "Offline"].includes(bot.status) || (bot.errorRate ?? 0) > 0.1
   );
-  const canApproveConfidential = ["admin", "executive", "owner", "superadmin", "internal crm"].some(role =>
-    String(state.user?.role ?? "").toLowerCase().includes(role)
-  ) || state.user?.email === "admin@mgucatech.com";
   const attentionCounts = {
     today: buildPriorityQueue(state).length,
     requests: openRequests.length,
     followups: urgentFollowUps.length,
     bots: operationsAttention.length,
-    confidential: canApproveConfidential
-      ? (state.confidentialAccess?.requests ?? []).filter(item => item.status === "Pending").length
-      : 0,
   };
   const tendFirst = [
     { id:"requests", label:"Requests", count:attentionCounts.requests, tone:C.red },
