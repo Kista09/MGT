@@ -321,6 +321,8 @@
   <script>
     const TOKEN_KEY = "mgucatech_consultant_access_token";
     const USER_KEY = "mgucatech_consultant_user";
+    const API_BASE = window.location.protocol === "file:" ? "https://mgucatech.com" : "";
+    const apiUrl = path => `${API_BASE}${path}`;
     const loginScreen = document.getElementById("login-screen");
     const consultantApp = document.getElementById("consultant-app");
     const loginForm = document.getElementById("consultant-login");
@@ -420,7 +422,7 @@
       status.textContent = "Sending to CRM...";
 
       try {
-        const response = await fetch("/api/contact", {
+        const response = await fetch(apiUrl("/api/contact"), {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify({
@@ -455,7 +457,7 @@
 
       try {
         const credentials = Object.fromEntries(new FormData(loginForm).entries());
-        const response = await fetch("/api/auth/login", {
+        const response = await fetch(apiUrl("/api/auth/login"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
