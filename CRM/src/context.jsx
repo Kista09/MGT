@@ -97,6 +97,43 @@ function requestFollowUp(request, owner = "Admin") {
   };
 }
 
+const REQUEST_AUDIT_FIELDS = {
+  requester: "Requester",
+  email: "Requester email",
+  category: "Category",
+  priority: "Priority",
+  status: "Status",
+  subject: "Subject",
+  description: "Request details",
+  dueDate: "Target response date",
+  owner: "Owner",
+  channel: "Channel",
+  notes: "Internal notes",
+  clientId: "Relationship",
+  onboarding: "Onboarding details",
+  portalGranted: "Portal access",
+  portalUser: "Portal user",
+  approvedAt: "Approved at",
+  approvedBy: "Approved by",
+};
+
+function auditValue(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).join(", ");
+  if (value && typeof value === "object") return JSON.stringify(value);
+  return String(value ?? "").trim();
+}
+
+function requestChanges(before = {}, after = {}) {
+  return Object.entries(REQUEST_AUDIT_FIELDS)
+    .filter(([field]) => auditValue(before[field]) !== auditValue(after[field]))
+    .map(([field, label]) => ({
+      field,
+      label,
+      before: auditValue(before[field]) || "Blank",
+      after: auditValue(after[field]) || "Blank",
+    }));
+}
+
 function reducer(state, action) {
   switch (action.type) {
 
@@ -290,9 +327,22 @@ function reducer(state, action) {
     case "UPDATE_SERVICE_REQUEST":
       return {
         ...state,
-        serviceRequests: state.serviceRequests.map(request =>
-          request.id === action.request.id ? { ...request, ...action.request } : request
-        ),
+        serviceRequests: state.serviceRequests.map(request => {
+          if (request.id !== action.request.id) return request;
+          const updated = { ...request, ...action.request };
+          const changes = requestChanges(request, updated);
+          if (!changes.length) return updated;
+          return {
+            ...updated,
+            auditTrail: [{
+              id: generateId(),
+              time: new Date().toISOString(),
+              actor: state.user?.name ?? "System",
+              actorEmail: state.user?.email ?? "",
+              changes,
+            }, ...(request.auditTrail ?? [])].slice(0, 25),
+          };
+        }),
         auditLog: addAudit(state, `Service request set to ${action.request.status ?? "updated"}`, action.request.subject ?? action.request.id),
       };
     case "DELETE_SERVICE_REQUEST":

@@ -445,6 +445,34 @@ function ApprovalTrail({ notes }) {
   );
 }
 
+function RequestAuditTrail({ trail = [] }) {
+  const items = trail.slice(0, 3);
+  if (!items.length) return null;
+  return (
+    <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:"9px 10px", marginBottom:12 }}>
+      <div style={{ color:C.muted, fontSize:9, fontWeight:800, letterSpacing:.6, textTransform:"uppercase", marginBottom:7 }}>
+        Amendment Audit Trail
+      </div>
+      {items.map((item, index) => (
+        <div key={item.id ?? index} style={{ padding:index > 0 ? "8px 0 0" : 0, marginTop:index > 0 ? 8 : 0, borderTop:index > 0 ? `1px solid ${C.border}` : "none" }}>
+          <div style={{ display:"flex", justifyContent:"space-between", gap:10, marginBottom:5 }}>
+            <strong style={{ color:C.text, fontSize:12 }}>{item.actor || "System"}</strong>
+            <span style={{ color:C.muted, fontSize:10 }}>{new Date(item.time).toLocaleString("en-ZA")}</span>
+          </div>
+          {(item.changes ?? []).slice(0, 4).map(change => (
+            <div key={change.field} style={{ color:C.muted, fontSize:11, lineHeight:1.45 }}>
+              <strong style={{ color:C.accent }}>{change.label}:</strong> {change.before} → {change.after}
+            </div>
+          ))}
+          {(item.changes ?? []).length > 4 && (
+            <div style={{ color:C.muted, fontSize:11, marginTop:2 }}>+{item.changes.length - 4} more changes</div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ServiceRequests() {
   const { state, dispatch, navigate, toast } = useApp();
   const [queue, setQueue] = useState("Open");
@@ -736,6 +764,8 @@ export default function ServiceRequests() {
                       <div style={{ color:C.text, fontSize:12, lineHeight:1.45 }}>{request.notes}</div>
                     </div>
                   )}
+
+              <RequestAuditTrail trail={request.auditTrail} />
 
               {/* Footer */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, marginTop:"auto", paddingTop:12, borderTop:`1px solid ${C.border}` }}>
