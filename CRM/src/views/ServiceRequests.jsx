@@ -46,6 +46,12 @@ function requestStatusStyle(status) {
   return pill(C.accent, C.accentBg);
 }
 
+function serviceRequestNumber(request = {}) {
+  if (request.requestNumber) return request.requestNumber;
+  const match = String(request.id || "").match(/(\d+)$/);
+  return `MGT-SR-${String(match ? Number(match[1]) : 0).padStart(4, "0")}`;
+}
+
 function LifecycleBar({ status }) {
   const current = status === "Resolved" || status === "Closed" ? "Support" : status;
   const active = Math.max(0, SERVICE_LIFECYCLE.indexOf(current));
@@ -650,6 +656,7 @@ export default function ServiceRequests() {
           request.status === queue;
         const categoryMatch = category === "All" || request.category === category;
         const searchMatch = !q ||
+          serviceRequestNumber(request).toLowerCase().includes(q) ||
           request.subject.toLowerCase().includes(q) ||
           request.description.toLowerCase().includes(q) ||
           request.requester.toLowerCase().includes(q) ||
@@ -829,6 +836,9 @@ export default function ServiceRequests() {
               {/* Header */}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, marginBottom:6 }}>
                 <div style={{ minWidth:0 }}>
+                  <div style={{ color:C.accent, fontSize:10, fontWeight:900, letterSpacing:.7, textTransform:"uppercase", marginBottom:4 }}>
+                    {serviceRequestNumber(request)}
+                  </div>
                   <div style={{ fontSize:15, fontWeight:800, lineHeight:1.35 }}>{request.subject}</div>
                   <button type="button" onClick={() => client && navigate("client-detail", client.id)}
                     style={{ background:"transparent", border:"none", color:C.muted, cursor:"pointer",

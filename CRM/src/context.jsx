@@ -98,6 +98,17 @@ function requestFollowUp(request, owner = "Admin") {
   };
 }
 
+function requestNumberValue(request = {}) {
+  const source = request.requestNumber || (/^sr\d{1,5}$/i.test(String(request.id || "")) ? request.id : "");
+  const match = String(source).match(/(\d+)$/);
+  return match ? Number(match[1]) : 0;
+}
+
+function nextServiceRequestNumber(requests = [], offset = 0) {
+  const max = requests.reduce((highest, request) => Math.max(highest, requestNumberValue(request)), 0);
+  return `MGT-SR-${String(max + offset + 1).padStart(4, "0")}`;
+}
+
 const REQUEST_AUDIT_FIELDS = {
   requester: "Requester",
   email: "Requester email",
@@ -275,6 +286,7 @@ function reducer(state, action) {
       const request = {
         ...action.request,
         id: `sr${generateId()}`,
+        requestNumber: action.request.requestNumber ?? nextServiceRequestNumber(state.serviceRequests),
         receivedAt: new Date().toISOString(),
         status: action.request.status ?? "New",
       };
@@ -299,9 +311,10 @@ function reducer(state, action) {
       const existingIds = new Set(state.serviceRequests.map(request => request.externalId ?? request.id));
       const imported = (action.requests ?? [])
         .filter(request => !existingIds.has(request.externalId ?? request.id))
-        .map(request => ({
+        .map((request, index) => ({
           ...request,
           imported: true,
+          requestNumber: request.requestNumber ?? nextServiceRequestNumber(state.serviceRequests, index),
           status: request.status ?? "New",
           clientId: request.clientId ?? null,
         }));
