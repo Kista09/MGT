@@ -6,11 +6,16 @@ export default function CommandPalette() {
   const { state, dispatch, navigate } = useApp();
   const [q, setQ] = useState("");
   const inputRef = useRef(null);
+  const privateClientOnly = state.user?.role === "private_client";
 
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   const results = useMemo(() => {
     const lq = q.trim().toLowerCase();
+    if (privateClientOnly) {
+      const item = { type:"nav", label:"Private Clients", sub:"Navigate", nav:"private-clients" };
+      return !lq || item.label.toLowerCase().includes(lq) ? [item] : [];
+    }
     if (!lq) {
       return NAV_ITEMS.map(n => ({ type:"nav", label:n.label, sub:"Navigate", nav:n.id }));
     }
@@ -34,7 +39,7 @@ export default function CommandPalette() {
       .slice(0, 3)
       .map(r => ({ type:"request", label:r.subject, sub:r.status }));
     return [...nav, ...clients, ...bots, ...tasks, ...requests];
-  }, [q, state.clients, state.bots, state.tasks, state.serviceRequests]);
+  }, [privateClientOnly, q, state.clients, state.bots, state.tasks, state.serviceRequests]);
 
   const [selected, setSelected] = useState(0);
 
@@ -48,6 +53,10 @@ export default function CommandPalette() {
 
   const activate = (r) => {
     dispatch({ type: "CLOSE_COMMAND_PALETTE" });
+    if (privateClientOnly) {
+      navigate("private-clients");
+      return;
+    }
     if (r.type === "nav") navigate(r.nav);
     else if (r.type === "client") navigate("client-detail", r.id);
     else if (r.type === "bot") navigate("bots");
