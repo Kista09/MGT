@@ -102,6 +102,42 @@ function buildOnboardingDescription(onboarding = {}, fallback = "") {
   return lines.length ? lines.join("\n") : fallback;
 }
 
+function parseInternalNotes(notes = "") {
+  const text = String(notes || "");
+  const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+  const result = { source: "", approvedBy: "", approvedDate: "", portalEmail: "", starterKitSent: false, extra: "" };
+  const extra = [];
+
+  for (const line of lines) {
+    let match;
+    if ((match = line.match(/^Source:\s*(.+)$/i))) result.source = match[1];
+    else if ((match = line.match(/^Approved for onboarding by\s+(.+?)\s+on\s+(\d{4}-\d{2}-\d{2})\.?$/i))) {
+      result.approvedBy = match[1];
+      result.approvedDate = match[2];
+    } else if ((match = line.match(/^Client portal access granted to\s+(.+?)\.?$/i))) {
+      result.portalEmail = match[1];
+    } else if (/starter-kit|starter kit|approval email/i.test(line)) {
+      result.starterKitSent = true;
+    } else {
+      extra.push(line);
+    }
+  }
+
+  result.extra = extra.join("\n");
+  return result;
+}
+
+function buildInternalNotes(notes = {}, fallback = "") {
+  const lines = [
+    notes.source && `Source: ${notes.source}`,
+    notes.approvedBy && notes.approvedDate && `Approved for onboarding by ${notes.approvedBy} on ${notes.approvedDate}.`,
+    notes.portalEmail && `Client portal access granted to ${notes.portalEmail}.`,
+    notes.starterKitSent && "Approval email and starter-kit PDF sent.",
+    notes.extra,
+  ].filter(Boolean);
+  return lines.length ? lines.join("\n") : fallback;
+}
+
 function RequestForm({ form, setForm, errors, clients }) {
   const set = (key) => (event) => setForm(prev => ({ ...prev, [key]: event.target.value }));
   const setOnboarding = (key) => (event) => {
@@ -110,7 +146,15 @@ function RequestForm({ form, setForm, errors, clients }) {
       onboarding: { ...(prev.onboarding ?? {}), [key]: event.target.value },
     }));
   };
+  const setInternalNote = (key) => (event) => {
+    const value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+    setForm(prev => ({
+      ...prev,
+      internalNotes: { ...(prev.internalNotes ?? {}), [key]: value },
+    }));
+  };
   const onboarding = form.onboarding;
+  const internalNotes = form.internalNotes;
 
   return (
     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 20px" }}>
@@ -216,11 +260,46 @@ function RequestForm({ form, setForm, errors, clients }) {
           {["Onboarding", "Client Portal", "Email", "Phone", "WhatsApp", "Meeting", "Other"].map(channel => <option key={channel}>{channel}</option>)}
         </select>
       </FormRow>
-      <div style={{ gridColumn:"1/-1" }}>
-        <FormRow label="Internal Notes">
-          <textarea value={form.notes} onChange={set("notes")} style={{ ...inputStyle, minHeight:72, resize:"vertical" }} placeholder="Internal handling notes, dependencies, escalation path..." />
-        </FormRow>
-      </div>
+      {internalNotes ? (
+        <div style={{ gridColumn:"1/-1" }}>
+          <div style={{ fontSize:12, fontWeight:600, color:C.muted,
+            letterSpacing:.5, textTransform:"uppercase", marginBottom:10 }}>
+            Internal Notes
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 20px",
+            border:`1px solid ${C.border}`, borderRadius:8, padding:16 }}>
+            <FormRow label="Source">
+              <input value={internalNotes.source ?? ""} onChange={setInternalNote("source")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Approved By">
+              <input value={internalNotes.approvedBy ?? ""} onChange={setInternalNote("approvedBy")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Approval Date">
+              <input type="date" value={internalNotes.approvedDate ?? ""} onChange={setInternalNote("approvedDate")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Portal Access Email">
+              <input value={internalNotes.portalEmail ?? ""} onChange={setInternalNote("portalEmail")} style={inputStyle} />
+            </FormRow>
+            <div style={{ gridColumn:"1/-1", marginBottom:18 }}>
+              <label style={{ display:"flex", alignItems:"center", gap:10, color:C.text, fontWeight:700, fontSize:13 }}>
+                <input type="checkbox" checked={!!internalNotes.starterKitSent} onChange={setInternalNote("starterKitSent")} />
+                Approval email and starter-kit PDF sent
+              </label>
+            </div>
+            <div style={{ gridColumn:"1/-1" }}>
+              <FormRow label="Additional Internal Notes">
+                <textarea value={internalNotes.extra ?? ""} onChange={setInternalNote("extra")} style={{ ...inputStyle, minHeight:72, resize:"vertical" }} />
+              </FormRow>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ gridColumn:"1/-1" }}>
+          <FormRow label="Internal Notes">
+            <textarea value={form.notes} onChange={set("notes")} style={{ ...inputStyle, minHeight:72, resize:"vertical" }} placeholder="Internal handling notes, dependencies, escalation path..." />
+          </FormRow>
+        </div>
+      )}
     </div>
   );
 }
@@ -466,6 +545,7 @@ export default function ServiceRequests() {
       ...request,
       clientId: request.clientId ? String(request.clientId) : "",
       onboarding: onboarding || request.onboarding || null,
+      internalNotes: onboarding || request.source === "onboarding" ? parseInternalNotes(request.notes) : null,
     });
     setErrors({});
     setEditRequest(request);
@@ -489,6 +569,7 @@ export default function ServiceRequests() {
       ...form,
       clientId: form.clientId ? Number(form.clientId) : null,
       description: form.onboarding ? buildOnboardingDescription(form.onboarding, form.description) : form.description,
+      notes: form.internalNotes ? buildInternalNotes(form.internalNotes, form.notes) : form.notes,
     };
     const nextErrors = validate(next);
     if (Object.keys(nextErrors).length) {
