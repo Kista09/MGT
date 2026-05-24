@@ -93,13 +93,42 @@ export const REQUEST_STATUSES = [
   "Proposal Sent",
   "Approved",
   "In Setup",
+  "Build",
+  "Testing",
   "Live",
+  "Support",
   "Needs Attention",
   "Triaged",
   "In Progress",
   "Waiting on Client",
   "Resolved",
   "Closed",
+];
+
+export const SERVICE_LIFECYCLE = [
+  "New",
+  "Qualified",
+  "Proposal Sent",
+  "Approved",
+  "In Setup",
+  "Build",
+  "Testing",
+  "Live",
+  "Support",
+];
+
+export const SERVICE_PACKAGES = [
+  { name:"Starter", setup:3500, monthly:1470, fit:"Launch WhatsApp, booking workflow, and client portal basics." },
+  { name:"Growth", setup:9500, monthly:4500, fit:"Adds richer automation, analytics, handoff rules, and campaign support." },
+  { name:"Scale", setup:18500, monthly:9500, fit:"Multi-flow operations, advanced reporting, SLA monitoring, and integrations." },
+  { name:"Custom", setup:0, monthly:0, fit:"Scoped case-by-case for larger South African operations." },
+];
+
+export const CONSULTANT_ROLES = [
+  { name:"Executive", focus:"Revenue, approvals, risk, and strategic relationships." },
+  { name:"Consultant", focus:"Requests, follow-ups, onboarding capture, and client communication." },
+  { name:"Operations", focus:"Bot incidents, booking setup, runbooks, and go-live readiness." },
+  { name:"Admin", focus:"Pricing, billing, users, exports, and audit readiness." },
 ];
 export const INDUSTRIES = [
   "Retail","Grocery","Sports","E-Commerce","Financial Services",

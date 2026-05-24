@@ -83,6 +83,7 @@ export const INITIAL_TASKS = [
   { id:"t2", clientId:10, title:"Send FinWise SA onboarding health report", owner:"Admin", dueDate:"2026-05-27", priority:"Medium", status:"In Progress", notes:"Include first-week activation metrics." },
   { id:"t3", clientId:5, title:"Review FICA Helper latency incident", owner:"Admin", dueDate:"2026-05-22", priority:"High", status:"Open", notes:"Check response-time trend and escalation notes." },
   { id:"t4", clientId:4, title:"Confirm Takealot Partner Store renewal timeline", owner:"Admin", dueDate:"2026-06-03", priority:"Low", status:"Open", notes:"Legal review expected in June." },
+  { id:"t5", clientId:10, title:"Confirm Book Now calendar rules and operating hours", owner:"Operations", dueDate:"2026-05-25", priority:"High", status:"Open", notes:"South African public holidays and SAST slots must be checked before go-live." },
 ];
 
 export const INITIAL_SERVICE_REQUESTS = [
@@ -109,6 +110,21 @@ export const INITIAL_SETTINGS = {
   timezone: "Africa/Johannesburg",
   language: "English",
   companyName: "MgucaTECH",
+  country: "South Africa",
+  vatNumber: "",
+  supportEmail: "admin@mgucatech.com",
+  supportWhatsApp: "+27 76 047 0141",
+  bookNowUrl: "https://mgtchat-20260516-1916.vercel.app/#book",
+  banking: {
+    accountName: "MgucaTech Solutions",
+    bank: "South African bank",
+    referencePrefix: "MGT",
+  },
+  serviceDefaults: {
+    setupFee: 3500,
+    monthlySupport: 1470,
+    paymentTerms: "EFT, due on receipt unless otherwise agreed",
+  },
   notifications: {
     botAlerts: true,
     dealUpdates: true,
@@ -118,6 +134,22 @@ export const INITIAL_SETTINGS = {
     followUps: true,
   },
 };
+
+export const INITIAL_CONSULTANTS = [
+  { id:"consultant-1", name:"Bakhokhele Mguca", email:"admin@mgucatech.com", role:"Executive", active:true, focus:"Approvals, proposals, and escalations" },
+  { id:"consultant-2", name:"K Consultant", email:"admin@mgucatech.com", role:"Consultant", active:true, focus:"Onboarding capture and follow-ups" },
+  { id:"consultant-3", name:"Operations Desk", email:"admin@mgucatech.com", role:"Operations", active:true, focus:"Go-live readiness, incidents, and Book Now setup" },
+];
+
+export const INITIAL_ONBOARDING_CHECKLIST = [
+  "Submit logo, brand colours, and business profile",
+  "Confirm WhatsApp number, operating hours, and handoff contact",
+  "Upload FAQ, pricing, service list, and booking rules",
+  "Connect Book Now calendar and South African availability",
+  "Approve chatbot flow and first booking workflow",
+  "Run test conversation and booking simulation",
+  "Confirm billing, EFT reference, and go-live date",
+];
 
 export const INITIAL_USER = {
   name: "Admin",
@@ -135,6 +167,8 @@ export const INITIAL_STATE = {
   activity: INITIAL_ACTIVITY,
   notifications: INITIAL_NOTIFICATIONS,
   billing: INITIAL_BILLING,
+  consultants: INITIAL_CONSULTANTS,
+  onboardingChecklist: INITIAL_ONBOARDING_CHECKLIST,
   auditLog: INITIAL_AUDIT_LOG,
   tasks: INITIAL_TASKS,
   serviceRequests: INITIAL_SERVICE_REQUESTS,

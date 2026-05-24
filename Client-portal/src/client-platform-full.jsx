@@ -175,14 +175,14 @@ const UPTIME_HISTORY = [
 ];
 
 const ONBOARDING_STEPS = [
-  { id:1, title:"Connect WhatsApp Business Number", desc:"Verify your business phone number with Meta",           done:true,  icon:"📱" },
-  { id:2, title:"Complete Meta Business Verification",desc:"Submit business documents to Meta for approval",     done:true,  icon:"✅" },
-  { id:3, title:"Configure Welcome Message",          desc:"Set up the first message users see",                 done:true,  icon:"💬" },
-  { id:4, title:"Add your first Q&A responses",       desc:"Train the bot with at least 5 Q&A pairs",           done:true,  icon:"🧠" },
-  { id:5, title:"Submit a Message Template",          desc:"Get at least one outbound template approved by Meta",done:true,  icon:"📝" },
-  { id:6, title:"Send a test message",                desc:"Run the bot simulator and verify responses",         done:false, icon:"🧪" },
-  { id:7, title:"Invite your team",                   desc:"Add at least one team member with escalation alerts",done:true,  icon:"👥" },
-  { id:8, title:"Go live!",                           desc:"Switch your bot from test mode to production",       done:false, icon:"🚀" },
+  { id:1, title:"Submit logo and brand assets",        desc:"Upload logo, colours, voice notes, and basic company profile for your South African business.", done:true,  icon:"🎨", owner:"Client" },
+  { id:2, title:"Confirm WhatsApp number and hours",   desc:"Confirm the WhatsApp number, operating hours, public holiday rules, and handoff contact.",       done:true,  icon:"📱", owner:"Client" },
+  { id:3, title:"Upload FAQ, services, and pricing",   desc:"Share your FAQ, service list, Rand pricing, policies, and any escalation rules.",                done:true,  icon:"🧾", owner:"Client" },
+  { id:4, title:"Connect Book Now calendar",           desc:"Confirm availability, appointment types, cancellation windows, and SAST booking rules.",         done:false, icon:"📅", owner:"MgucaTECH" },
+  { id:5, title:"Approve chatbot conversation flow",   desc:"Review welcome message, Q&A paths, handoff wording, and client-facing tone.",                    done:false, icon:"💬", owner:"Client" },
+  { id:6, title:"Approve booking workflow",            desc:"Run a test booking from WhatsApp through Book Now and confirm notifications.",                   done:false, icon:"🧪", owner:"Client" },
+  { id:7, title:"Confirm billing and EFT reference",   desc:"Confirm setup fee, monthly support, invoice recipient, and payment reference.",                  done:false, icon:"💳", owner:"Client" },
+  { id:8, title:"Go live and review after 14 days",    desc:"Switch the workflow live, monitor conversations, and complete the first post-launch review.",     done:false, icon:"🚀", owner:"MgucaTECH" },
 ];
 
 /* ─── shared components ───────────────────────────────────── */
@@ -1310,15 +1310,17 @@ function Status() {
 }
 
 /* ─── ONBOARDING ───────────────────────────────────────────── */
-function Onboarding({ toast }) {
+function Onboarding({ toast, user }) {
   const [steps, setSteps] = useState(ONBOARDING_STEPS);
   const done = steps.filter(s=>s.done).length;
   const pct = Math.round(done/steps.length*100);
+  const clientOpen = steps.filter(s=>!s.done && s.owner==="Client").length;
+  const mgucaOpen = steps.filter(s=>!s.done && s.owner==="MgucaTECH").length;
 
   return (
     <div style={{padding:"36px 40px",overflowY:"auto",flex:1}}>
       <div style={{fontFamily:serif,fontSize:30,color:T.text,marginBottom:4}}>Setup Checklist</div>
-      <div style={{color:T.muted,fontSize:14,marginBottom:28}}>Complete these steps to get your bot fully live</div>
+      <div style={{color:T.muted,fontSize:14,marginBottom:28}}>Complete your WhatsApp, Book Now, and portal launch steps in South African time.</div>
 
       <div style={{background:T.card,border:`1.5px solid ${T.border}`,borderRadius:20,padding:28,marginBottom:28,boxShadow:T.shadow,maxWidth:640}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -1331,7 +1333,27 @@ function Onboarding({ toast }) {
         </div>
       </div>
 
-      <div style={{display:"flex",flexDirection:"column",gap:12,maxWidth:640}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(160px,1fr))",gap:12,maxWidth:760,marginBottom:18}}>
+        <Card style={{padding:16}}>
+          <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",marginBottom:5}}>Client actions</div>
+          <div style={{fontSize:26,fontWeight:800,color:T.accent}}>{clientOpen}</div>
+        </Card>
+        <Card style={{padding:16}}>
+          <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",marginBottom:5}}>MgucaTECH actions</div>
+          <div style={{fontSize:26,fontWeight:800,color:T.blue}}>{mgucaOpen}</div>
+        </Card>
+        <Card style={{padding:16}}>
+          <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Bookings</div>
+            <Btn small onClick={()=>openBookNow(user)}>Open Book Now</Btn>
+        </Card>
+      </div>
+
+      <div style={{background:T.blueBg,border:`1.5px solid ${T.blueBdr}`,borderRadius:12,padding:"14px 18px",maxWidth:760,marginBottom:18}}>
+        <div style={{fontSize:13,fontWeight:700,color:T.blue,marginBottom:4}}>South African launch defaults</div>
+        <div style={{fontSize:13,color:T.muted,lineHeight:1.6}}>Currency: Rand (R) · Timezone: SAST / Africa/Johannesburg · Support: admin@mgucatech.com · WhatsApp: +27 76 047 0141</div>
+      </div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:12,maxWidth:760}}>
         {steps.map(s=>(
           <div key={s.id} style={{background:T.card,border:`1.5px solid ${s.done?T.accentBdr:T.border}`,
             borderRadius:14,padding:"16px 20px",display:"flex",gap:16,alignItems:"center",
@@ -1342,8 +1364,11 @@ function Onboarding({ toast }) {
               {s.done?"✅":s.icon}
             </div>
             <div style={{flex:1}}>
-              <div style={{fontSize:15,fontWeight:700,color:s.done?T.text:T.text,
-                textDecoration:s.done?"line-through":undefined,textDecorationColor:T.muted}}>{s.title}</div>
+              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                <div style={{fontSize:15,fontWeight:700,color:s.done?T.text:T.text,
+                  textDecoration:s.done?"line-through":undefined,textDecorationColor:T.muted}}>{s.title}</div>
+                <Pill label={s.owner} color={s.owner==="Client"?T.accent:T.blue} bg={s.owner==="Client"?T.accentBg:T.blueBg} border={s.owner==="Client"?T.accentBdr:T.blueBdr}/>
+              </div>
               <div style={{fontSize:13,color:T.muted,marginTop:3}}>{s.desc}</div>
             </div>
             {!s.done&&(
@@ -1762,7 +1787,7 @@ export default function App({ user = null, onLogout = null }) {
         {view==="team"       && <Team toast={showToast}/>}
         {view==="billing"    && <Billing toast={showToast}/>}
         {view==="status"     && <Status/>}
-        {view==="onboarding" && <Onboarding toast={showToast}/>}
+        {view==="onboarding" && <Onboarding toast={showToast} user={user}/>}
       </div>
 
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}

@@ -37,6 +37,8 @@ function getInitial() {
         pipeline: normalizePipeline(parsed.pipeline ?? INITIAL_STATE.pipeline),
         tasks: parsed.tasks ?? INITIAL_STATE.tasks,
         serviceRequests: parsed.serviceRequests ?? INITIAL_STATE.serviceRequests,
+        consultants: parsed.consultants ?? INITIAL_STATE.consultants,
+        onboardingChecklist: parsed.onboardingChecklist ?? INITIAL_STATE.onboardingChecklist,
         billing: parsed.billing ?? INITIAL_STATE.billing,
         auditLog: parsed.auditLog ?? INITIAL_STATE.auditLog,
         settings: {
@@ -72,6 +74,27 @@ function auditItem(state, action, target, actor = state.user?.name ?? "System") 
 
 function addAudit(state, action, target) {
   return [auditItem(state, action, target), ...(state.auditLog ?? [])].slice(0, 120);
+}
+
+function addDaysISO(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function requestFollowUp(request, owner = "Admin") {
+  const urgent = request.priority === "Critical" || request.priority === "High" || request.onboarding?.timeline === "As soon as possible";
+  return {
+    id: `t${generateId()}`,
+    clientId: Number(request.clientId || 0),
+    title: `Follow up: ${request.company ?? request.subject}`,
+    owner: request.owner || owner,
+    dueDate: urgent ? addDaysISO(1) : addDaysISO(3),
+    priority: urgent ? "High" : "Medium",
+    status: "Open",
+    notes: `Auto-created from service request ${request.id}. Confirm next action, billing status, and onboarding blockers.`,
+    requestId: request.id,
+  };
 }
 
 function reducer(state, action) {
@@ -210,9 +233,11 @@ function reducer(state, action) {
         status: action.request.status ?? "New",
       };
       const client = state.clients.find(c => c.id === request.clientId);
+      const followUp = requestFollowUp(request, state.user?.name);
       return {
         ...state,
         serviceRequests: [request, ...state.serviceRequests],
+        tasks: [followUp, ...state.tasks],
         notifications: [{
           id: generateId(),
           icon: "!",
@@ -240,6 +265,10 @@ function reducer(state, action) {
       return {
         ...state,
         serviceRequests: [...imported, ...state.serviceRequests],
+        tasks: [
+          ...imported.map(request => requestFollowUp(request, request.owner ?? state.user?.name)),
+          ...state.tasks,
+        ],
         notifications: imported.map(request => ({
           id: generateId(),
           icon: "!",
@@ -303,6 +332,19 @@ function reducer(state, action) {
         ...state,
         billing: state.billing.map(invoice => invoice.id === action.invoice.id ? { ...invoice, ...action.invoice } : invoice),
         auditLog: addAudit(state, `Invoice set to ${action.invoice.status}`, action.invoice.reference ?? action.invoice.id),
+      };
+
+    case "ADD_CONSULTANT":
+      return {
+        ...state,
+        consultants: [{ ...action.consultant, id: `consultant-${generateId()}`, active: true }, ...(state.consultants ?? [])],
+        auditLog: addAudit(state, "Consultant added", action.consultant.email),
+      };
+    case "UPDATE_CONSULTANT":
+      return {
+        ...state,
+        consultants: (state.consultants ?? []).map(item => item.id === action.consultant.id ? { ...item, ...action.consultant } : item),
+        auditLog: addAudit(state, "Consultant updated", action.consultant.email),
       };
 
     /* ── Toasts ──────────────────────────────────────────────── */

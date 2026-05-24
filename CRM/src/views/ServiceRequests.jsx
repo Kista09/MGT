@@ -4,6 +4,7 @@ import {
   REQUEST_CATEGORIES,
   REQUEST_PRIORITIES,
   REQUEST_STATUSES,
+  SERVICE_LIFECYCLE,
   font,
   pill,
 } from "../constants";
@@ -36,13 +37,30 @@ function priorityStyle(priority) {
 
 function requestStatusStyle(status) {
   if (status === "Resolved" || status === "Closed") return pill(C.success, C.successBg);
-  if (status === "Approved" || status === "Live") return pill(C.success, C.successBg);
+  if (status === "Approved" || status === "Live" || status === "Support") return pill(C.success, C.successBg);
   if (status === "Needs Attention") return pill("#fff", C.red);
-  if (status === "In Setup" || status === "Proposal Sent") return pill(C.accent, C.accentBg);
+  if (status === "In Setup" || status === "Build" || status === "Testing" || status === "Proposal Sent") return pill(C.accent, C.accentBg);
   if (status === "In Progress") return pill(C.blue, C.blueBg);
   if (status === "Waiting on Client") return pill(C.yellow, C.yellowBg);
   if (status === "Triaged" || status === "Qualified") return pill(C.purple, C.purpleBg);
   return pill(C.accent, C.accentBg);
+}
+
+function LifecycleBar({ status }) {
+  const current = status === "Resolved" || status === "Closed" ? "Support" : status;
+  const active = Math.max(0, SERVICE_LIFECYCLE.indexOf(current));
+  return (
+    <div style={{ margin:"0 0 12px" }}>
+      <div style={{ display:"grid", gridTemplateColumns:`repeat(${SERVICE_LIFECYCLE.length},1fr)`, gap:4, marginBottom:6 }}>
+        {SERVICE_LIFECYCLE.map((stage, index) => (
+          <div key={stage} title={stage} style={{ height:6, borderRadius:99, background:index <= active ? C.accent : C.subtle }} />
+        ))}
+      </div>
+      <div style={{ color:C.muted, fontSize:10, fontWeight:800, letterSpacing:.4, textTransform:"uppercase" }}>
+        Lifecycle: {SERVICE_LIFECYCLE[Math.min(active, SERVICE_LIFECYCLE.length - 1)]}
+      </div>
+    </div>
+  );
 }
 
 function validate(form) {
@@ -522,6 +540,7 @@ export default function ServiceRequests() {
               </div>
 
               {/* Structured onboarding data or plain description */}
+              <LifecycleBar status={request.status} />
               {ob
                 ? <OnboardingGrid onboarding={ob} />
                 : request.description

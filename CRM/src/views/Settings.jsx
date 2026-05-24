@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, font } from "../constants";
+import { C, font, CONSULTANT_ROLES, SERVICE_LIFECYCLE, SERVICE_PACKAGES } from "../constants";
 import { useApp } from "../context";
 import { inputStyle, selectStyle } from "../components/Modal";
 import SegmentTabs from "../components/SegmentTabs";
@@ -47,6 +47,7 @@ export default function Settings() {
   const [sectionTab, setSectionTab] = useState("Profile");
 
   const [userForm, setUserForm] = useState({ name: user.name, email: user.email });
+  const [consultantForm, setConsultantForm] = useState({ name:"", email:"", role:"Consultant", focus:"" });
   const setUser = (k) => (e) => setUserForm(p => ({ ...p, [k]: e.target.value }));
 
   const saveProfile = () => {
@@ -61,6 +62,20 @@ export default function Settings() {
 
   const setSetting = (k) => (e) => {
     dispatch({ type:"UPDATE_SETTINGS", settings: { [k]: e.target.value } });
+  };
+
+  const setNestedSetting = (group, key) => (e) => {
+    dispatch({ type:"UPDATE_SETTINGS", settings: { [group]: { ...(settings[group] ?? {}), [key]: e.target.value } } });
+  };
+
+  const addConsultant = () => {
+    if (!consultantForm.name.trim() || !consultantForm.email.includes("@")) {
+      toast("Consultant name and email are required", "!", "warning");
+      return;
+    }
+    dispatch({ type:"ADD_CONSULTANT", consultant: consultantForm });
+    setConsultantForm({ name:"", email:"", role:"Consultant", focus:"" });
+    toast("Consultant added", "ok");
   };
 
   const handleExportAll = () => {
@@ -115,6 +130,8 @@ export default function Settings() {
           { id:"Workspace", label:"Workspace" },
           { id:"Notifications", label:"Notifications", count:Object.values(settings.notifications).filter(Boolean).length },
           { id:"Billing", label:"Billing", count:(state.billing ?? []).filter(i => i.status !== "Paid").length },
+          { id:"Service", label:"Service" },
+          { id:"Consultants", label:"Consultants", count:(state.consultants ?? []).filter(item => item.active).length },
           { id:"Roles", label:"Roles" },
           { id:"Audit", label:"Audit", count:(state.auditLog ?? []).length },
           { id:"Data", label:"Data" },
@@ -170,6 +187,10 @@ export default function Settings() {
               {["Africa/Johannesburg"].map(t => <option key={t}>{t}</option>)}
             </select>
           </Row>
+          <Row label="Country">
+            <input value={settings.country ?? "South Africa"} onChange={setSetting("country")}
+              style={{ ...inputStyle, width:200 }} />
+          </Row>
         </Section>}
 
         {/* Notifications */}
@@ -195,6 +216,14 @@ export default function Settings() {
         </Section>}
 
         {sectionTab === "Billing" && <Section title="South African Billing">
+          <Row label="VAT number" desc="Leave blank until MgucaTECH is VAT registered.">
+            <input value={settings.vatNumber ?? ""} onChange={setSetting("vatNumber")}
+              placeholder="VAT registration number" style={{ ...inputStyle, width:220 }} />
+          </Row>
+          <Row label="Banking reference prefix" desc="Used on invoices and EFT notes.">
+            <input value={settings.banking?.referencePrefix ?? "MGT"} onChange={setNestedSetting("banking", "referencePrefix")}
+              style={{ ...inputStyle, width:120 }} />
+          </Row>
           {(state.billing ?? []).map(invoice => {
             const client = state.clients.find(item => item.id === invoice.clientId);
             return (
@@ -211,14 +240,81 @@ export default function Settings() {
           })}
         </Section>}
 
+        {sectionTab === "Service" && <Section title="Service Operating System">
+          <Row label="Support email">
+            <input value={settings.supportEmail ?? "admin@mgucatech.com"} onChange={setSetting("supportEmail")}
+              style={{ ...inputStyle, width:240 }} />
+          </Row>
+          <Row label="Support WhatsApp">
+            <input value={settings.supportWhatsApp ?? "+27 76 047 0141"} onChange={setSetting("supportWhatsApp")}
+              style={{ ...inputStyle, width:180 }} />
+          </Row>
+          <Row label="Book Now app URL">
+            <input value={settings.bookNowUrl ?? ""} onChange={setSetting("bookNowUrl")}
+              style={{ ...inputStyle, width:300 }} />
+          </Row>
+          <Row label="Default setup fee">
+            <input type="number" value={settings.serviceDefaults?.setupFee ?? 3500} onChange={setNestedSetting("serviceDefaults", "setupFee")}
+              style={{ ...inputStyle, width:130 }} />
+          </Row>
+          <Row label="Default monthly support">
+            <input type="number" value={settings.serviceDefaults?.monthlySupport ?? 1470} onChange={setNestedSetting("serviceDefaults", "monthlySupport")}
+              style={{ ...inputStyle, width:130 }} />
+          </Row>
+          <div style={{ marginTop:18, display:"grid", gap:10 }}>
+            <div style={{ fontSize:12, color:C.muted, fontWeight:900, letterSpacing:.7, textTransform:"uppercase" }}>Packages in Rands</div>
+            {SERVICE_PACKAGES.map(pkg => (
+              <div key={pkg.name} style={{ display:"grid", gridTemplateColumns:"90px 90px 90px 1fr", gap:12, alignItems:"center", padding:"10px 0", borderBottom:`1px solid ${C.border}` }}>
+                <strong>{pkg.name}</strong>
+                <span style={{ fontFamily:font.mono }}>{pkg.setup ? fmt$(pkg.setup) : "Scoped"}</span>
+                <span style={{ fontFamily:font.mono }}>{pkg.monthly ? `${fmt$(pkg.monthly)}/mo` : "Scoped"}</span>
+                <span style={{ color:C.muted, fontSize:12 }}>{pkg.fit}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop:20 }}>
+            <div style={{ fontSize:12, color:C.muted, fontWeight:900, letterSpacing:.7, textTransform:"uppercase", marginBottom:10 }}>Request lifecycle</div>
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+              {SERVICE_LIFECYCLE.map(stage => (
+                <span key={stage} style={{ background:C.accentBg, color:C.accent, border:`1px solid ${C.accentDim}`, borderRadius:99, padding:"5px 9px", fontSize:11, fontWeight:800 }}>{stage}</span>
+              ))}
+            </div>
+          </div>
+        </Section>}
+
+        {sectionTab === "Consultants" && <Section title="Consultant Accounts">
+          {(state.consultants ?? []).map(consultant => (
+            <Row key={consultant.id} label={consultant.name} desc={`${consultant.email} - ${consultant.focus || "No focus set"}`}>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <select value={consultant.role} onChange={event => dispatch({ type:"UPDATE_CONSULTANT", consultant:{ ...consultant, role:event.target.value } })}
+                  style={{ ...selectStyle, width:130 }}>
+                  {CONSULTANT_ROLES.map(role => <option key={role.name}>{role.name}</option>)}
+                </select>
+                <Toggle value={consultant.active} onChange={active => dispatch({ type:"UPDATE_CONSULTANT", consultant:{ ...consultant, active } })} />
+              </div>
+            </Row>
+          ))}
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 150px", gap:10, marginTop:18 }}>
+            <input value={consultantForm.name} onChange={e => setConsultantForm(p => ({ ...p, name:e.target.value }))}
+              placeholder="Consultant name" style={inputStyle} />
+            <input value={consultantForm.email} onChange={e => setConsultantForm(p => ({ ...p, email:e.target.value }))}
+              placeholder="consultant@mgucatech.com" style={inputStyle} />
+            <select value={consultantForm.role} onChange={e => setConsultantForm(p => ({ ...p, role:e.target.value }))}
+              style={selectStyle}>
+              {CONSULTANT_ROLES.map(role => <option key={role.name}>{role.name}</option>)}
+            </select>
+            <input value={consultantForm.focus} onChange={e => setConsultantForm(p => ({ ...p, focus:e.target.value }))}
+              placeholder="Focus area" style={{ ...inputStyle, gridColumn:"1 / 3" }} />
+            <button onClick={addConsultant}
+              style={{ background:C.accent, color:"#000", border:"none", borderRadius:8, padding:"9px 16px", fontSize:13, fontWeight:800, cursor:"pointer" }}>
+              Add
+            </button>
+          </div>
+        </Section>}
+
         {sectionTab === "Roles" && <Section title="Role Permissions">
-          {[
-            ["Executive", "View Today, Executive, Analytics, relationships, and revenue."],
-            ["Consultant", "Own Requests, Follow-ups, onboarding progress, and client communication."],
-            ["Operations", "Own Operations incidents, runbooks, bot status, and technical recovery."],
-            ["Client", "Use the Client Portal only: dashboards, credentials, requests, and support."],
-          ].map(([role, desc]) => (
-            <Row key={role} label={role} desc={desc}>
+          {CONSULTANT_ROLES.concat([{ name:"Client", focus:"Use the Client Portal only: dashboards, credentials, requests, bookings, and support." }]).map(role => (
+            <Row key={role.name} label={role.name} desc={role.focus}>
               <span style={{ fontSize:12, color:C.muted, fontWeight:800 }}>Defined</span>
             </Row>
           ))}
