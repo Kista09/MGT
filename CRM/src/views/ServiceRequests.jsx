@@ -65,17 +65,52 @@ function LifecycleBar({ status }) {
 
 function validate(form) {
   const errors = {};
-  if (!form.clientId) errors.clientId = "Select a relationship";
+  const isOnboarding = form.source === "onboarding" || form.onboarding;
+  if (!isOnboarding && !form.clientId) errors.clientId = "Select a relationship";
   if (!form.requester.trim()) errors.requester = "Required";
   if (!form.email.includes("@")) errors.email = "Valid email required";
   if (!form.subject.trim()) errors.subject = "Required";
-  if (!form.description.trim()) errors.description = "Required";
+  if (!isOnboarding && !form.description.trim()) errors.description = "Required";
   if (!form.dueDate) errors.dueDate = "Required";
   return errors;
 }
 
+function buildOnboardingDescription(onboarding = {}, fallback = "") {
+  const products = Array.isArray(onboarding.product) ? onboarding.product.join(", ") : onboarding.product;
+  const lines = [
+    onboarding.company && `Company: ${onboarding.company}`,
+    onboarding.sector && `Sector: ${onboarding.sector}`,
+    onboarding.leadName && `Lead: ${onboarding.leadName}`,
+    onboarding.email && `Email: ${onboarding.email}`,
+    onboarding.phone && `WhatsApp: ${onboarding.phone}`,
+    onboarding.location && `Location: ${onboarding.location}`,
+    onboarding.website && `Website: ${onboarding.website}`,
+    products && `Products: ${products}`,
+    onboarding.package && `Package: ${onboarding.package}`,
+    (onboarding.decisionStatus || onboarding.decision) && `Decision: ${onboarding.decisionStatus || onboarding.decision}`,
+    (onboarding.billingStatus || onboarding.billing) && `Billing: ${onboarding.billingStatus || onboarding.billing}`,
+    onboarding.goal && `Goal: ${onboarding.goal}`,
+    onboarding.volume && `Volume: ${onboarding.volume}`,
+    onboarding.timeline && `Timeline: ${onboarding.timeline}`,
+    onboarding.language && `Languages: ${onboarding.language}`,
+    onboarding.systems && `Systems: ${onboarding.systems}`,
+    onboarding.handoff && `Handoff: ${onboarding.handoff}`,
+    onboarding.consultantName && `Consultant: ${onboarding.consultantName}`,
+    onboarding.consultantEmail && `Consultant Email: ${onboarding.consultantEmail}`,
+    onboarding.notes && `Notes: ${onboarding.notes}`,
+  ].filter(Boolean);
+  return lines.length ? lines.join("\n") : fallback;
+}
+
 function RequestForm({ form, setForm, errors, clients }) {
   const set = (key) => (event) => setForm(prev => ({ ...prev, [key]: event.target.value }));
+  const setOnboarding = (key) => (event) => {
+    setForm(prev => ({
+      ...prev,
+      onboarding: { ...(prev.onboarding ?? {}), [key]: event.target.value },
+    }));
+  };
+  const onboarding = form.onboarding;
 
   return (
     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 20px" }}>
@@ -116,11 +151,63 @@ function RequestForm({ form, setForm, errors, clients }) {
           <input value={form.subject} onChange={set("subject")} style={{ ...inputStyle, borderColor: errors.subject ? C.red : C.border }} placeholder="Board pack request, compliance file, issue..." />
         </FormRow>
       </div>
-      <div style={{ gridColumn:"1/-1" }}>
-        <FormRow label="Request Details" error={errors.description}>
-          <textarea value={form.description} onChange={set("description")} style={{ ...inputStyle, borderColor: errors.description ? C.red : C.border, minHeight:96, resize:"vertical" }} placeholder="What does the client need, by when, and what context matters?" />
-        </FormRow>
-      </div>
+      {onboarding ? (
+        <div style={{ gridColumn:"1/-1" }}>
+          <div style={{ fontSize:12, fontWeight:600, color:C.muted,
+            letterSpacing:.5, textTransform:"uppercase", marginBottom:10 }}>
+            Request Details
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 20px",
+            border:`1px solid ${C.border}`, borderRadius:8, padding:16, marginBottom:18 }}>
+            <FormRow label="Products">
+              <input value={fieldVal(onboarding.product) ?? ""} onChange={setOnboarding("product")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Package">
+              <input value={onboarding.package ?? ""} onChange={setOnboarding("package")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Billing">
+              <input value={onboarding.billingStatus ?? onboarding.billing ?? ""} onChange={setOnboarding("billingStatus")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Decision">
+              <input value={onboarding.decisionStatus ?? onboarding.decision ?? ""} onChange={setOnboarding("decisionStatus")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Volume">
+              <input value={onboarding.volume ?? ""} onChange={setOnboarding("volume")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Timeline">
+              <input value={onboarding.timeline ?? ""} onChange={setOnboarding("timeline")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Languages">
+              <input value={onboarding.language ?? ""} onChange={setOnboarding("language")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Systems">
+              <input value={onboarding.systems ?? ""} onChange={setOnboarding("systems")} style={inputStyle} />
+            </FormRow>
+            <div style={{ gridColumn:"1/-1" }}>
+              <FormRow label="Handoff">
+                <textarea value={onboarding.handoff ?? ""} onChange={setOnboarding("handoff")} style={{ ...inputStyle, minHeight:70, resize:"vertical" }} />
+              </FormRow>
+            </div>
+            <FormRow label="Consultant">
+              <input value={onboarding.consultantName ?? ""} onChange={setOnboarding("consultantName")} style={inputStyle} />
+            </FormRow>
+            <FormRow label="Consultant Email">
+              <input value={onboarding.consultantEmail ?? ""} onChange={setOnboarding("consultantEmail")} style={inputStyle} />
+            </FormRow>
+            <div style={{ gridColumn:"1/-1" }}>
+              <FormRow label="Notes">
+                <textarea value={onboarding.notes ?? ""} onChange={setOnboarding("notes")} style={{ ...inputStyle, minHeight:72, resize:"vertical" }} />
+              </FormRow>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ gridColumn:"1/-1" }}>
+          <FormRow label="Request Details" error={errors.description}>
+            <textarea value={form.description} onChange={set("description")} style={{ ...inputStyle, borderColor: errors.description ? C.red : C.border, minHeight:96, resize:"vertical" }} placeholder="What does the client need, by when, and what context matters?" />
+          </FormRow>
+        </div>
+      )}
       <FormRow label="Owner">
         <input value={form.owner} onChange={set("owner")} style={inputStyle} />
       </FormRow>
@@ -157,6 +244,7 @@ function parseRequestData(request) {
     ["consultantEmail", /consultant\s+email/i],
     ["decisionStatus",  /decision\s+status/i],
     ["consultantName",  /consultant/i],
+    ["handoff",         /handoff/i],
     ["company",         /company/i],
     ["sector",          /sector/i],
     ["location",        /location/i],
@@ -172,6 +260,7 @@ function parseRequestData(request) {
     ["systems",         /systems?/i],
     ["language",        /languages?/i],
     ["lead",            /lead/i],
+    ["notes",           /notes/i],
     ["email",           /email/i],
   ];
 
@@ -372,7 +461,12 @@ export default function ServiceRequests() {
   };
 
   const openEdit = (request) => {
-    setForm({ ...request, clientId: String(request.clientId) });
+    const onboarding = parseRequestData(request);
+    setForm({
+      ...request,
+      clientId: request.clientId ? String(request.clientId) : "",
+      onboarding: onboarding || request.onboarding || null,
+    });
     setErrors({});
     setEditRequest(request);
   };
@@ -390,7 +484,12 @@ export default function ServiceRequests() {
   };
 
   const saveEdit = () => {
-    const next = { ...editRequest, ...form, clientId: Number(form.clientId) };
+    const next = {
+      ...editRequest,
+      ...form,
+      clientId: form.clientId ? Number(form.clientId) : null,
+      description: form.onboarding ? buildOnboardingDescription(form.onboarding, form.description) : form.description,
+    };
     const nextErrors = validate(next);
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
