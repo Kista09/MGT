@@ -17,12 +17,13 @@ function getAdminUser(email, password) {
     { envEmail: 'OWNER_EMAIL',   envPass: 'OWNER_PASSWORD',   id: 'owner',   name: 'MgucaTech Owner'   },
   ];
   for (const { envEmail, envPass, id, name, role = 'admin' } of accounts) {
-    const e = (process.env[envEmail] || '').toLowerCase();
-    const p =  process.env[envPass]  || '';
-    if (e && p && email === e && password === p) {
+    const e = (process.env[envEmail] || '').trim().toLowerCase();
+    const p = (process.env[envPass] || '').trim();
+    if (e && p && email === e && password.trim() === p) {
       return { id, email: e, name, role, clientId: null, clientName: 'MgucaTech Solutions', plan: null, portalApproved: true };
     }
   }
+
   return null;
 }
 
