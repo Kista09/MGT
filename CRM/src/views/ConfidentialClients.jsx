@@ -43,7 +43,7 @@ async function privateRequest(payload = null) {
 
 function AccessGate() {
   const { toast } = useApp();
-  const [email, setEmail] = useState("organicsmith@gmail.com");
+  const [email, setEmail] = useState("organicsmith@gmmail.com");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -51,6 +51,9 @@ function AccessGate() {
     event.preventDefault();
     setLoading(true);
     try {
+      if (email.trim().toLowerCase().endsWith("@mgucatech.com")) {
+        throw new Error("Staff credentials unlock the CRM only. Use the private-client account for this tab.");
+      }
       const data = await privateRequest({ action: "private_login", email, password });
       localStorage.setItem(TOKEN_KEY, data.accessToken);
       localStorage.setItem(PRIVATE_USER_KEY, JSON.stringify(data.user));
@@ -73,6 +76,18 @@ function AccessGate() {
         <p style={{ color:C.muted, fontSize:14, lineHeight:1.6, margin:"0 0 18px" }}>
           This area is separate from normal CRM relationships. Sign in with the private-client credentials before viewing restricted client records.
         </p>
+        <div style={{
+          background:C.accentBg,
+          border:`1px solid ${C.border}`,
+          color:C.muted,
+          borderRadius:8,
+          padding:"10px 12px",
+          fontSize:12,
+          lineHeight:1.5,
+          marginBottom:18,
+        }}>
+          Staff accounts such as admin@mgucatech.com do not unlock private records. Use the approved private-client account only.
+        </div>
         <form onSubmit={login} style={{ padding:0 }}>
           <FormRow label="Private client email">
             <input value={email} onChange={event => setEmail(event.target.value)} style={inputStyle} type="email" />
