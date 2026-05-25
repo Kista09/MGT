@@ -115,6 +115,7 @@ function tableButton(C, background, color, border = "none", busy = false) {
 }
 
 const REQUEST_TABLE_COLUMNS = [
+  { key:"select", label:"", width:44, filterable:false, sortable:false },
   { key:"sr", label:"SR Number", width:150 },
   { key:"subject", label:"Subject", width:260 },
   { key:"relationship", label:"Relationship", width:190 },
@@ -145,6 +146,17 @@ function requestColumnText(request, clientMap) {
     owner: request.owner ?? "",
     received: `${request.receivedAt ?? ""} ${formatDateShort(request.receivedAt?.slice(0, 10))}`,
   };
+}
+
+function requestSortValue(request, key, clientMap) {
+  const priorityRank = { Critical:0, High:1, Medium:2, Low:3 };
+  const statusRank = Object.fromEntries(REQUEST_STATUSES.map((status, index) => [status, index]));
+  const text = requestColumnText(request, clientMap);
+  if (key === "priority") return priorityRank[request.priority] ?? 99;
+  if (key === "status") return statusRank[request.status] ?? 99;
+  if (key === "due") return request.dueDate || "";
+  if (key === "received") return request.receivedAt || "";
+  return String(text[key] ?? "").toLowerCase();
 }
 
 function LifecycleBar({ status }) {
@@ -681,6 +693,9 @@ export default function ServiceRequests() {
   const [queue, setQueue] = useState("Open");
   const [search, setSearch] = useState("");
   const [columnFilters, setColumnFilters] = useState({});
+  const [sortConfig, setSortConfig] = useState({ key:"due", dir:"asc" });
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [activeRequestId, setActiveRequestId] = useState(null);
   const [category, setCategory] = useState("All");
   const [addOpen, setAddOpen] = useState(false);
   const [editRequest, setEditRequest] = useState(null);
@@ -767,11 +782,14 @@ export default function ServiceRequests() {
         return queueMatch && categoryMatch && searchMatch && columnMatch;
       })
       .sort((a, b) => {
-        const priorityRank = { Critical:0, High:1, Medium:2, Low:3 };
-        return (priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9) ||
-          a.dueDate.localeCompare(b.dueDate);
+        const aValue = requestSortValue(a, sortConfig.key, clientMap);
+        const bValue = requestSortValue(b, sortConfig.key, clientMap);
+        const compare = typeof aValue === "number" && typeof bValue === "number"
+          ? aValue - bValue
+          : String(aValue).localeCompare(String(bValue));
+        return (sortConfig.dir === "asc" ? compare : -compare) || a.dueDate.localeCompare(b.dueDate);
       });
-  }, [category, clientMap, columnFilters, queue, requests, search]);
+  }, [category, clientMap, columnFilters, queue, requests, search, sortConfig]);
 
   const setColumnFilter = (key) => (event) => {
     const value = event.target.value;
@@ -779,6 +797,48 @@ export default function ServiceRequests() {
   };
 
   const hasColumnFilters = Object.values(columnFilters).some(value => String(value || "").trim());
+  const filteredIds = filtered.map(serviceRequestId);
+  const selectedSet = new Set(selectedIds);
+  const selectedRequests = filtered.filter(request => selectedSet.has(serviceRequestId(request)));
+  const allFilteredSelected = filteredIds.length > 0 && filteredIds.every(id => selectedSet.has(id));
+  const activeRequest = filtered.find(request => serviceRequestId(request) === activeRequestId)
+    || selectedRequests[0]
+    || filtered[0]
+    || null;
+
+  const toggleSort = (key) => {
+    const column = REQUEST_TABLE_COLUMNS.find(item => item.key === key);
+    if (column?.sortable === false) return;
+    setSortConfig(prev => prev.key === key
+      ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+      : { key, dir: "asc" });
+  };
+
+  const toggleSelected = (id) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]);
+  };
+
+  const toggleAllFiltered = () => {
+    setSelectedIds(prev => {
+      const current = new Set(prev);
+      if (allFilteredSelected) {
+        filteredIds.forEach(id => current.delete(id));
+      } else {
+        filteredIds.forEach(id => current.add(id));
+      }
+      return [...current];
+    });
+  };
+
+  const updateRequestField = (request, field, value) => {
+    dispatch({ type:"UPDATE_SERVICE_REQUEST", request: { ...request, [field]: value } });
+    toast(`${field === "status" ? "Status" : "Priority"} updated`, "ok");
+  };
+
+  const bulkUpdateStatus = (status) => {
+    selectedRequests.forEach(request => dispatch({ type:"UPDATE_SERVICE_REQUEST", request: { ...request, status } }));
+    toast(`${selectedRequests.length} request${selectedRequests.length === 1 ? "" : "s"} updated`, "ok");
+  };
 
   const openAdd = () => {
     setForm({ ...BLANK_REQUEST, owner: state.user.name });
@@ -934,6 +994,30 @@ export default function ServiceRequests() {
         </select>
       </div>
 
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:10, flexWrap:"wrap" }}>
+        <div style={{ color:C.muted, fontSize:12, fontWeight:800 }}>
+          {filtered.length} visible · {selectedRequests.length} selected
+        </div>
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          {selectedRequests.length > 0 && (
+            <>
+              <button type="button" onClick={() => bulkUpdateStatus("In Progress")}
+                style={tableButton(C, C.blueBg, C.blue, `1px solid ${C.blue}`)}>
+                Mark In Progress
+              </button>
+              <button type="button" onClick={() => bulkUpdateStatus("Resolved")}
+                style={tableButton(C, C.successBg, C.success, `1px solid ${C.success}`)}>
+                Resolve Selected
+              </button>
+              <button type="button" onClick={() => setSelectedIds([])}
+                style={tableButton(C, C.subtle, C.muted)}>
+                Clear Selection
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
       <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, overflow:"hidden" }}>
         <div style={{ overflowX:"auto" }}>
           <table style={{ width:"100%", minWidth:1280, borderCollapse:"collapse", tableLayout:"fixed", fontSize:12 }}>
@@ -957,7 +1041,21 @@ export default function ServiceRequests() {
                     textTransform:"uppercase",
                     whiteSpace:"nowrap",
                   }}>
-                    {column.label}
+                    {column.key === "select" ? (
+                      <input type="checkbox" checked={allFilteredSelected} onChange={toggleAllFiltered} />
+                    ) : (
+                      <button type="button" onClick={() => toggleSort(column.key)}
+                        style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", gap:6,
+                          background:"transparent", border:"none", color:C.muted, padding:0, cursor:column.sortable === false ? "default" : "pointer",
+                          fontSize:10, fontWeight:900, letterSpacing:.5, textTransform:"uppercase", textAlign:"left" }}>
+                        <span>{column.label}</span>
+                        {column.sortable === false ? null : (
+                          <span style={{ color:sortConfig.key === column.key ? C.accent : C.muted }}>
+                            {sortConfig.key === column.key ? (sortConfig.dir === "asc" ? "↑" : "↓") : "↕"}
+                          </span>
+                        )}
+                      </button>
+                    )}
                   </th>
                 ))}
               </tr>
@@ -973,7 +1071,9 @@ export default function ServiceRequests() {
                     borderRight:`1px solid ${C.border}`,
                     padding:"6px 8px",
                   }}>
-                    {column.filterable === false ? (
+                    {column.key === "select" ? (
+                      <span style={{ display:"block", minHeight:25 }} />
+                    ) : column.filterable === false ? (
                       hasColumnFilters ? (
                         <button type="button" onClick={() => setColumnFilters({})}
                           style={{ width:"100%", background:C.subtle, border:"none", color:C.muted,
@@ -1002,7 +1102,15 @@ export default function ServiceRequests() {
                 const status = requestStatusStyle(request.status);
                 const rowBg = index % 2 === 0 ? C.card : "#FCFAF7";
                 return (
-                  <tr key={serviceRequestId(request)} onDoubleClick={() => openEdit(request)} style={{ background:rowBg }}>
+                  <tr key={serviceRequestId(request)}
+                    onClick={() => setActiveRequestId(serviceRequestId(request))}
+                    onDoubleClick={() => openEdit(request)}
+                    style={{ background:activeRequest && serviceRequestId(activeRequest) === serviceRequestId(request) ? C.accentBg : rowBg }}>
+                    <td style={cellStyle(C, { textAlign:"center" })}>
+                      <input type="checkbox" checked={selectedSet.has(serviceRequestId(request))}
+                        onChange={() => toggleSelected(serviceRequestId(request))}
+                        onClick={event => event.stopPropagation()} />
+                    </td>
                     <td style={cellStyle(C, { color:C.accent, fontWeight:900, fontFamily:font.mono })} title={serviceRequestNumber(request)}>
                       {serviceRequestNumber(request)}
                     </td>
@@ -1019,8 +1127,22 @@ export default function ServiceRequests() {
                     </td>
                     <td style={cellStyle(C)} title={`${request.requester} <${request.email}>`}>{request.requester}</td>
                     <td style={cellStyle(C)}><span style={miniTag(C.blue, C.blueBg)}>{request.category}</span></td>
-                    <td style={cellStyle(C)}><span style={miniTag(priority.color, priority.background)}>{request.priority}</span></td>
-                    <td style={cellStyle(C)}><span style={miniTag(status.color, status.background)}>{request.status}</span></td>
+                    <td style={cellStyle(C)}>
+                      <select value={request.priority} onChange={event => updateRequestField(request, "priority", event.target.value)}
+                        onClick={event => event.stopPropagation()}
+                        style={{ width:"100%", background:priority.background, color:priority.color, border:"none",
+                          borderRadius:4, padding:"4px 5px", fontSize:10, fontWeight:900, outline:"none" }}>
+                        {REQUEST_PRIORITIES.map(item => <option key={item}>{item}</option>)}
+                      </select>
+                    </td>
+                    <td style={cellStyle(C)}>
+                      <select value={request.status} onChange={event => updateRequestField(request, "status", event.target.value)}
+                        onClick={event => event.stopPropagation()}
+                        style={{ width:"100%", background:status.background, color:status.color, border:"none",
+                          borderRadius:4, padding:"4px 5px", fontSize:10, fontWeight:900, outline:"none" }}>
+                        {REQUEST_STATUSES.map(item => <option key={item}>{item}</option>)}
+                      </select>
+                    </td>
                     <td style={cellStyle(C, { color:dueColor, fontWeight:800 })}>
                       {delta < 0 ? `${Math.abs(delta)}d late` : delta === 0 ? "Today" : formatDateShort(request.dueDate)}
                     </td>
@@ -1030,17 +1152,17 @@ export default function ServiceRequests() {
                     <td style={{ ...cellStyle(C), overflow:"visible" }}>
                       <div style={{ display:"flex", gap:6, alignItems:"center", whiteSpace:"nowrap" }}>
                         {!["Resolved", "Closed"].includes(request.status) && (
-                          <button type="button" onClick={() => closeRequest(request)}
+                          <button type="button" onClick={(event) => { event.stopPropagation(); closeRequest(request); }}
                             style={tableButton(C, C.successBg, C.success, `1px solid ${C.success}`)}>Resolve</button>
                         )}
                         {request.source === "onboarding" && !["Approved", "Resolved", "Closed"].includes(request.status) && (
-                          <button type="button" disabled={approvingId === serviceRequestId(request)} onClick={() => approveOnboarding(request)}
+                          <button type="button" disabled={approvingId === serviceRequestId(request)} onClick={(event) => { event.stopPropagation(); approveOnboarding(request); }}
                             style={tableButton(C, C.successBg, C.success, `1px solid ${C.success}`, approvingId === serviceRequestId(request))}>
                             {approvingId === serviceRequestId(request) ? "Approving..." : "Approve"}
                           </button>
                         )}
-                        <button type="button" onClick={() => openEdit(request)} style={tableButton(C, C.subtle, C.muted)}>Capture</button>
-                        <button type="button" onClick={() => setDeleteRequest(request)} style={tableButton(C, C.redBg, C.red)}>Del</button>
+                        <button type="button" onClick={(event) => { event.stopPropagation(); openEdit(request); }} style={tableButton(C, C.subtle, C.muted)}>Capture</button>
+                        <button type="button" onClick={(event) => { event.stopPropagation(); setDeleteRequest(request); }} style={tableButton(C, C.redBg, C.red)}>Del</button>
                       </div>
                     </td>
                   </tr>
@@ -1050,6 +1172,62 @@ export default function ServiceRequests() {
           </table>
         </div>
       </div>
+
+      {activeRequest && (
+        <div style={{ marginTop:14, display:"grid", gridTemplateColumns:"minmax(280px, 1.1fr) minmax(280px, .9fr)", gap:14 }}>
+          <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:16 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12, marginBottom:10 }}>
+              <div style={{ minWidth:0 }}>
+                <div style={{ color:C.accent, fontFamily:font.mono, fontSize:11, fontWeight:900, marginBottom:4 }}>
+                  {serviceRequestNumber(activeRequest)}
+                </div>
+                <div style={{ color:C.text, fontSize:16, fontWeight:900, lineHeight:1.3 }}>{activeRequest.subject}</div>
+                <div style={{ color:C.muted, fontSize:12, marginTop:4 }}>
+                  {(clientMap.get(activeRequest.clientId)?.name ?? "Unknown relationship")} · {activeRequest.requester}
+                </div>
+              </div>
+              <button type="button" onClick={() => openEdit(activeRequest)} style={tableButton(C, C.accent, "#000")}>
+                Capture
+              </button>
+            </div>
+            <LifecycleBar status={activeRequest.status} />
+            {parseRequestData(activeRequest)
+              ? <OnboardingGrid onboarding={parseRequestData(activeRequest)} />
+              : (
+                <div style={{ color:C.muted, fontSize:13, lineHeight:1.55, whiteSpace:"pre-wrap" }}>
+                  {activeRequest.description || "No request details captured yet."}
+                </div>
+              )}
+          </div>
+          <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:16 }}>
+            <div style={{ color:C.muted, fontSize:10, fontWeight:900, letterSpacing:.7, textTransform:"uppercase", marginBottom:10 }}>
+              Live Request Inspector
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(2, minmax(0, 1fr))", gap:10, marginBottom:12 }}>
+              {[
+                ["Priority", activeRequest.priority],
+                ["Status", activeRequest.status],
+                ["Due", activeRequest.dueDate],
+                ["Owner", activeRequest.owner],
+                ["Channel", activeRequest.source === "onboarding" ? "Onboarding" : activeRequest.channel],
+                ["Received", formatDateShort(activeRequest.receivedAt?.slice(0, 10))],
+              ].map(([label, value]) => (
+                <div key={label} style={{ border:`1px solid ${C.border}`, borderRadius:6, padding:"8px 10px", background:C.surface }}>
+                  <div style={{ color:C.muted, fontSize:9, fontWeight:900, letterSpacing:.5, textTransform:"uppercase", marginBottom:3 }}>{label}</div>
+                  <div style={{ color:C.text, fontSize:12, fontWeight:800, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{value || "-"}</div>
+                </div>
+              ))}
+            </div>
+            {activeRequest.notes ? (
+              <div style={{ color:C.text, fontSize:12, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto", border:`1px solid ${C.border}`, borderRadius:6, padding:10 }}>
+                {activeRequest.notes}
+              </div>
+            ) : (
+              <div style={{ color:C.muted, fontSize:12 }}>No internal notes captured.</div>
+            )}
+          </div>
+        </div>
+      )}
 
       {false && (<div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))", gap:14 }}>
         {filtered.map(request => {
