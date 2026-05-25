@@ -70,6 +70,50 @@ function serviceRequestId(request = {}) {
   return serviceRequestNumber(request) || request.id;
 }
 
+function cellStyle(C, extra = {}) {
+  return {
+    borderRight:`1px solid ${C.border}`,
+    borderBottom:`1px solid ${C.border}`,
+    color:C.text,
+    padding:"8px 10px",
+    minHeight:36,
+    overflow:"hidden",
+    textOverflow:"ellipsis",
+    whiteSpace:"nowrap",
+    verticalAlign:"middle",
+    ...extra,
+  };
+}
+
+function miniTag(color, background) {
+  return {
+    display:"inline-block",
+    maxWidth:"100%",
+    overflow:"hidden",
+    textOverflow:"ellipsis",
+    whiteSpace:"nowrap",
+    color,
+    background,
+    borderRadius:4,
+    padding:"3px 7px",
+    fontSize:10,
+    fontWeight:900,
+  };
+}
+
+function tableButton(C, background, color, border = "none", busy = false) {
+  return {
+    background,
+    border,
+    color,
+    borderRadius:4,
+    padding:"4px 8px",
+    fontSize:10,
+    fontWeight:900,
+    cursor:busy ? "wait" : "pointer",
+  };
+}
+
 function LifecycleBar({ status }) {
   const current = status === "Resolved" || status === "Closed" ? "Support" : status;
   const active = Math.max(0, SERVICE_LIFECYCLE.indexOf(current));
@@ -842,7 +886,106 @@ export default function ServiceRequests() {
         </select>
       </div>
 
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))", gap:14 }}>
+      <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, overflow:"hidden" }}>
+        <div style={{ overflowX:"auto" }}>
+          <table style={{ width:"100%", minWidth:1280, borderCollapse:"collapse", tableLayout:"fixed", fontSize:12 }}>
+            <thead>
+              <tr>
+                {[
+                  ["SR Number", 150],
+                  ["Subject", 260],
+                  ["Relationship", 190],
+                  ["Requester", 160],
+                  ["Category", 135],
+                  ["Priority", 96],
+                  ["Status", 130],
+                  ["Due", 100],
+                  ["Channel", 120],
+                  ["Owner", 100],
+                  ["Received", 105],
+                  ["Actions", 250],
+                ].map(([label, width]) => (
+                  <th key={label} style={{
+                    width,
+                    position:"sticky",
+                    top:0,
+                    zIndex:1,
+                    background:C.subtle,
+                    color:C.muted,
+                    borderBottom:`1px solid ${C.border}`,
+                    borderRight:`1px solid ${C.border}`,
+                    padding:"9px 10px",
+                    textAlign:"left",
+                    fontSize:10,
+                    fontWeight:900,
+                    letterSpacing:.5,
+                    textTransform:"uppercase",
+                    whiteSpace:"nowrap",
+                  }}>
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((request, index) => {
+                const client = clientMap.get(request.clientId);
+                const delta = daysUntil(request.dueDate);
+                const dueColor = delta < 0 ? C.red : delta === 0 ? C.yellow : C.text;
+                const priority = priorityStyle(request.priority);
+                const status = requestStatusStyle(request.status);
+                const rowBg = index % 2 === 0 ? C.card : "#FCFAF7";
+                return (
+                  <tr key={serviceRequestId(request)} onDoubleClick={() => openEdit(request)} style={{ background:rowBg }}>
+                    <td style={cellStyle(C, { color:C.accent, fontWeight:900, fontFamily:font.mono })} title={serviceRequestNumber(request)}>
+                      {serviceRequestNumber(request)}
+                    </td>
+                    <td style={cellStyle(C, { fontWeight:800 })} title={request.description || request.subject}>
+                      {request.subject}
+                    </td>
+                    <td style={cellStyle(C)} title={client?.name ?? "Unknown relationship"}>
+                      <button type="button" onClick={() => client && navigate("client-detail", client.id)}
+                        style={{ background:"transparent", border:"none", color:client ? C.blue : C.muted,
+                          cursor:client ? "pointer" : "default", padding:0, fontSize:12, fontWeight:700,
+                          maxWidth:"100%", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                        {client?.name ?? "Unknown relationship"}
+                      </button>
+                    </td>
+                    <td style={cellStyle(C)} title={`${request.requester} <${request.email}>`}>{request.requester}</td>
+                    <td style={cellStyle(C)}><span style={miniTag(C.blue, C.blueBg)}>{request.category}</span></td>
+                    <td style={cellStyle(C)}><span style={miniTag(priority.color, priority.background)}>{request.priority}</span></td>
+                    <td style={cellStyle(C)}><span style={miniTag(status.color, status.background)}>{request.status}</span></td>
+                    <td style={cellStyle(C, { color:dueColor, fontWeight:800 })}>
+                      {delta < 0 ? `${Math.abs(delta)}d late` : delta === 0 ? "Today" : formatDateShort(request.dueDate)}
+                    </td>
+                    <td style={cellStyle(C)}>{request.source === "onboarding" ? "Onboarding" : request.channel}</td>
+                    <td style={cellStyle(C)}>{request.owner}</td>
+                    <td style={cellStyle(C)}>{formatDateShort(request.receivedAt?.slice(0, 10))}</td>
+                    <td style={{ ...cellStyle(C), overflow:"visible" }}>
+                      <div style={{ display:"flex", gap:6, alignItems:"center", whiteSpace:"nowrap" }}>
+                        {!["Resolved", "Closed"].includes(request.status) && (
+                          <button type="button" onClick={() => closeRequest(request)}
+                            style={tableButton(C, C.successBg, C.success, `1px solid ${C.success}`)}>Resolve</button>
+                        )}
+                        {request.source === "onboarding" && !["Approved", "Resolved", "Closed"].includes(request.status) && (
+                          <button type="button" disabled={approvingId === serviceRequestId(request)} onClick={() => approveOnboarding(request)}
+                            style={tableButton(C, C.successBg, C.success, `1px solid ${C.success}`, approvingId === serviceRequestId(request))}>
+                            {approvingId === serviceRequestId(request) ? "Approving..." : "Approve"}
+                          </button>
+                        )}
+                        <button type="button" onClick={() => openEdit(request)} style={tableButton(C, C.subtle, C.muted)}>Capture</button>
+                        <button type="button" onClick={() => setDeleteRequest(request)} style={tableButton(C, C.redBg, C.red)}>Del</button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {false && (<div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(360px,1fr))", gap:14 }}>
         {filtered.map(request => {
           const client = clientMap.get(request.clientId);
           const delta = daysUntil(request.dueDate);
@@ -924,7 +1067,7 @@ export default function ServiceRequests() {
             </article>
           );
         })}
-      </div>
+      </div>)}
 
       {filtered.length === 0 && (
         <div style={{ padding:48, textAlign:"center", color:C.muted, fontSize:14 }}>No service requests match your filters.</div>
