@@ -47,6 +47,17 @@ async function readPortalUser(email) {
   return null;
 }
 
+async function listPortalUsers() {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return [];
+  const result = await list({ prefix: 'portal-users/', limit: 500 });
+  const users = await Promise.all(result.blobs.map(async blob => {
+    const response = await fetch(blob.url).catch(() => null);
+    if (!response?.ok) return null;
+    return response.json().catch(() => null);
+  }));
+  return users.filter(Boolean).sort((a, b) => String(a.email).localeCompare(String(b.email)));
+}
+
 function makeToken(user) {
   return Buffer.from(JSON.stringify({
     sub: user.id,
@@ -83,6 +94,7 @@ function publicUser(user) {
 module.exports = {
   makePassword,
   makeToken,
+  listPortalUsers,
   normalizeEmail,
   publicUser,
   readPortalUser,

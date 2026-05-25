@@ -130,6 +130,8 @@ export const CONSULTANT_ROLES = [
   { name:"Consultant", focus:"Requests, follow-ups, onboarding capture, and client communication." },
   { name:"Operations", focus:"Bot incidents, booking setup, runbooks, and go-live readiness." },
   { name:"Admin", focus:"Pricing, billing, users, exports, and audit readiness." },
+  { name:"Private Client Access", focus:"Restricted private-client records and approvals only." },
+  { name:"Read-only", focus:"View CRM records without changing operational data." },
 ];
 export const INDUSTRIES = [
   "Retail","Grocery","Sports","E-Commerce","Financial Services",

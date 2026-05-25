@@ -40,6 +40,8 @@ function getInitial() {
         pipeline: normalizePipeline(parsed.pipeline ?? INITIAL_STATE.pipeline),
         tasks: parsed.tasks ?? INITIAL_STATE.tasks,
         serviceRequests: migrateServiceRequests(parsed.serviceRequests ?? INITIAL_STATE.serviceRequests),
+        emailLogs: parsed.emailLogs ?? INITIAL_STATE.emailLogs,
+        portalUsers: parsed.portalUsers ?? INITIAL_STATE.portalUsers,
         consultants: parsed.consultants ?? INITIAL_STATE.consultants,
         onboardingChecklist: parsed.onboardingChecklist ?? INITIAL_STATE.onboardingChecklist,
         billing: parsed.billing ?? INITIAL_STATE.billing,
@@ -215,6 +217,18 @@ function requestConsultant(state) {
     name: state.user?.name ?? "System",
     email: state.user?.email ?? "",
     role: state.user?.role ?? "Internal CRM",
+  };
+}
+
+function requestEvent(state, type, detail, extra = {}) {
+  return {
+    id: generateId(),
+    time: new Date().toISOString(),
+    type,
+    detail,
+    actor: state.user?.name ?? "System",
+    actorEmail: state.user?.email ?? "",
+    ...extra,
   };
 }
 
@@ -433,6 +447,10 @@ function reducer(state, action) {
           const consultant = requestConsultant(state);
           return {
             ...updated,
+            timeline: [
+              requestEvent(state, "edited", `${consultant.name} amended ${changes.map(change => change.label).join(", ")}`),
+              ...(request.timeline ?? []),
+            ].slice(0, 40),
             auditTrail: [{
               id: generateId(),
               time: new Date().toISOString(),
@@ -448,6 +466,47 @@ function reducer(state, action) {
           };
         }),
         auditLog: addAudit(state, `Service request set to ${action.request.status ?? "updated"}`, action.request.subject ?? action.request.id),
+      };
+    case "ADD_REQUEST_TIMELINE_EVENT":
+      return {
+        ...state,
+        serviceRequests: state.serviceRequests.map(request =>
+          requestIdentity(request) === action.id
+            ? { ...request, timeline: [requestEvent(state, action.eventType, action.detail, action.extra), ...(request.timeline ?? [])].slice(0, 40) }
+            : request
+        ),
+      };
+    case "SET_EMAIL_LOGS":
+      return { ...state, emailLogs: action.logs ?? [] };
+    case "ADD_EMAIL_LOG":
+      return { ...state, emailLogs: [action.log, ...(state.emailLogs ?? []).filter(item => item.id !== action.log.id)].slice(0, 200) };
+    case "SET_PORTAL_USERS":
+      return { ...state, portalUsers: action.users ?? [] };
+    case "ADD_PORTAL_USER":
+      return { ...state, portalUsers: [action.user, ...(state.portalUsers ?? []).filter(item => item.email !== action.user.email)].slice(0, 200) };
+    case "MERGE_CLIENTS": {
+      const source = state.clients.find(client => client.id === action.sourceId);
+      const target = state.clients.find(client => client.id === action.targetId);
+      if (!source || !target || source.id === target.id) return state;
+      return {
+        ...state,
+        clients: state.clients.filter(client => client.id !== source.id).map(client =>
+          client.id === target.id
+            ? { ...client, notes: [...(client.notes ?? []), ...(source.notes ?? [])] }
+            : client
+        ),
+        serviceRequests: state.serviceRequests.map(request => request.clientId === source.id ? { ...request, clientId: target.id } : request),
+        tasks: state.tasks.map(task => task.clientId === source.id ? { ...task, clientId: target.id } : task),
+        billing: state.billing.map(invoice => invoice.clientId === source.id ? { ...invoice, clientId: target.id } : invoice),
+        auditLog: addAudit(state, "Clients merged", `${source.name} -> ${target.name}`),
+      };
+    }
+    case "ARCHIVE_TEST_RECORDS":
+      return {
+        ...state,
+        serviceRequests: state.serviceRequests.map(request => /test|demo/i.test(`${request.subject} ${request.requester} ${request.email}`) ? { ...request, status:"Closed", archived:true } : request),
+        clients: state.clients.map(client => /test|demo/i.test(`${client.name} ${client.email}`) ? { ...client, status:"Churned", archived:true } : client),
+        auditLog: addAudit(state, "Test records archived", "Detected records containing test/demo"),
       };
     case "DELETE_SERVICE_REQUEST":
       return {

@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { C, font, CONSULTANT_ROLES, SERVICE_LIFECYCLE, SERVICE_PACKAGES } from "../constants";
 import { useApp } from "../context";
 import { inputStyle, selectStyle } from "../components/Modal";
 import SegmentTabs from "../components/SegmentTabs";
 import { exportCSV, fmt$ } from "../utils";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://mgucatech.com";
+const apiUrl = path => `${API_BASE}${path}`;
 
 function Section({ title, children }) {
   return (
@@ -45,10 +48,40 @@ export default function Settings() {
   const { state, dispatch, toast } = useApp();
   const { settings, user } = state;
   const [sectionTab, setSectionTab] = useState("Profile");
+  const [emailSearch, setEmailSearch] = useState("");
+  const [portalSearch, setPortalSearch] = useState("");
+  const [cleanup, setCleanup] = useState({ sourceId:"", targetId:"" });
 
   const [userForm, setUserForm] = useState({ name: user.name, email: user.email });
   const [consultantForm, setConsultantForm] = useState({ name:"", email:"", role:"Consultant", focus:"" });
   const setUser = (k) => (e) => setUserForm(p => ({ ...p, [k]: e.target.value }));
+
+  const emailLogs = useMemo(() => (state.emailLogs ?? []).filter(log =>
+    `${log.recipient} ${log.subject} ${log.status} ${log.relatedRequestNumber}`.toLowerCase().includes(emailSearch.toLowerCase())
+  ), [emailSearch, state.emailLogs]);
+
+  const portalUsers = useMemo(() => (state.portalUsers ?? []).filter(user =>
+    `${user.email} ${user.clientName} ${user.plan} ${user.status}`.toLowerCase().includes(portalSearch.toLowerCase())
+  ), [portalSearch, state.portalUsers]);
+
+  const refreshOpsData = async () => {
+    const [emailRes, userRes] = await Promise.all([
+      fetch(apiUrl("/api/email-logs")).catch(() => null),
+      fetch(apiUrl("/api/portal-users")).catch(() => null),
+    ]);
+    if (emailRes?.ok) {
+      const data = await emailRes.json().catch(() => ({}));
+      dispatch({ type:"SET_EMAIL_LOGS", logs:data.logs ?? [] });
+    }
+    if (userRes?.ok) {
+      const data = await userRes.json().catch(() => ({}));
+      dispatch({ type:"SET_PORTAL_USERS", users:data.users ?? [] });
+    }
+  };
+
+  useEffect(() => {
+    refreshOpsData().catch(() => {});
+  }, []);
 
   const saveProfile = () => {
     if (!userForm.name.trim()) { toast("Name is required", "⚠️", "warning"); return; }
@@ -58,6 +91,22 @@ export default function Settings() {
 
   const setNotif = (k) => (val) => {
     dispatch({ type:"UPDATE_SETTINGS", settings: { notifications: { ...settings.notifications, [k]: val } } });
+  };
+
+  const resetPortalPassword = async (email) => {
+    const response = await fetch(apiUrl("/api/portal-users"), {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ action:"reset_password", email }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      toast(data.error || "Password reset failed", "!", "warning");
+      return;
+    }
+    await refreshOpsData();
+    window.alert(`New temporary password for ${email}:\n${data.password}`);
+    toast("Portal password regenerated", "ok");
   };
 
   const setSetting = (k) => (e) => {
@@ -87,6 +136,8 @@ export default function Settings() {
       serviceRequests: state.serviceRequests,
       billing:  state.billing,
       auditLog: state.auditLog,
+      emailLogs: state.emailLogs,
+      portalUsers: state.portalUsers,
       exportedAt: new Date().toISOString(),
     }, null, 2);
     const blob = new Blob([data], { type:"application/json" });
@@ -117,6 +168,18 @@ export default function Settings() {
     window.location.reload();
   };
 
+  const handleMergeClients = () => {
+    const sourceId = Number(cleanup.sourceId);
+    const targetId = Number(cleanup.targetId);
+    if (!sourceId || !targetId || sourceId === targetId) {
+      toast("Choose two different clients", "!", "warning");
+      return;
+    }
+    dispatch({ type:"MERGE_CLIENTS", sourceId, targetId });
+    setCleanup({ sourceId:"", targetId:"" });
+    toast("Clients merged", "ok");
+  };
+
   return (
     <div style={{ padding:32, overflowY:"auto", flex:1 }}>
       <div style={{ marginBottom:28 }}>
@@ -129,11 +192,14 @@ export default function Settings() {
           { id:"Profile", label:"Profile" },
           { id:"Workspace", label:"Workspace" },
           { id:"Notifications", label:"Notifications", count:Object.values(settings.notifications).filter(Boolean).length },
+          { id:"Email Log", label:"Email Log", count:(state.emailLogs ?? []).length },
+          { id:"Portal Users", label:"Portal Users", count:(state.portalUsers ?? []).length },
           { id:"Billing", label:"Billing", count:(state.billing ?? []).filter(i => i.status !== "Paid").length },
           { id:"Service", label:"Service" },
           { id:"Consultants", label:"Consultants", count:(state.consultants ?? []).filter(item => item.active).length },
           { id:"Roles", label:"Roles" },
           { id:"Audit", label:"Audit", count:(state.auditLog ?? []).length },
+          { id:"Cleanup", label:"Cleanup" },
           { id:"Data", label:"Data" },
           { id:"About", label:"About" },
         ]}
@@ -213,6 +279,78 @@ export default function Settings() {
           <Row label="Weekly Report" desc="Summary digest every Monday">
             <Toggle value={settings.notifications.weeklyReport} onChange={setNotif("weeklyReport")} />
           </Row>
+          <Row label="Email failures" desc="Approval email bounces, failures, and complaints">
+            <Toggle value={settings.notifications.emailFailures} onChange={setNotif("emailFailures")} />
+          </Row>
+          <Row label="Portal logins" desc="First login and client portal activity">
+            <Toggle value={settings.notifications.portalLogins} onChange={setNotif("portalLogins")} />
+          </Row>
+          <Row label="Missing documents" desc="Warn after 48 hours when onboarding assets are still missing">
+            <Toggle value={settings.notifications.missingDocuments} onChange={setNotif("missingDocuments")} />
+          </Row>
+        </Section>}
+
+        {sectionTab === "Email Log" && <Section title="Email Delivery Log">
+          <div style={{ display:"flex", gap:10, marginBottom:14 }}>
+            <input value={emailSearch} onChange={event => setEmailSearch(event.target.value)}
+              placeholder="Search recipient, subject, SR, status..." style={{ ...inputStyle, flex:1 }} />
+            <button onClick={refreshOpsData}
+              style={{ background:C.subtle, border:`1px solid ${C.border}`, color:C.text, borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:800, cursor:"pointer" }}>
+              Refresh
+            </button>
+            <button onClick={() => exportCSV(emailLogs, [
+              { key:"recipient", label:"Recipient" },
+              { key:"subject", label:"Subject" },
+              { key:"sentAt", label:"Sent At" },
+              { key:"status", label:"Status" },
+              { key:"resendId", label:"Resend ID" },
+              { key:"relatedRequestNumber", label:"Service Request" },
+            ], "email-delivery-log.csv")}
+              style={{ background:C.subtle, border:`1px solid ${C.border}`, color:C.text, borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:800, cursor:"pointer" }}>
+              CSV
+            </button>
+          </div>
+          <div style={{ border:`1px solid ${C.border}`, borderRadius:8, overflow:"hidden" }}>
+            {emailLogs.slice(0, 80).map(log => (
+              <div key={log.id || log.resendId} style={{ display:"grid", gridTemplateColumns:"1.4fr 1.2fr .7fr .8fr", gap:10, padding:"10px 12px", borderBottom:`1px solid ${C.border}`, alignItems:"center" }}>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:900 }}>{log.recipient}</div>
+                  <div style={{ fontSize:11, color:C.muted }}>{log.relatedRequestNumber || "No SR linked"}</div>
+                </div>
+                <div style={{ fontSize:12, color:C.text, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{log.subject}</div>
+                <div style={{ fontSize:11, color:C.muted }}>{log.sentAt ? new Date(log.sentAt).toLocaleString("en-ZA") : "-"}</div>
+                <div>
+                  <span style={{ background:["failed","bounced","complained"].includes(log.status) ? C.redBg : C.successBg, color:["failed","bounced","complained"].includes(log.status) ? C.red : C.success, borderRadius:99, padding:"3px 8px", fontSize:10, fontWeight:900, textTransform:"uppercase" }}>
+                    {log.status || "sent"}
+                  </span>
+                </div>
+              </div>
+            ))}
+            {emailLogs.length === 0 && <div style={{ padding:18, color:C.muted, fontSize:13 }}>No email logs found yet.</div>}
+          </div>
+        </Section>}
+
+        {sectionTab === "Portal Users" && <Section title="Client Portal Users">
+          <div style={{ display:"flex", gap:10, marginBottom:14 }}>
+            <input value={portalSearch} onChange={event => setPortalSearch(event.target.value)}
+              placeholder="Search email, company, plan, status..." style={{ ...inputStyle, flex:1 }} />
+            <button onClick={refreshOpsData}
+              style={{ background:C.subtle, border:`1px solid ${C.border}`, color:C.text, borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:800, cursor:"pointer" }}>
+              Refresh
+            </button>
+          </div>
+          {portalUsers.map(portalUser => (
+            <Row key={portalUser.email} label={portalUser.email} desc={`${portalUser.clientName || "No company"} - ${portalUser.plan || "No plan"} - approved ${portalUser.approvedAt ? new Date(portalUser.approvedAt).toLocaleDateString("en-ZA") : "unknown"}`}>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <span style={{ fontSize:11, color:C.muted, fontWeight:900 }}>{portalUser.lastLoginAt ? `Last ${new Date(portalUser.lastLoginAt).toLocaleDateString("en-ZA")}` : "Never logged in"}</span>
+                <button onClick={() => resetPortalPassword(portalUser.email)}
+                  style={{ background:C.accentBg, border:`1px solid ${C.accent}`, color:C.accent, borderRadius:8, padding:"7px 10px", fontSize:11, fontWeight:900, cursor:"pointer" }}>
+                  Reset password
+                </button>
+              </div>
+            </Row>
+          ))}
+          {portalUsers.length === 0 && <div style={{ color:C.muted, fontSize:13 }}>No portal users found yet.</div>}
         </Section>}
 
         {sectionTab === "Billing" && <Section title="South African Billing">
@@ -252,6 +390,9 @@ export default function Settings() {
           <Row label="Book Now app URL">
             <input value={settings.bookNowUrl ?? ""} onChange={setSetting("bookNowUrl")}
               style={{ ...inputStyle, width:300 }} />
+          </Row>
+          <Row label="Client-facing status API" desc="Clients can query onboarding status with their email address.">
+            <span style={{ fontFamily:font.mono, color:C.muted, fontSize:11 }}>{apiUrl("/api/client-status?email=client@example.com")}</span>
           </Row>
           <Row label="Default setup fee">
             <input type="number" value={settings.serviceDefaults?.setupFee ?? 3500} onChange={setNestedSetting("serviceDefaults", "setupFee")}
@@ -326,6 +467,36 @@ export default function Settings() {
               <span style={{ fontSize:12, color:C.muted, fontWeight:800 }}>{item.actor}</span>
             </Row>
           ))}
+        </Section>}
+
+        {sectionTab === "Cleanup" && <Section title="Data Cleanup Tools">
+          <Row label="Merge duplicate clients" desc="Move requests, follow-ups, and billing from one client into another.">
+            <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+              <select value={cleanup.sourceId} onChange={event => setCleanup(prev => ({ ...prev, sourceId:event.target.value }))}
+                style={{ ...selectStyle, width:170 }}>
+                <option value="">Move from...</option>
+                {state.clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
+              </select>
+              <select value={cleanup.targetId} onChange={event => setCleanup(prev => ({ ...prev, targetId:event.target.value }))}
+                style={{ ...selectStyle, width:170 }}>
+                <option value="">Merge into...</option>
+                {state.clients.map(client => <option key={client.id} value={client.id}>{client.name}</option>)}
+              </select>
+              <button onClick={handleMergeClients}
+                style={{ background:C.accent, border:"none", color:"#000", borderRadius:8, padding:"8px 12px", fontSize:12, fontWeight:900, cursor:"pointer" }}>
+                Merge
+              </button>
+            </div>
+          </Row>
+          <Row label="Archive test/demo records" desc="Closes requests and marks clients containing test/demo as archived.">
+            <button onClick={() => { dispatch({ type:"ARCHIVE_TEST_RECORDS" }); toast("Test/demo records archived", "ok"); }}
+              style={{ background:C.subtle, border:`1px solid ${C.border}`, color:C.text, borderRadius:8, padding:"7px 16px", fontSize:12, fontWeight:800, cursor:"pointer" }}>
+              Archive detected
+            </button>
+          </Row>
+          <Row label="Fix emails and reassignment" desc="Use Client and Request Capture forms to update incorrect email addresses, company names, owners, and consultants.">
+            <span style={{ color:C.muted, fontSize:12, fontWeight:800 }}>Available in records</span>
+          </Row>
         </Section>}
 
         {/* Data */}

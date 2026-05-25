@@ -1,4 +1,4 @@
-const { makeToken, publicUser, readPortalUser } = require('../_portal');
+const { makeToken, publicUser, readPortalUser, savePortalUser } = require('../_portal');
 
 function setCors(req, res) {
   const origin = req.headers.origin || '';
@@ -80,6 +80,7 @@ module.exports = async (req, res) => {
   if (!user || !user.portalApproved || user.password !== password) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
+  await savePortalUser({ ...user, lastLoginAt: new Date().toISOString() });
 
   return res.status(200).json({ accessToken: makeToken(user), user: publicUser(user) });
 };

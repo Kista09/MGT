@@ -132,14 +132,20 @@ export const INITIAL_SETTINGS = {
     weeklyReport: false,
     serviceRequests: true,
     followUps: true,
+    emailFailures: true,
+    portalLogins: true,
+    missingDocuments: true,
   },
 };
 
 export const INITIAL_CONSULTANTS = [
-  { id:"consultant-1", name:"Bakhokhele Mguca", email:"admin@mgucatech.com", role:"Executive", active:true, focus:"Approvals, proposals, and escalations" },
-  { id:"consultant-2", name:"K Consultant", email:"admin@mgucatech.com", role:"Consultant", active:true, focus:"Onboarding capture and follow-ups" },
-  { id:"consultant-3", name:"Operations Desk", email:"admin@mgucatech.com", role:"Operations", active:true, focus:"Go-live readiness, incidents, and Book Now setup" },
+  { id:"consultant-1", name:"Bakhokhele Mguca", email:"admin@mgucatech.com", role:"Admin", permissions:["admin","consultant","operations","private_client_access"], active:true, focus:"Approvals, proposals, and escalations" },
+  { id:"consultant-2", name:"K Consultant", email:"admin@mgucatech.com", role:"Consultant", permissions:["consultant"], active:true, focus:"Onboarding capture and follow-ups" },
+  { id:"consultant-3", name:"Operations Desk", email:"admin@mgucatech.com", role:"Operations", permissions:["operations"], active:true, focus:"Go-live readiness, incidents, and Book Now setup" },
 ];
+
+export const INITIAL_EMAIL_LOGS = [];
+export const INITIAL_PORTAL_USERS = [];
 
 export const INITIAL_ONBOARDING_CHECKLIST = [
   "Submit logo, brand colours, and business profile",
@@ -172,6 +178,8 @@ export const INITIAL_STATE = {
   auditLog: INITIAL_AUDIT_LOG,
   tasks: INITIAL_TASKS,
   serviceRequests: INITIAL_SERVICE_REQUESTS,
+  emailLogs: INITIAL_EMAIL_LOGS,
+  portalUsers: INITIAL_PORTAL_USERS,
   toasts: [],
   settings: INITIAL_SETTINGS,
   user: INITIAL_USER,

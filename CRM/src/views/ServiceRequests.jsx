@@ -13,6 +13,9 @@ import Modal, { FormRow, inputStyle, selectStyle } from "../components/Modal";
 import SegmentTabs from "../components/SegmentTabs";
 import { daysUntil, formatDateShort, todayISO } from "../utils";
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://mgucatech.com";
+const apiUrl = path => `${API_BASE}${path}`;
+
 const BLANK_REQUEST = {
   clientId: "",
   requester: "",
@@ -716,7 +719,7 @@ export default function ServiceRequests() {
   const syncOnboardingRequests = async ({ quiet = false } = {}) => {
     setSyncState("syncing");
     try {
-      const response = await fetch("https://mgucatech.com/api/requests", { cache: "no-store" });
+      const response = await fetch(apiUrl("/api/requests"), { cache: "no-store" });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "Request sync failed");
       dispatch({ type: "IMPORT_SERVICE_REQUESTS", requests: data.requests ?? [] });
@@ -919,37 +922,68 @@ export default function ServiceRequests() {
     toast("Request resolved", "✓");
   };
 
-  const approveOnboarding = async (request) => {
+  const resetPortalPassword = async (request) => {
+    const response = await fetch(apiUrl("/api/portal-users"), {
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({ action:"reset_password", email:request.email }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Password reset failed");
+    dispatch({ type:"ADD_REQUEST_TIMELINE_EVENT", id:serviceRequestId(request), eventType:"credential_reset", detail:`Portal password regenerated for ${request.email}` });
+    window.alert(`New temporary password for ${request.email}:\n${data.password}`);
+    toast("Portal password regenerated", "ok");
+    return data.password;
+  };
+
+  const approveOnboarding = async (request, approvalAction = "approve") => {
     setApprovingId(serviceRequestId(request));
     const approvedAt = new Date().toISOString();
     try {
-      const response = await fetch("https://mgucatech.com/api/approve-onboarding", {
+      const response = await fetch(apiUrl("/api/approve-onboarding"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ request, approvedBy: state.user.name }),
+        body: JSON.stringify({ request, approvedBy: state.user.name, action:approvalAction }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error ?? "Approval failed");
 
       const approvalNote = [
-        `Approved for onboarding by ${state.user.name} on ${approvedAt.slice(0, 10)}.`,
+        approvalAction === "resend"
+          ? `Starter kit resent by ${state.user.name} on ${approvedAt.slice(0, 10)}.`
+          : `Approved for onboarding by ${state.user.name} on ${approvedAt.slice(0, 10)}.`,
         `Client portal access granted to ${data.portalUser?.email ?? request.email}.`,
-        "Approval email and starter-kit PDF sent.",
+        approvalAction === "resend" ? "Starter-kit email resent." : "Approval email and starter-kit PDF sent.",
       ].join("\n");
       dispatch({
         type:"UPDATE_SERVICE_REQUEST",
         request: {
           ...request,
-          status:"Approved",
+          status:approvalAction === "resend" ? request.status : "Approved",
           owner: request.owner || state.user.name,
-          approvedAt,
-          approvedBy: state.user.name,
+          approvedAt: request.approvedAt || approvedAt,
+          approvedBy: request.approvedBy || state.user.name,
           portalGranted: true,
           portalUser: data.portalUser,
+          lastEmailId: data.emailId,
+          attachments: [...(data.attachments ?? []), ...(request.attachments ?? [])],
           notes: mergeInternalNotes(request.notes, approvalNote),
         },
       });
-      toast("Portal access granted and email sent", "ok");
+      dispatch({ type:"ADD_REQUEST_TIMELINE_EVENT", id:serviceRequestId(request), eventType:approvalAction === "resend" ? "email_resent" : "approved", detail:`${data.emailId ? `Email ${data.emailId}` : "Approval email"} sent to ${data.portalUser?.email ?? request.email}` });
+      if (data.emailId) {
+        dispatch({ type:"ADD_EMAIL_LOG", log:{
+          id:data.emailId,
+          resendId:data.emailId,
+          recipient:data.portalUser?.email ?? request.email,
+          subject:approvalAction === "resend" ? "Your MgucaTECH starter kit" : "Your MgucaTECH onboarding has been approved",
+          sentAt:approvedAt,
+          status:"sent",
+          relatedRequestNumber:serviceRequestNumber(request),
+          attachments:data.attachments ?? [],
+        }});
+      }
+      toast(approvalAction === "resend" ? "Starter kit resent" : "Portal access granted and email sent", "ok");
     } catch (error) {
       toast(error.message || "Could not approve onboarding", "!", "warning");
     } finally {
@@ -1202,6 +1236,18 @@ export default function ServiceRequests() {
                             {approvingId === serviceRequestId(request) ? "Approving..." : "Approve"}
                           </button>
                         )}
+                        {request.source === "onboarding" && request.portalGranted && (
+                          <button type="button" disabled={approvingId === serviceRequestId(request)} onClick={(event) => { event.stopPropagation(); approveOnboarding(request, "resend"); }}
+                            style={tableButton(C, C.blueBg, C.blue, `1px solid ${C.blue}`, approvingId === serviceRequestId(request))}>
+                            Resend
+                          </button>
+                        )}
+                        {request.source === "onboarding" && request.portalGranted && (
+                          <button type="button" onClick={(event) => { event.stopPropagation(); resetPortalPassword(request).catch(error => toast(error.message, "!", "warning")); }}
+                            style={tableButton(C, C.yellowBg, C.yellow, `1px solid ${C.yellow}`)}>
+                            Reset
+                          </button>
+                        )}
                         <button type="button" onClick={(event) => { event.stopPropagation(); openEdit(request); }} style={tableButton(C, C.subtle, C.muted)}>Capture</button>
                         <button type="button" onClick={(event) => { event.stopPropagation(); setDeleteRequest(request); }} style={tableButton(C, C.redBg, C.red)}>Del</button>
                       </div>
@@ -1266,6 +1312,49 @@ export default function ServiceRequests() {
             ) : (
               <div style={{ color:C.muted, fontSize:12 }}>No internal notes captured.</div>
             )}
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginTop:12 }}>
+              {activeRequest.source === "onboarding" && activeRequest.portalGranted && (
+                <button type="button" disabled={approvingId === serviceRequestId(activeRequest)} onClick={() => approveOnboarding(activeRequest, "resend")}
+                  style={tableButton(C, C.blueBg, C.blue, `1px solid ${C.blue}`, approvingId === serviceRequestId(activeRequest))}>
+                  Resend approval email
+                </button>
+              )}
+              {activeRequest.source === "onboarding" && activeRequest.portalGranted && (
+                <button type="button" onClick={() => resetPortalPassword(activeRequest).catch(error => toast(error.message, "!", "warning"))}
+                  style={tableButton(C, C.yellowBg, C.yellow, `1px solid ${C.yellow}`)}>
+                  Regenerate portal password
+                </button>
+              )}
+            </div>
+            {(activeRequest.attachments ?? []).length > 0 && (
+              <div style={{ marginTop:12 }}>
+                <div style={{ color:C.muted, fontSize:10, fontWeight:900, letterSpacing:.6, textTransform:"uppercase", marginBottom:6 }}>Attachment archive</div>
+                <div style={{ display:"grid", gap:6 }}>
+                  {(activeRequest.attachments ?? []).slice(0, 6).map((attachment, index) => (
+                    <a key={`${attachment.url}-${index}`} href={attachment.url} target="_blank" rel="noreferrer"
+                      style={{ color:C.blue, fontSize:12, fontWeight:800, textDecoration:"none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                      {attachment.filename}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div style={{ marginTop:12 }}>
+              <div style={{ color:C.muted, fontSize:10, fontWeight:900, letterSpacing:.6, textTransform:"uppercase", marginBottom:6 }}>Request timeline</div>
+              <div style={{ display:"grid", gap:8, maxHeight:180, overflowY:"auto" }}>
+                {[
+                  { id:"created", time:activeRequest.receivedAt, type:"created", detail:`Request created by ${activeRequest.requester}` },
+                  ...(activeRequest.approvedAt ? [{ id:"approved-at", time:activeRequest.approvedAt, type:"approved", detail:`Approved by ${activeRequest.approvedBy || "MgucaTECH"}` }] : []),
+                  ...(activeRequest.timeline ?? []),
+                  ...(activeRequest.auditTrail ?? []).map(item => ({ id:item.id, time:item.time, type:"edited", detail:`${item.consultantName || item.actor} amended ${(item.changes ?? []).map(change => change.label).join(", ")}` })),
+                ].filter(item => item.time || item.detail).map(item => (
+                  <div key={item.id} style={{ borderLeft:`3px solid ${item.type?.includes("email") ? C.blue : item.type === "approved" ? C.success : C.accent}`, paddingLeft:9 }}>
+                    <div style={{ color:C.text, fontSize:12, fontWeight:800 }}>{item.detail}</div>
+                    <div style={{ color:C.muted, fontSize:10 }}>{item.time ? new Date(item.time).toLocaleString("en-ZA") : "Now"} {item.actor ? `- ${item.actor}` : ""}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       )}

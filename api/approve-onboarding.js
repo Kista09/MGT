@@ -1,4 +1,5 @@
-const { makePassword, normalizeEmail, savePortalUser, slugify } = require('./_portal');
+const { makePassword, normalizeEmail, readPortalUser, savePortalUser, slugify } = require('./_portal');
+const { archiveAttachment, saveEmailLog } = require('./_crm-ops');
 const fs = require('fs');
 const path = require('path');
 
@@ -207,7 +208,7 @@ module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   if (!process.env.BLOB_READ_WRITE_TOKEN) return res.status(500).json({ error: 'Portal storage is not configured' });
 
-  const { request, approvedBy = 'MgucaTECH' } = req.body || {};
+  const { request, approvedBy = 'MgucaTECH', action = 'approve', portalPassword: suppliedPassword } = req.body || {};
   if (!request?.email || !request?.requester) {
     return res.status(400).json({ error: 'Request email and requester are required' });
   }
@@ -215,7 +216,8 @@ module.exports = async (req, res) => {
   try {
     const email   = normalizeEmail(request.email);
     const company = request.company || request.onboarding?.company || request.subject?.replace(/^Onboarding:\s*/i, '') || 'MgucaTECH Client';
-    const password = makePassword();
+    const existingUser = await readPortalUser(email);
+    const password = suppliedPassword || (action === 'resend' && existingUser?.password) || makePassword();
 
     const user = {
       id: `portal-${Date.now()}`,
@@ -231,7 +233,7 @@ module.exports = async (req, res) => {
       requestId: request.externalId || request.id,
     };
 
-    await savePortalUser(user);
+    await savePortalUser({ ...(existingUser || {}), ...user, password });
 
     const pdfArgs = { company, contact: request.requester, portalEmail: email, portalPassword: password, request };
     const starterKitHtml = makeStarterKitHtml(pdfArgs);
@@ -245,21 +247,59 @@ module.exports = async (req, res) => {
       throw new Error(`Starter kit PDF render failed: ${puppeteerErr.message}`);
     }
 
-    await sendEmail({
+    const requestNumber = request.requestNumber || request.id || request.externalId || user.requestId;
+    const pdfFilename = `${slugify(company)}-starter-kit.pdf`;
+    const htmlFilename = `${slugify(company)}-starter-kit.html`;
+    const archivedAttachments = await Promise.all([
+      archiveAttachment({
+        requestNumber,
+        filename: pdfFilename,
+        content: pdf,
+        contentType: 'application/pdf',
+      }),
+      archiveAttachment({
+        requestNumber,
+        filename: htmlFilename,
+        content: Buffer.from(starterKitHtml).toString('base64'),
+        contentType: 'text/html; charset=utf-8',
+      }),
+    ]).then(items => items.filter(Boolean)).catch(error => {
+      console.error('Attachment archive failed:', error.message);
+      return [];
+    });
+
+    const emailPayload = {
       from: 'MgucaTECH <admin@mgucatech.com>',
       to: [email],
       reply_to: 'admin@mgucatech.com',
-      subject: 'Your MgucaTECH onboarding has been approved',
+      subject: action === 'resend' ? 'Your MgucaTECH starter kit' : 'Your MgucaTECH onboarding has been approved',
       html: starterKitHtml,
       attachments: [
-        { filename: `${slugify(company)}-starter-kit.pdf`,  content: pdf },
-        { filename: `${slugify(company)}-starter-kit.html`, content: Buffer.from(starterKitHtml).toString('base64') },
+        { filename: pdfFilename,  content: pdf },
+        { filename: htmlFilename, content: Buffer.from(starterKitHtml).toString('base64') },
       ],
+    };
+    const emailResult = await sendEmail(emailPayload);
+    await saveEmailLog({
+      resendId: emailResult.id,
+      recipient: email,
+      subject: emailPayload.subject,
+      sentAt: new Date().toISOString(),
+      status: 'sent',
+      from: emailPayload.from,
+      replyTo: emailPayload.reply_to,
+      relatedRequestNumber: requestNumber,
+      action,
+      attachments: archivedAttachments.map(({ filename, url, pathname, contentType, archivedAt }) => ({
+        filename, url, pathname, contentType, archivedAt,
+      })),
     });
 
     return res.status(200).json({
       success: true,
       pdfMethod,
+      emailId: emailResult.id,
+      attachments: archivedAttachments,
       portalUser: { email: user.email, clientId: user.clientId, clientName: user.clientName, plan: user.plan },
     });
   } catch (error) {
