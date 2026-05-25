@@ -114,6 +114,39 @@ function tableButton(C, background, color, border = "none", busy = false) {
   };
 }
 
+const REQUEST_TABLE_COLUMNS = [
+  { key:"sr", label:"SR Number", width:150 },
+  { key:"subject", label:"Subject", width:260 },
+  { key:"relationship", label:"Relationship", width:190 },
+  { key:"requester", label:"Requester", width:160 },
+  { key:"category", label:"Category", width:135 },
+  { key:"priority", label:"Priority", width:96 },
+  { key:"status", label:"Status", width:130 },
+  { key:"due", label:"Due", width:100 },
+  { key:"channel", label:"Channel", width:120 },
+  { key:"owner", label:"Owner", width:100 },
+  { key:"received", label:"Received", width:105 },
+  { key:"actions", label:"Actions", width:250, filterable:false },
+];
+
+function requestColumnText(request, clientMap) {
+  const client = clientMap.get(request.clientId);
+  const delta = daysUntil(request.dueDate);
+  return {
+    sr: serviceRequestNumber(request),
+    subject: `${request.subject ?? ""} ${request.description ?? ""}`,
+    relationship: client?.name ?? "Unknown relationship",
+    requester: `${request.requester ?? ""} ${request.email ?? ""}`,
+    category: request.category ?? "",
+    priority: request.priority ?? "",
+    status: request.status ?? "",
+    due: `${request.dueDate ?? ""} ${delta < 0 ? `${Math.abs(delta)}d late overdue` : delta === 0 ? "today" : formatDateShort(request.dueDate)}`,
+    channel: request.source === "onboarding" ? "Onboarding" : request.channel ?? "",
+    owner: request.owner ?? "",
+    received: `${request.receivedAt ?? ""} ${formatDateShort(request.receivedAt?.slice(0, 10))}`,
+  };
+}
+
 function LifecycleBar({ status }) {
   const current = status === "Resolved" || status === "Closed" ? "Support" : status;
   const active = Math.max(0, SERVICE_LIFECYCLE.indexOf(current));
@@ -647,6 +680,7 @@ export default function ServiceRequests() {
   const { state, dispatch, navigate, toast } = useApp();
   const [queue, setQueue] = useState("Open");
   const [search, setSearch] = useState("");
+  const [columnFilters, setColumnFilters] = useState({});
   const [category, setCategory] = useState("All");
   const [addOpen, setAddOpen] = useState(false);
   const [editRequest, setEditRequest] = useState(null);
@@ -705,9 +739,13 @@ export default function ServiceRequests() {
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const activeColumnFilters = Object.entries(columnFilters)
+      .map(([key, value]) => [key, String(value || "").trim().toLowerCase()])
+      .filter(([, value]) => value);
     return requests
       .filter(request => {
         const client = clientMap.get(request.clientId);
+        const columnText = requestColumnText(request, clientMap);
         const queueMatch =
           queue === "All" ||
           (queue === "Open" && !["Resolved", "Closed"].includes(request.status)) ||
@@ -723,14 +761,24 @@ export default function ServiceRequests() {
           request.description.toLowerCase().includes(q) ||
           request.requester.toLowerCase().includes(q) ||
           (client?.name ?? "").toLowerCase().includes(q);
-        return queueMatch && categoryMatch && searchMatch;
+        const columnMatch = activeColumnFilters.every(([key, value]) =>
+          String(columnText[key] ?? "").toLowerCase().includes(value)
+        );
+        return queueMatch && categoryMatch && searchMatch && columnMatch;
       })
       .sort((a, b) => {
         const priorityRank = { Critical:0, High:1, Medium:2, Low:3 };
         return (priorityRank[a.priority] ?? 9) - (priorityRank[b.priority] ?? 9) ||
           a.dueDate.localeCompare(b.dueDate);
       });
-  }, [category, clientMap, queue, requests, search]);
+  }, [category, clientMap, columnFilters, queue, requests, search]);
+
+  const setColumnFilter = (key) => (event) => {
+    const value = event.target.value;
+    setColumnFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const hasColumnFilters = Object.values(columnFilters).some(value => String(value || "").trim());
 
   const openAdd = () => {
     setForm({ ...BLANK_REQUEST, owner: state.user.name });
@@ -891,22 +939,9 @@ export default function ServiceRequests() {
           <table style={{ width:"100%", minWidth:1280, borderCollapse:"collapse", tableLayout:"fixed", fontSize:12 }}>
             <thead>
               <tr>
-                {[
-                  ["SR Number", 150],
-                  ["Subject", 260],
-                  ["Relationship", 190],
-                  ["Requester", 160],
-                  ["Category", 135],
-                  ["Priority", 96],
-                  ["Status", 130],
-                  ["Due", 100],
-                  ["Channel", 120],
-                  ["Owner", 100],
-                  ["Received", 105],
-                  ["Actions", 250],
-                ].map(([label, width]) => (
-                  <th key={label} style={{
-                    width,
+                {REQUEST_TABLE_COLUMNS.map(column => (
+                  <th key={column.key} style={{
+                    width:column.width,
                     position:"sticky",
                     top:0,
                     zIndex:1,
@@ -922,7 +957,38 @@ export default function ServiceRequests() {
                     textTransform:"uppercase",
                     whiteSpace:"nowrap",
                   }}>
-                    {label}
+                    {column.label}
+                  </th>
+                ))}
+              </tr>
+              <tr>
+                {REQUEST_TABLE_COLUMNS.map(column => (
+                  <th key={`${column.key}-filter`} style={{
+                    width:column.width,
+                    position:"sticky",
+                    top:35,
+                    zIndex:1,
+                    background:C.card,
+                    borderBottom:`1px solid ${C.border}`,
+                    borderRight:`1px solid ${C.border}`,
+                    padding:"6px 8px",
+                  }}>
+                    {column.filterable === false ? (
+                      hasColumnFilters ? (
+                        <button type="button" onClick={() => setColumnFilters({})}
+                          style={{ width:"100%", background:C.subtle, border:"none", color:C.muted,
+                            borderRadius:4, padding:"5px 7px", fontSize:10, fontWeight:900, cursor:"pointer" }}>
+                          Clear filters
+                        </button>
+                      ) : (
+                        <span style={{ display:"block", minHeight:25 }} />
+                      )
+                    ) : (
+                      <input value={columnFilters[column.key] ?? ""} onChange={setColumnFilter(column.key)}
+                        placeholder="Search..."
+                        style={{ width:"100%", boxSizing:"border-box", background:C.surface, border:`1px solid ${C.border}`,
+                          borderRadius:4, color:C.text, padding:"5px 7px", fontSize:11, outline:"none" }} />
+                    )}
                   </th>
                 ))}
               </tr>
