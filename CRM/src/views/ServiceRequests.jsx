@@ -135,7 +135,7 @@ function requestColumnText(request, clientMap) {
   const delta = daysUntil(request.dueDate);
   return {
     sr: serviceRequestNumber(request),
-    subject: `${request.subject ?? ""} ${request.description ?? ""}`,
+    subject: request.subject ?? "",
     relationship: client?.name ?? "Unknown relationship",
     requester: `${request.requester ?? ""} ${request.email ?? ""}`,
     category: request.category ?? "",
@@ -157,6 +157,13 @@ function requestSortValue(request, key, clientMap) {
   if (key === "due") return request.dueDate || "";
   if (key === "received") return request.receivedAt || "";
   return String(text[key] ?? "").toLowerCase();
+}
+
+function uniqueColumnOptions(requests, key, clientMap) {
+  return [...new Set(requests
+    .map(request => String(requestColumnText(request, clientMap)[key] ?? "").trim())
+    .filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
 }
 
 function LifecycleBar({ status }) {
@@ -696,6 +703,7 @@ export default function ServiceRequests() {
   const [sortConfig, setSortConfig] = useState({ key:"due", dir:"asc" });
   const [selectedIds, setSelectedIds] = useState([]);
   const [activeRequestId, setActiveRequestId] = useState(null);
+  const [page, setPage] = useState(0);
   const [category, setCategory] = useState("All");
   const [addOpen, setAddOpen] = useState(false);
   const [editRequest, setEditRequest] = useState(null);
@@ -730,6 +738,7 @@ export default function ServiceRequests() {
 
   const clientMap = useMemo(() => new Map(state.clients.map(client => [client.id, client])), [state.clients]);
   const requests = state.serviceRequests ?? [];
+  const pageSize = 10;
   const openRequests = requests.filter(request => !["Resolved", "Closed"].includes(request.status));
   const overdue = openRequests.filter(request => daysUntil(request.dueDate) < 0).length;
   const critical = openRequests.filter(request => request.priority === "Critical").length;
@@ -777,7 +786,7 @@ export default function ServiceRequests() {
           request.requester.toLowerCase().includes(q) ||
           (client?.name ?? "").toLowerCase().includes(q);
         const columnMatch = activeColumnFilters.every(([key, value]) =>
-          String(columnText[key] ?? "").toLowerCase().includes(value)
+          String(columnText[key] ?? "").trim().toLowerCase() === value
         );
         return queueMatch && categoryMatch && searchMatch && columnMatch;
       })
@@ -791,18 +800,32 @@ export default function ServiceRequests() {
       });
   }, [category, clientMap, columnFilters, queue, requests, search, sortConfig]);
 
+  useEffect(() => {
+    setPage(0);
+  }, [category, columnFilters, queue, search, sortConfig]);
+
   const setColumnFilter = (key) => (event) => {
     const value = event.target.value;
     setColumnFilters(prev => ({ ...prev, [key]: value }));
   };
 
   const hasColumnFilters = Object.values(columnFilters).some(value => String(value || "").trim());
-  const filteredIds = filtered.map(serviceRequestId);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageStart = currentPage * pageSize;
+  const pageRows = filtered.slice(pageStart, pageStart + pageSize);
+  const columnOptions = useMemo(() => Object.fromEntries(
+    REQUEST_TABLE_COLUMNS
+      .filter(column => column.filterable !== false)
+      .map(column => [column.key, uniqueColumnOptions(requests, column.key, clientMap)])
+  ), [clientMap, requests]);
+  const filteredIds = pageRows.map(serviceRequestId);
   const selectedSet = new Set(selectedIds);
   const selectedRequests = filtered.filter(request => selectedSet.has(serviceRequestId(request)));
   const allFilteredSelected = filteredIds.length > 0 && filteredIds.every(id => selectedSet.has(id));
   const activeRequest = filtered.find(request => serviceRequestId(request) === activeRequestId)
     || selectedRequests[0]
+    || pageRows[0]
     || filtered[0]
     || null;
 
@@ -839,6 +862,9 @@ export default function ServiceRequests() {
     selectedRequests.forEach(request => dispatch({ type:"UPDATE_SERVICE_REQUEST", request: { ...request, status } }));
     toast(`${selectedRequests.length} request${selectedRequests.length === 1 ? "" : "s"} updated`, "ok");
   };
+
+  const goPreviousPage = () => setPage(prev => Math.max(0, prev - 1));
+  const goNextPage = () => setPage(prev => Math.min(pageCount - 1, prev + 1));
 
   const openAdd = () => {
     setForm({ ...BLANK_REQUEST, owner: state.user.name });
@@ -996,9 +1022,20 @@ export default function ServiceRequests() {
 
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:10, flexWrap:"wrap" }}>
         <div style={{ color:C.muted, fontSize:12, fontWeight:800 }}>
-          {filtered.length} visible · {selectedRequests.length} selected
+          Showing {filtered.length ? pageStart + 1 : 0}-{Math.min(pageStart + pageSize, filtered.length)} of {filtered.length} · {selectedRequests.length} selected
         </div>
         <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+          <button type="button" onClick={goPreviousPage} disabled={currentPage === 0}
+            style={tableButton(C, C.subtle, currentPage === 0 ? C.muted : C.text)}>
+            Previous 10
+          </button>
+          <div style={{ color:C.muted, fontSize:11, fontWeight:900, padding:"5px 2px" }}>
+            Page {currentPage + 1} / {pageCount}
+          </div>
+          <button type="button" onClick={goNextPage} disabled={currentPage >= pageCount - 1}
+            style={tableButton(C, C.subtle, currentPage >= pageCount - 1 ? C.muted : C.text)}>
+            Next 10
+          </button>
           {selectedRequests.length > 0 && (
             <>
               <button type="button" onClick={() => bulkUpdateStatus("In Progress")}
@@ -1084,17 +1121,21 @@ export default function ServiceRequests() {
                         <span style={{ display:"block", minHeight:25 }} />
                       )
                     ) : (
-                      <input value={columnFilters[column.key] ?? ""} onChange={setColumnFilter(column.key)}
-                        placeholder="Search..."
+                      <select value={columnFilters[column.key] ?? ""} onChange={setColumnFilter(column.key)}
                         style={{ width:"100%", boxSizing:"border-box", background:C.surface, border:`1px solid ${C.border}`,
-                          borderRadius:4, color:C.text, padding:"5px 7px", fontSize:11, outline:"none" }} />
+                          borderRadius:4, color:C.text, padding:"5px 7px", fontSize:11, outline:"none" }}>
+                        <option value="">All</option>
+                        {(columnOptions[column.key] ?? []).map(option => (
+                          <option key={option} value={option.toLowerCase()}>{option}</option>
+                        ))}
+                      </select>
                     )}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {filtered.map((request, index) => {
+              {pageRows.map((request, index) => {
                 const client = clientMap.get(request.clientId);
                 const delta = daysUntil(request.dueDate);
                 const dueColor = delta < 0 ? C.red : delta === 0 ? C.yellow : C.text;
