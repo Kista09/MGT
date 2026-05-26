@@ -1,0 +1,226 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;900&display=swap");
+
+:root {
+  --mgt-orange: #F77F00;
+  --mgt-teal: #0A9396;
+  --mgt-teal-bright: #2EC4B6;
+  --mgt-bg: #020C11;
+  --mgt-bg-soft: #071420;
+  --mgt-card: rgba(7, 20, 32, .74);
+  --mgt-text: #EDF4F7;
+  --mgt-muted: #7AADB8;
+  --mgt-border: rgba(10,147,150,.18);
+  --mgt-border-orange: rgba(247,127,0,.24);
+  --mgt-heading: "Space Grotesk", sans-serif;
+  --mgt-body: "Inter", sans-serif;
+}
+
+body.presentation-page {
+  min-height: 100vh;
+  font-family: var(--mgt-body);
+  background:
+    linear-gradient(180deg, rgba(2,12,17,.82), rgba(2,12,17,.98)),
+    url("../img/background.jpg") center top / cover fixed;
+  color: var(--mgt-muted);
+}
+
+body.presentation-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(10,147,150,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(10,147,150,.06) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: linear-gradient(to bottom, rgba(0,0,0,.9), transparent 78%);
+  z-index: -1;
+}
+
+body.presentation-page .container {
+  position: relative;
+  z-index: 1;
+}
+
+body.presentation-page header {
+  min-height: 56vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 4rem;
+  padding: 6.5rem 1rem 4.5rem;
+}
+
+body.presentation-page header::after {
+  content: "Ubuntu in Tech · South Africa";
+  order: -1;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  margin: 0 0 1rem;
+  padding: .45rem .8rem;
+  border: 1px solid var(--mgt-border);
+  border-radius: 999px;
+  color: var(--mgt-teal-bright);
+  font-family: var(--mgt-heading);
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  background: rgba(2,12,17,.56);
+  backdrop-filter: blur(18px);
+}
+
+body.presentation-page header a[href$=".html"]:first-child,
+body.presentation-page header a[href="index.html"]:first-child,
+body.presentation-page header a[href="presentations.html"]:first-child {
+  top: 1rem;
+  left: 0;
+  border: 1px solid var(--mgt-border);
+  border-radius: 6px;
+  background: rgba(2,12,17,.72);
+  color: var(--mgt-text);
+  font-family: var(--mgt-heading);
+  box-shadow: 0 16px 42px rgba(0,0,0,.24);
+}
+
+body.presentation-page h1,
+body.presentation-page h2,
+body.presentation-page h3 {
+  font-family: var(--mgt-heading);
+  color: var(--mgt-text);
+}
+
+body.presentation-page h1 {
+  max-width: 820px;
+  font-size: clamp(3rem, 8vw, 6.5rem) !important;
+  line-height: .9;
+  letter-spacing: -.04em;
+}
+
+body.presentation-page header p {
+  color: var(--mgt-muted);
+  line-height: 1.85;
+}
+
+body.presentation-page .gradient-text,
+body.presentation-page h1 em {
+  background: linear-gradient(130deg, var(--mgt-orange), var(--mgt-teal-bright));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+body.presentation-page section > h2,
+body.presentation-page footer > h2 {
+  border-color: var(--mgt-border);
+}
+
+body.presentation-page .bg-white\/5,
+body.presentation-page main.grid > div,
+body.presentation-page section.grid > div,
+body.presentation-page section .grid > div {
+  border: 1px solid var(--mgt-border) !important;
+  border-radius: 10px !important;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.018)),
+    var(--mgt-card) !important;
+  box-shadow: 0 20px 50px rgba(0,0,0,.18);
+  backdrop-filter: blur(18px);
+}
+
+body.presentation-page .bg-white\/5:hover,
+body.presentation-page main.grid > div:hover,
+body.presentation-page section .grid > div:hover {
+  border-color: var(--mgt-border-orange) !important;
+  transform: translateY(-3px);
+  transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease;
+  box-shadow: 0 24px 60px rgba(0,0,0,.28), 0 0 24px rgba(247,127,0,.08);
+}
+
+body.presentation-page .rounded-2xl,
+body.presentation-page .rounded-xl,
+body.presentation-page .rounded-lg {
+  border-radius: 10px !important;
+}
+
+body.presentation-page a.bg-\[\#0a9396\],
+body.presentation-page a.bg-\[\#ee9b00\],
+body.presentation-page a.bg-white\/10,
+body.presentation-page .bg-\[\#0a9396\],
+body.presentation-page .bg-\[\#ee9b00\] {
+  border-radius: 6px !important;
+  font-family: var(--mgt-heading);
+  letter-spacing: .02em;
+}
+
+body.presentation-page a.bg-\[\#0a9396\],
+body.presentation-page .bg-\[\#0a9396\] {
+  background: linear-gradient(135deg, var(--mgt-orange), #C86200) !important;
+  color: #fff !important;
+}
+
+body.presentation-page a.bg-\[\#ee9b00\],
+body.presentation-page .bg-\[\#ee9b00\] {
+  background: linear-gradient(135deg, var(--mgt-orange), #C86200) !important;
+  color: #fff !important;
+}
+
+body.presentation-page a.bg-white\/10 {
+  border: 1px solid var(--mgt-border) !important;
+  background: rgba(2,12,17,.42) !important;
+  color: var(--mgt-text) !important;
+}
+
+body.presentation-page a:hover {
+  box-shadow: 0 8px 28px rgba(247,127,0,.22);
+}
+
+body.presentation-page footer {
+  border-color: var(--mgt-border);
+  color: var(--mgt-muted);
+}
+
+body.presentation-page .text-gray-400,
+body.presentation-page .text-gray-600,
+body.presentation-page .text-gray-200 {
+  color: var(--mgt-muted) !important;
+}
+
+body.presentation-page .text-white {
+  color: var(--mgt-text) !important;
+}
+
+body.presentation-page .text-\[\#0a9396\],
+body.presentation-page .text-\[\#94d2bd\],
+body.presentation-page .text-cyan-400 {
+  color: var(--mgt-teal-bright) !important;
+}
+
+body.presentation-page .text-\[\#ee9b00\],
+body.presentation-page .text-orange-400,
+body.presentation-page .text-red-400,
+body.presentation-page .text-pink-400,
+body.presentation-page .text-blue-400,
+body.presentation-page .text-purple-400 {
+  color: var(--mgt-orange) !important;
+}
+
+@media (max-width: 720px) {
+  body.presentation-page header {
+    min-height: auto;
+    padding-top: 5.5rem;
+  }
+
+  body.presentation-page header a[href$=".html"]:first-child,
+  body.presentation-page header a[href="index.html"]:first-child,
+  body.presentation-page header a[href="presentations.html"]:first-child {
+    position: relative !important;
+    margin-bottom: 2rem;
+  }
+
+  body.presentation-page h1 {
+    font-size: clamp(2.6rem, 16vw, 4.5rem) !important;
+  }
+}
