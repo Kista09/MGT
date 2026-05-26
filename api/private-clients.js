@@ -1,4 +1,5 @@
 const { makeToken, readToken, normalizeEmail } = require('./_portal');
+const { auditSilently } = require('./_audit');
 
 const PRIVATE_CLIENTS = [
   {
@@ -108,6 +109,15 @@ module.exports = async (req, res) => {
       const account = privateAccount();
       const norm = normalizeEmail(email);
       if (!account.password || !account.emails.includes(norm) || password !== account.password) {
+        await auditSilently({
+          app: 'crm',
+          actorEmail: norm,
+          actorRole: 'private_client',
+          action: 'Private clients login failed',
+          target: 'Private Clients',
+          status: 'failed',
+          details: 'Invalid private client credentials',
+        }, req);
         return res.status(401).json({ error: 'Invalid private client credentials' });
       }
 
@@ -120,11 +130,29 @@ module.exports = async (req, res) => {
         clientName: 'Private Clients',
         plan: null,
       };
+      await auditSilently({
+        app: 'crm',
+        actor: user.name,
+        actorEmail: user.email,
+        actorRole: user.role,
+        action: 'Private clients unlocked',
+        target: 'Private Clients',
+        status: 'success',
+      }, req);
       return res.status(200).json({ accessToken: makeToken(user), user, clients: PRIVATE_CLIENTS });
     }
 
     const session = readPrivateSession(req);
     if (!isPrivateSession(session)) return res.status(401).json({ error: 'Private client login required' });
+    await auditSilently({
+      app: 'crm',
+      actor: session?.name || session?.email || 'Private session',
+      actorEmail: session?.email || '',
+      actorRole: session?.role || '',
+      action: 'Private clients viewed',
+      target: 'Private Clients',
+      status: 'success',
+    }, req);
     return res.status(200).json({ approved: true, user: session, clients: PRIVATE_CLIENTS });
   } catch (error) {
     console.error(error);

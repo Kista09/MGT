@@ -1,5 +1,6 @@
 const { makePassword, normalizeEmail, readPortalUser, savePortalUser, slugify } = require('./_portal');
 const { archiveAttachment, saveEmailLog } = require('./_crm-ops');
+const { auditSilently } = require('./_audit');
 const fs = require('fs');
 const path = require('path');
 
@@ -79,12 +80,12 @@ function makeStarterKitHtml({ company, contact, portalEmail, portalPassword, req
       [/\bHealthcare\b/g,                        sec],
       // Goal and timeline
       [/Increase customers &amp; patient access/g, gol],
-      [/â†‘ Customers/g,                           goalSummary],
+      [/[^A-Za-z0-9]*Customers/g,                  goalSummary],
       [/As soon as possible/g,                   tl],
       [/Starter Package/g,                        `${plan} Package`],
       [/Starter Kit/g,                            `${plan} Kit`],
       [/\bStarter\b/g,                            plan],
-      [/WhatsApp Â· Booking Â· Portal/g,           products],
+      [/WhatsApp[^A-Za-z0-9]+Booking[^A-Za-z0-9]+Portal/g, products],
       [/patient/g,                                'client'],
       [/patients/g,                               'clients'],
       [/practice/g,                               'business'],
@@ -294,6 +295,24 @@ module.exports = async (req, res) => {
         filename, url, pathname, contentType, archivedAt,
       })),
     });
+
+    await auditSilently({
+      app: 'crm',
+      actor: approvedBy,
+      actorEmail: request.approvedByEmail || request.consultantEmail || '',
+      actorRole: 'admin',
+      action: action === 'resend' ? 'Starter kit resent' : 'Onboarding approved',
+      target: company,
+      targetId: requestNumber,
+      status: 'success',
+      details: `${emailPayload.subject} sent to ${email}.`,
+      metadata: {
+        emailId: emailResult.id,
+        pdfMethod,
+        attachments: archivedAttachments.map(item => item.filename),
+        portalEmail: email,
+      },
+    }, req);
 
     return res.status(200).json({
       success: true,

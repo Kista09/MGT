@@ -1,4 +1,5 @@
 const { updateEmailLog } = require('./_crm-ops');
+const { auditSilently } = require('./_audit');
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -36,6 +37,21 @@ module.exports = async (req, res) => {
       lastEventAt: new Date().toISOString(),
       raw: event,
     });
+
+    await auditSilently({
+      app: 'email',
+      actor: 'Resend',
+      action: `Email ${status}`,
+      target: data.subject || resendId,
+      targetId: record.relatedRequestNumber || resendId,
+      status,
+      details: `${data.to || data.recipient || 'Recipient'} email event: ${status}.`,
+      metadata: {
+        resendId,
+        recipient: data.to || data.recipient,
+        event: event.type || event.event,
+      },
+    }, req);
 
     return res.status(200).json({ success: true, log: record });
   } catch (error) {

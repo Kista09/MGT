@@ -1,4 +1,5 @@
 const { listPortalUsers, makePassword, normalizeEmail, readPortalUser, savePortalUser } = require('./_portal');
+const { auditSilently } = require('./_audit');
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -43,6 +44,19 @@ module.exports = async (req, res) => {
       const password = makePassword();
       const updated = { ...user, password, passwordResetAt: new Date().toISOString(), portalApproved: true };
       await savePortalUser(updated);
+      await auditSilently({
+        app: 'crm',
+        actor: 'CRM user',
+        action: 'Portal password reset',
+        target: updated.clientName || updated.email,
+        targetId: updated.clientId || updated.email,
+        status: 'success',
+        details: `Portal password regenerated for ${updated.email}.`,
+        metadata: {
+          email: updated.email,
+          requestId: updated.requestId,
+        },
+      }, req);
       return res.status(200).json({
         success: true,
         password,

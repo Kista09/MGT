@@ -1,4 +1,5 @@
 const { makeToken, publicUser, readPortalUser, savePortalUser } = require('../_portal');
+const { auditSilently } = require('../_audit');
 
 function setCors(req, res) {
   const origin = req.headers.origin || '';
@@ -52,6 +53,12 @@ function getNormalClientPoolUser(email, password) {
   };
 }
 
+function appFromAudience(audience) {
+  if (audience === 'internal_crm') return 'crm';
+  if (audience === 'consultant_suite') return 'consultant-onboarding';
+  return 'client-portal';
+}
+
 module.exports = async (req, res) => {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(200).end();
@@ -66,21 +73,68 @@ module.exports = async (req, res) => {
 
   if (audience === 'consultant_suite' || audience === 'internal_crm') {
     const user = admin || (audience === 'internal_crm' ? normalClientPool : null);
-    if (!user) return res.status(401).json({ error: 'Invalid staff credentials' });
+    if (!user) {
+      await auditSilently({
+        app: appFromAudience(audience),
+        actorEmail: norm,
+        action: 'Login failed',
+        target: audience,
+        status: 'failed',
+        details: 'Invalid staff credentials',
+      }, req);
+      return res.status(401).json({ error: 'Invalid staff credentials' });
+    }
+    await auditSilently({
+      app: appFromAudience(audience),
+      actor: user.name,
+      actorEmail: user.email,
+      actorRole: user.role,
+      action: 'Login successful',
+      target: audience,
+      status: 'success',
+    }, req);
     return res.status(200).json({ accessToken: makeToken(user), user: publicUser(user) });
   }
 
   if (audience !== 'client_portal') return res.status(403).json({ error: 'Invalid portal audience' });
 
   if (admin) {
+    await auditSilently({
+      app: 'client-portal',
+      actor: admin.name,
+      actorEmail: admin.email,
+      actorRole: admin.role,
+      action: 'Login successful',
+      target: 'client_portal',
+      status: 'success',
+      details: 'Admin portal access',
+    }, req);
     return res.status(200).json({ accessToken: makeToken(admin), user: publicUser(admin) });
   }
 
   const user = await readPortalUser(email);
   if (!user || !user.portalApproved || user.password !== password) {
+    await auditSilently({
+      app: 'client-portal',
+      actorEmail: norm,
+      action: 'Login failed',
+      target: 'client_portal',
+      status: 'failed',
+      details: 'Invalid email or password',
+    }, req);
     return res.status(401).json({ error: 'Invalid email or password' });
   }
   await savePortalUser({ ...user, lastLoginAt: new Date().toISOString() });
+  await auditSilently({
+    app: 'client-portal',
+    actor: user.name,
+    actorEmail: user.email,
+    actorRole: user.role,
+    action: 'Login successful',
+    target: user.clientName || user.clientId || 'client_portal',
+    targetId: user.clientId,
+    status: 'success',
+  }, req);
 
   return res.status(200).json({ accessToken: makeToken(user), user: publicUser(user) });
 };

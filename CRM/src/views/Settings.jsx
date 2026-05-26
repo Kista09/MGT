@@ -50,6 +50,8 @@ export default function Settings() {
   const [sectionTab, setSectionTab] = useState("Profile");
   const [emailSearch, setEmailSearch] = useState("");
   const [portalSearch, setPortalSearch] = useState("");
+  const [auditSearch, setAuditSearch] = useState("");
+  const [remoteAudit, setRemoteAudit] = useState([]);
   const [cleanup, setCleanup] = useState({ sourceId:"", targetId:"" });
 
   const [userForm, setUserForm] = useState({ name: user.name, email: user.email });
@@ -64,10 +66,23 @@ export default function Settings() {
     `${user.email} ${user.clientName} ${user.plan} ${user.status}`.toLowerCase().includes(portalSearch.toLowerCase())
   ), [portalSearch, state.portalUsers]);
 
+  const auditItems = useMemo(() => {
+    const localAudit = (state.auditLog ?? []).map(item => ({
+      ...item,
+      app: item.app || "crm-local",
+      status: item.status || "local",
+      details: item.details || item.target || "",
+    }));
+    return [...remoteAudit, ...localAudit]
+      .filter(item => `${item.app} ${item.actor} ${item.actorEmail} ${item.action} ${item.target} ${item.targetId} ${item.status} ${item.details}`.toLowerCase().includes(auditSearch.toLowerCase()))
+      .sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+  }, [auditSearch, remoteAudit, state.auditLog]);
+
   const refreshOpsData = async () => {
-    const [emailRes, userRes] = await Promise.all([
+    const [emailRes, userRes, auditRes] = await Promise.all([
       fetch(apiUrl("/api/email-logs")).catch(() => null),
       fetch(apiUrl("/api/portal-users")).catch(() => null),
+      fetch(apiUrl("/api/audit-trail?limit=300")).catch(() => null),
     ]);
     if (emailRes?.ok) {
       const data = await emailRes.json().catch(() => ({}));
@@ -76,6 +91,10 @@ export default function Settings() {
     if (userRes?.ok) {
       const data = await userRes.json().catch(() => ({}));
       dispatch({ type:"SET_PORTAL_USERS", users:data.users ?? [] });
+    }
+    if (auditRes?.ok) {
+      const data = await auditRes.json().catch(() => ({}));
+      setRemoteAudit(data.logs ?? []);
     }
   };
 
@@ -198,7 +217,7 @@ export default function Settings() {
           { id:"Service", label:"Service" },
           { id:"Consultants", label:"Consultants", count:(state.consultants ?? []).filter(item => item.active).length },
           { id:"Roles", label:"Roles" },
-          { id:"Audit", label:"Audit", count:(state.auditLog ?? []).length },
+          { id:"Audit", label:"Audit", count:auditItems.length },
           { id:"Cleanup", label:"Cleanup" },
           { id:"Data", label:"Data" },
           { id:"About", label:"About" },
@@ -461,12 +480,51 @@ export default function Settings() {
           ))}
         </Section>}
 
-        {sectionTab === "Audit" && <Section title="Audit Log">
-          {(state.auditLog ?? []).slice(0, 30).map(item => (
-            <Row key={item.id} label={item.action} desc={`${item.target} - ${new Date(item.time).toLocaleString("en-ZA")}`}>
-              <span style={{ fontSize:12, color:C.muted, fontWeight:800 }}>{item.actor}</span>
-            </Row>
-          ))}
+        {sectionTab === "Audit" && <Section title="Audit Trail">
+          <div style={{ display:"flex", gap:10, marginBottom:14 }}>
+            <input value={auditSearch} onChange={event => setAuditSearch(event.target.value)}
+              placeholder="Search app, actor, action, SR, status..." style={{ ...inputStyle, flex:1 }} />
+            <button onClick={refreshOpsData}
+              style={{ background:C.subtle, border:`1px solid ${C.border}`, color:C.text, borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:800, cursor:"pointer" }}>
+              Refresh
+            </button>
+            <button onClick={() => exportCSV(auditItems, [
+              { key:"time", label:"Time" },
+              { key:"app", label:"App" },
+              { key:"actor", label:"Actor" },
+              { key:"actorEmail", label:"Actor Email" },
+              { key:"action", label:"Action" },
+              { key:"target", label:"Target" },
+              { key:"targetId", label:"Target ID" },
+              { key:"status", label:"Status" },
+              { key:"details", label:"Details" },
+            ], "audit-trail.csv")}
+              style={{ background:C.subtle, border:`1px solid ${C.border}`, color:C.text, borderRadius:8, padding:"7px 14px", fontSize:12, fontWeight:800, cursor:"pointer" }}>
+              CSV
+            </button>
+          </div>
+          <div style={{ border:`1px solid ${C.border}`, borderRadius:8, overflow:"hidden" }}>
+            {auditItems.slice(0, 120).map(item => (
+              <div key={item.id} style={{ display:"grid", gridTemplateColumns:"110px 1fr 135px 90px", gap:12, padding:"10px 12px", borderBottom:`1px solid ${C.border}`, alignItems:"center" }}>
+                <div>
+                  <div style={{ fontSize:11, color:C.muted, fontWeight:900, textTransform:"uppercase" }}>{item.app || "crm"}</div>
+                  <div style={{ fontSize:10, color:C.muted }}>{item.time ? new Date(item.time).toLocaleString("en-ZA") : "-"}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize:13, fontWeight:900 }}>{item.action}</div>
+                  <div style={{ fontSize:11, color:C.muted }}>{item.targetId || item.target || "No target"}</div>
+                  {item.details && <div style={{ fontSize:11, color:C.muted, marginTop:2 }}>{item.details}</div>}
+                </div>
+                <div style={{ fontSize:11, color:C.muted, fontWeight:800, overflow:"hidden", textOverflow:"ellipsis" }}>
+                  {item.actor || item.actorEmail || "System"}
+                </div>
+                <span style={{ justifySelf:"start", background:item.status === "failed" ? C.redBg : C.successBg, color:item.status === "failed" ? C.red : C.success, borderRadius:99, padding:"3px 8px", fontSize:10, fontWeight:900, textTransform:"uppercase" }}>
+                  {item.status || "ok"}
+                </span>
+              </div>
+            ))}
+            {auditItems.length === 0 && <div style={{ padding:18, color:C.muted, fontSize:13 }}>No audit events found yet.</div>}
+          </div>
         </Section>}
 
         {sectionTab === "Cleanup" && <Section title="Data Cleanup Tools">

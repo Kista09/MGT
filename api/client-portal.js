@@ -1,6 +1,7 @@
 const { list, put } = require('@vercel/blob');
 const { normalizeEmail, publicUser, readPortalUser, readToken, slugify } = require('./_portal');
 const { saveEmailLog } = require('./_crm-ops');
+const { auditSilently } = require('./_audit');
 
 const SR_PREFIX = 'MGT-SR-0000-';
 
@@ -267,6 +268,23 @@ async function createRequest(req, user) {
   await writeJson(`crm-requests/${requestNumber}.json`, record);
   await sendSupportServiceRequestNotification(record, user);
   await sendClientServiceRequestConfirmation(record, user);
+  await auditSilently({
+    app: 'client-portal',
+    actor: user.name || user.email,
+    actorEmail: normalizeEmail(user.email),
+    actorRole: user.role,
+    action: 'Service request created',
+    target: record.subject,
+    targetId: record.requestNumber,
+    status: 'success',
+    details: `Client portal request ${record.requestNumber} created and confirmation emails queued.`,
+    metadata: {
+      category: record.category,
+      priority: record.priority,
+      company: record.company,
+      dueDate: record.dueDate,
+    },
+  }, req);
   return summarizeRequest(record);
 }
 

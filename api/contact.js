@@ -1,6 +1,7 @@
 
 const { put } = require('@vercel/blob');
 const { readToken } = require('./_portal');
+const { auditSilently } = require('./_audit');
 
 function escapeHtml(value = '') {
   return String(value)
@@ -214,8 +215,10 @@ module.exports = async (req, res) => {
 
     const isOnboarding = /^Onboarding Brief/i.test(subject) || onboarding;
     let crmSynced = false;
+    let crmRecord = null;
     if (isOnboarding) {
-      crmSynced = await storeCrmRequest(makeCrmRequest({ name, email, subject, message, onboarding }));
+      crmRecord = makeCrmRequest({ name, email, subject, message, onboarding });
+      crmSynced = await storeCrmRequest(crmRecord);
     }
 
     const autoReply = await sendEmail({
@@ -260,6 +263,23 @@ module.exports = async (req, res) => {
     if (!autoReply.ok) {
       return res.status(500).json({ error: autoReplyData.message || 'Auto-response failed' });
     }
+
+    await auditSilently({
+      app: onboarding?.source === 'consultant-capture' ? 'consultant-onboarding' : 'website',
+      actor: consultantSession?.name || name,
+      actorEmail: consultantSession?.email || email,
+      actorRole: consultantSession?.role || (onboarding?.source === 'consultant-capture' ? 'consultant' : 'client'),
+      action: isOnboarding ? 'Onboarding request captured' : 'Contact form submitted',
+      target: crmRecord?.subject || subject,
+      targetId: crmRecord?.requestNumber || '',
+      status: 'success',
+      details: crmSynced ? 'CRM service request created and confirmation email sent.' : 'Message received and confirmation email sent.',
+      metadata: {
+        source: onboarding?.source || 'website',
+        company: crmRecord?.company,
+        email,
+      },
+    }, req);
 
     res.status(200).json({ success: true, autoReply: true, crmSynced });
   } catch (err) {
