@@ -25,6 +25,8 @@ const font="'DM Sans',sans-serif";
 const serif="'Cormorant Garamond',Georgia,serif";
 const fmtRand = (v) => `R${Number(v).toLocaleString("en-ZA")}`;
 const BOOK_NOW_URL = import.meta.env.VITE_BOOK_NOW_URL || "https://mgtchat-20260516-1916.vercel.app/#book";
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://mgucatech.com";
+const STORAGE_KEY = "mgucatech_client_access_token";
 const bookingUrlFor = (user) => {
   const url = new URL(BOOK_NOW_URL);
   if (user?.clientId) url.searchParams.set("clientId", user.clientId);
@@ -32,6 +34,20 @@ const bookingUrlFor = (user) => {
   return url.toString();
 };
 const openBookNow = (user) => window.open(bookingUrlFor(user), "_blank", "noopener,noreferrer");
+const portalToken = () => localStorage.getItem(STORAGE_KEY);
+const portalFetch = async (path = "/api/client-portal", options = {}) => {
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${portalToken() || ""}`,
+      ...(options.headers || {}),
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Client portal backend unavailable");
+  return data;
+};
 
 /* ─── seed data ───────────────────────────────────────────── */
 const INIT_QA = [
@@ -1393,6 +1409,104 @@ function Onboarding({ toast, user }) {
 }
 
 /* ─── EXISTING VIEWS (compact) ────────────────────────────── */
+function ClientRequests({ portalData, portalLoading, portalError, refreshPortal, toast }) {
+  const [form, setForm] = useState({ subject:"", category:"Operations", priority:"Medium", dueDate:"", description:"" });
+  const [saving, setSaving] = useState(false);
+  const requests = portalData?.requests || [];
+  const set = key => event => setForm(prev => ({ ...prev, [key]: event.target.value }));
+  const submit = async () => {
+    if (!form.subject.trim() || !form.description.trim()) {
+      toast("Subject and details are required", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      const data = await portalFetch("/api/client-portal", {
+        method: "POST",
+        body: JSON.stringify({ action: "create_request", ...form }),
+      });
+      setForm({ subject:"", category:"Operations", priority:"Medium", dueDate:"", description:"" });
+      toast(`Service request ${data.request?.requestNumber || ""} created`);
+      refreshPortal();
+    } catch (error) {
+      toast(error.message, "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{padding:"36px 40px",overflowY:"auto",flex:1}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,flexWrap:"wrap",marginBottom:26}}>
+        <div>
+          <div style={{fontFamily:serif,fontSize:30,color:T.text,marginBottom:4}}>Service Requests</div>
+          <div style={{color:T.muted,fontSize:14}}>Create and track requests synced to the MgucaTECH CRM.</div>
+        </div>
+        <Btn variant="secondary" onClick={refreshPortal}>{portalLoading ? "Refreshing..." : "Refresh"}</Btn>
+      </div>
+
+      {portalError&&(
+        <div style={{background:T.redBg,border:`1.5px solid ${T.redBdr}`,borderRadius:12,padding:"12px 16px",color:T.red,fontSize:13,fontWeight:700,marginBottom:18}}>
+          {portalError}
+        </div>
+      )}
+
+      <div style={{display:"grid",gridTemplateColumns:"minmax(320px,420px) minmax(360px,1fr)",gap:20,alignItems:"start"}}>
+        <Card>
+          <div style={{fontFamily:serif,fontSize:20,color:T.text,marginBottom:16}}>New request</div>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div><Label>Subject</Label><Input value={form.subject} onChange={set("subject")} placeholder="What do you need help with?"/></div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div><Label>Category</Label><Select value={form.category} onChange={set("category")} options={["Operations","Onboarding","Booking","WhatsApp Bot","Billing","Support"]}/></div>
+              <div><Label>Priority</Label><Select value={form.priority} onChange={set("priority")} options={["Low","Medium","High","Critical"]}/></div>
+            </div>
+            <div><Label>Target date</Label><Input type="date" value={form.dueDate} onChange={set("dueDate")}/></div>
+            <div><Label>Details</Label><Input multiline rows={5} value={form.description} onChange={set("description")} placeholder="Add the full context, links, examples, or customer impact."/></div>
+            <Btn onClick={submit} style={{justifyContent:"center"}}>{saving ? "Creating..." : "Create service request"}</Btn>
+          </div>
+        </Card>
+
+        <Card>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,marginBottom:16}}>
+            <div>
+              <div style={{fontFamily:serif,fontSize:20,color:T.text}}>Request history</div>
+              <div style={{fontSize:12,color:T.muted,marginTop:2}}>{requests.length} synced records</div>
+            </div>
+          </div>
+          <div style={{overflowX:"auto"}}>
+            <table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}>
+              <thead>
+                <tr style={{textAlign:"left",color:T.muted,fontSize:11,textTransform:"uppercase",letterSpacing:.5}}>
+                  {["SR Number","Subject","Status","Priority","Due"].map(header=>(
+                    <th key={header} style={{padding:"9px 8px",borderBottom:`1.5px solid ${T.border}`}}>{header}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map(request=>(
+                  <tr key={request.requestNumber || request.id}>
+                    <td style={{padding:"11px 8px",borderBottom:`1px solid ${T.border}`,fontWeight:800,color:T.blue,whiteSpace:"nowrap"}}>{request.requestNumber}</td>
+                    <td style={{padding:"11px 8px",borderBottom:`1px solid ${T.border}`}}>
+                      <div style={{fontWeight:700,color:T.text}}>{request.subject}</div>
+                      <div style={{color:T.muted,fontSize:12,marginTop:2,maxWidth:360,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{request.description || request.category}</div>
+                    </td>
+                    <td style={{padding:"11px 8px",borderBottom:`1px solid ${T.border}`}}><Pill label={request.status} color={T.blue} bg={T.blueBg} border={T.blueBdr}/></td>
+                    <td style={{padding:"11px 8px",borderBottom:`1px solid ${T.border}`}}>{request.priority}</td>
+                    <td style={{padding:"11px 8px",borderBottom:`1px solid ${T.border}`,color:T.muted,whiteSpace:"nowrap"}}>{request.dueDate || "Not set"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {requests.length===0&&(
+              <div style={{padding:"24px 8px",color:T.muted,fontSize:14}}>No service requests found for this portal account yet.</div>
+            )}
+          </div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 const DAYS_CAL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],MONTHS_CAL=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function buildCalDays(y,m){const f=new Date(y,m,1).getDay(),t=new Date(y,m+1,0).getDate(),c=[];for(let i=0;i<f;i++)c.push(null);for(let d=1;d<=t;d++)c.push(d);return c;}
 
@@ -1626,12 +1740,33 @@ function Team({ toast }) {
   );
 }
 
-function Overview({ setView, user }) {
+function Overview({ setView, user, portalData, portalLoading, portalError, refreshPortal }) {
   const stats=[{label:"Active Responses",value:INIT_QA.filter(q=>q.active).length,icon:"💬",color:T.accent},{label:"Open Escalations",value:2,icon:"🔥",color:T.red},{label:"Approved Templates",value:INIT_TEMPLATES.filter(t=>t.status==="APPROVED").length,icon:"📝",color:T.blue},{label:"Opted-in Contacts",value:"10",icon:"👥",color:"#7c3aed"}];
+  const firstName = (user?.name || "there").split(" ")[0];
+  const portalRequests = portalData?.requests || [];
+  const activePortalRequest = portalRequests.find(r=>!["Closed","Completed","Resolved"].includes(r.status)) || portalRequests[0];
   return(
     <div style={{padding:"36px 40px",overflowY:"auto",flex:1}}>
-      <div style={{fontFamily:serif,fontSize:32,color:T.text,marginBottom:6}}>Good morning, Dina 👋</div>
-      <div style={{color:T.muted,fontSize:15,marginBottom:28}}>Your bot is live and running — Friday, 22 May 2026</div>
+      <div style={{fontFamily:serif,fontSize:32,color:T.text,marginBottom:6}}>Good morning, {firstName} 👋</div>
+      <div style={{color:T.muted,fontSize:15,marginBottom:28}}>Your bot is live and running from South Africa.</div>
+      <Card style={{marginBottom:24,padding:18,borderColor:portalError?T.redBdr:T.border}}>
+        <div style={{display:"flex",justifyContent:"space-between",gap:14,alignItems:"flex-start",flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontSize:11,color:T.muted,fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:6}}>Client portal backend</div>
+            <div style={{fontSize:18,fontWeight:800,color:T.text}}>
+              {portalLoading ? "Syncing portal data..." : portalError ? "Backend needs attention" : portalData?.status?.label || "Active"}
+            </div>
+            <div style={{fontSize:13,color:T.muted,marginTop:6,lineHeight:1.55}}>
+              {portalError || portalData?.status?.nextStep || "Your authenticated portal workspace is ready."}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {activePortalRequest?.requestNumber&&<Pill label={activePortalRequest.requestNumber} color={T.blue} bg={T.blueBg} border={T.blueBdr}/>}
+            <Btn small variant="secondary" onClick={refreshPortal}>Refresh</Btn>
+            <Btn small onClick={()=>setView("requests")}>Service requests</Btn>
+          </div>
+        </div>
+      </Card>
       <div style={{display:"flex",gap:14,marginBottom:28,flexWrap:"wrap"}}>
         {stats.map(s=>(
           <div key={s.label} style={{flex:"1 1 150px",background:T.card,border:`1.5px solid ${T.border}`,borderRadius:16,padding:"18px 20px",boxShadow:T.shadow}}>
@@ -1680,7 +1815,25 @@ function Overview({ setView, user }) {
 export default function App({ user = null, onLogout = null }) {
   const [view, setView] = useState("overview");
   const [toast, setToast] = useState(null);
+  const [portalData, setPortalData] = useState(null);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState("");
   const showToast = useCallback((msg,type="success")=>setToast({msg,type}),[]);
+  const refreshPortal = useCallback(async () => {
+    setPortalLoading(true);
+    setPortalError("");
+    try {
+      setPortalData(await portalFetch("/api/client-portal"));
+    } catch (error) {
+      setPortalError(error.message);
+    } finally {
+      setPortalLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshPortal();
+  }, [refreshPortal]);
 
   const NAV = [
     { id:"overview",   icon:"⬡", label:"Overview"      },
@@ -1697,6 +1850,7 @@ export default function App({ user = null, onLogout = null }) {
     { id:"contacts",   icon:"👥", label:"Contacts"     },
     { id:"analytics",  icon:"📊", label:"Analytics"    },
     { group:"Operations" },
+    { id:"requests",   icon:"📋", label:"Service Requests" },
     { id:"book-now",   icon:"↗", label:"Book Now", external:true },
     { id:"calendar",   icon:"📅", label:"Calendar"     },
     { id:"team",       icon:"🫂", label:"Team"          },
@@ -1773,7 +1927,7 @@ export default function App({ user = null, onLogout = null }) {
 
       {/* main */}
       <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
-        {view==="overview"   && <Overview setView={setView} user={user}/>}
+        {view==="overview"   && <Overview setView={setView} user={user} portalData={portalData} portalLoading={portalLoading} portalError={portalError} refreshPortal={refreshPortal}/>}
         {view==="qa"         && <QAView toast={showToast}/>}
         {view==="flows"      && <FlowBuilder toast={showToast}/>}
         {view==="simulator"  && <Simulator/>}
@@ -1783,6 +1937,7 @@ export default function App({ user = null, onLogout = null }) {
         {view==="broadcasts" && <Broadcasts toast={showToast}/>}
         {view==="contacts"   && <Contacts toast={showToast}/>}
         {view==="analytics"  && <Analytics/>}
+        {view==="requests"   && <ClientRequests portalData={portalData} portalLoading={portalLoading} portalError={portalError} refreshPortal={refreshPortal} toast={showToast}/>}
         {view==="calendar"   && <CalendarView toast={showToast} user={user}/>}
         {view==="team"       && <Team toast={showToast}/>}
         {view==="billing"    && <Billing toast={showToast}/>}
