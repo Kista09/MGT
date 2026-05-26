@@ -1,5 +1,6 @@
 const { list, put } = require('@vercel/blob');
 const { normalizeEmail, publicUser, readPortalUser, readToken, slugify } = require('./_portal');
+const { saveEmailLog } = require('./_crm-ops');
 
 const SR_PREFIX = 'MGT-SR-0000-';
 
@@ -16,6 +17,30 @@ function getBearerToken(req) {
   const header = req.headers.authorization || '';
   const match = header.match(/^Bearer\s+(.+)$/i);
   return match ? match[1] : '';
+}
+
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+async function sendEmail(payload) {
+  if (!process.env.RESEND_API_KEY) throw new Error('Email service is not configured');
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.message || 'Email send failed');
+  return data;
 }
 
 function makeServiceRequestNumber() {
@@ -240,7 +265,66 @@ async function createRequest(req, user) {
   };
 
   await writeJson(`crm-requests/${requestNumber}.json`, record);
+  await sendServiceRequestConfirmation(record, user);
   return summarizeRequest(record);
+}
+
+async function sendServiceRequestConfirmation(record, user) {
+  const supportEmail = process.env.SUPPORT_EMAIL || 'support@mgucatech.com';
+  const clientEmail = normalizeEmail(user.email);
+  const subject = `New client portal service request: ${record.requestNumber}`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.55;color:#1A1A1A">
+      <p style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#E8561A;font-weight:700">Client portal service request</p>
+      <h1 style="margin:0 0 12px;font-size:24px;color:#0C4A4A">${escapeHtml(record.requestNumber)}</h1>
+      <p>A new service request was created from the client portal and is ready for review in the CRM.</p>
+      <table style="border-collapse:collapse;width:100%;max-width:680px;margin:18px 0">
+        ${[
+          ['Client', record.company],
+          ['Requester', record.requester],
+          ['Email', clientEmail],
+          ['Category', record.category],
+          ['Priority', record.priority],
+          ['Due date', record.dueDate || 'Not set'],
+          ['Subject', record.subject],
+        ].map(([label, value]) => `
+          <tr>
+            <td style="border:1px solid #E8E2DA;background:#F8F4EF;padding:9px 12px;font-weight:700;width:160px">${escapeHtml(label)}</td>
+            <td style="border:1px solid #E8E2DA;padding:9px 12px">${escapeHtml(value)}</td>
+          </tr>
+        `).join('')}
+      </table>
+      <div style="margin-top:18px">
+        <p style="font-weight:700;margin:0 0 6px">Request details</p>
+        <div style="white-space:pre-wrap;border:1px solid #E8E2DA;background:#F8F4EF;padding:12px;border-radius:6px">${escapeHtml(record.description)}</div>
+      </div>
+      <p style="margin-top:18px">
+        <a href="https://crm.mgucatech.com" style="display:inline-block;background:#E8561A;color:#fff;text-decoration:none;padding:10px 14px;border-radius:6px;font-weight:700">Open CRM</a>
+      </p>
+    </div>
+  `;
+
+  const payload = {
+    from: 'MgucaTECH <admin@mgucatech.com>',
+    to: [supportEmail],
+    reply_to: clientEmail || 'admin@mgucatech.com',
+    subject,
+    html,
+  };
+
+  const result = await sendEmail(payload);
+  await saveEmailLog({
+    resendId: result.id,
+    recipient: supportEmail,
+    subject,
+    sentAt: new Date().toISOString(),
+    status: 'sent',
+    from: payload.from,
+    replyTo: payload.reply_to,
+    relatedRequestNumber: record.requestNumber,
+    action: 'client_portal_service_request_confirmation',
+    attachments: [],
+  });
 }
 
 module.exports = async (req, res) => {
