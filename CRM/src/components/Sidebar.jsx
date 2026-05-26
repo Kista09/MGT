@@ -22,13 +22,19 @@ export default function Sidebar() {
   const operationsAttention = (state.bots ?? []).filter(bot =>
     ["Warning", "Offline"].includes(bot.status) || (bot.errorRate ?? 0) > 0.1
   );
+  const onboardingAttention = (state.serviceRequests ?? []).filter(request =>
+    (request.source === "onboarding" || request.onboarding || request.portalGranted) &&
+    !["Resolved", "Closed", "Live"].includes(request.status)
+  );
   const attentionCounts = {
     today: buildPriorityQueue(state).length,
+    onboarding: onboardingAttention.length,
     requests: openRequests.length,
     followups: urgentFollowUps.length,
     bots: operationsAttention.length,
   };
   const tendFirst = [
+    { id:"onboarding", label:"Onboarding", count:attentionCounts.onboarding, tone:C.accent },
     { id:"requests", label:"Requests", count:attentionCounts.requests, tone:C.red },
     { id:"followups", label:"Follow-ups", count:attentionCounts.followups, tone:C.yellow },
     { id:"bots", label:"Operations", count:attentionCounts.bots, tone:C.accent },

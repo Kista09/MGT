@@ -12,6 +12,7 @@ import Dashboard   from "./views/Dashboard";
 import Clients     from "./views/Clients";
 import ClientDetail from "./views/ClientDetail";
 import Pipeline    from "./views/Pipeline";
+import Onboarding  from "./views/Onboarding";
 import ServiceRequests from "./views/ServiceRequests";
 import FollowUps   from "./views/FollowUps";
 import Bots        from "./views/Bots";
@@ -57,6 +58,7 @@ function AppInner({ onLogout }) {
     clients:        <Clients />,
     "client-detail":<ClientDetail clientId={clientId} />,
     pipeline:       <Pipeline />,
+    onboarding:     <Onboarding />,
     requests:       <ServiceRequests />,
     followups:      <FollowUps />,
     bots:           <Bots />,
