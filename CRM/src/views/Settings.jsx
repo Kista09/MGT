@@ -79,22 +79,18 @@ export default function Settings() {
   }, [auditSearch, remoteAudit, state.auditLog]);
 
   const refreshOpsData = async () => {
-    const [emailRes, userRes, auditRes] = await Promise.all([
+    const [emailRes, userRes] = await Promise.all([
       fetch(apiUrl("/api/email-logs")).catch(() => null),
       fetch(apiUrl("/api/portal-users")).catch(() => null),
-      fetch(apiUrl("/api/audit-trail?limit=300")).catch(() => null),
     ]);
     if (emailRes?.ok) {
       const data = await emailRes.json().catch(() => ({}));
       dispatch({ type:"SET_EMAIL_LOGS", logs:data.logs ?? [] });
+      setRemoteAudit(data.auditLogs ?? []);
     }
     if (userRes?.ok) {
       const data = await userRes.json().catch(() => ({}));
       dispatch({ type:"SET_PORTAL_USERS", users:data.users ?? [] });
-    }
-    if (auditRes?.ok) {
-      const data = await auditRes.json().catch(() => ({}));
-      setRemoteAudit(data.logs ?? []);
     }
   };
 

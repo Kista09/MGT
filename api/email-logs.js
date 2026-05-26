@@ -1,4 +1,5 @@
 const { listEmailLogs } = require('./_crm-ops');
+const { listAuditTrail } = require('./_audit');
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -12,8 +13,11 @@ module.exports = async (req, res) => {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const logs = await listEmailLogs();
-    return res.status(200).json({ logs });
+    const [logs, auditLogs] = await Promise.all([
+      listEmailLogs(),
+      listAuditTrail(300),
+    ]);
+    return res.status(200).json({ logs, auditLogs });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ error: error.message });
