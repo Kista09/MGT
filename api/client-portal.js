@@ -265,11 +265,12 @@ async function createRequest(req, user) {
   };
 
   await writeJson(`crm-requests/${requestNumber}.json`, record);
-  await sendServiceRequestConfirmation(record, user);
+  await sendSupportServiceRequestNotification(record, user);
+  await sendClientServiceRequestConfirmation(record, user);
   return summarizeRequest(record);
 }
 
-async function sendServiceRequestConfirmation(record, user) {
+async function sendSupportServiceRequestNotification(record, user) {
   const supportEmail = process.env.SUPPORT_EMAIL || 'support@mgucatech.com';
   const clientEmail = normalizeEmail(user.email);
   const subject = `New client portal service request: ${record.requestNumber}`;
@@ -322,7 +323,69 @@ async function sendServiceRequestConfirmation(record, user) {
     from: payload.from,
     replyTo: payload.reply_to,
     relatedRequestNumber: record.requestNumber,
-    action: 'client_portal_service_request_confirmation',
+    action: 'client_portal_service_request_support_notification',
+    attachments: [],
+  });
+}
+
+async function sendClientServiceRequestConfirmation(record, user) {
+  const clientEmail = normalizeEmail(user.email);
+  if (!clientEmail) return;
+
+  const subject = `We received your service request ${record.requestNumber}`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1A1A1A">
+      <p style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#E8561A;font-weight:700">MgucaTECH Client Portal</p>
+      <h1 style="margin:0 0 12px;font-size:24px;color:#0C4A4A">Request received</h1>
+      <p>Hi ${escapeHtml(user.name || record.requester || 'there')},</p>
+      <p>Thanks for submitting a service request through your client portal. Our team has received it and will review it shortly.</p>
+      <table style="border-collapse:collapse;width:100%;max-width:680px;margin:18px 0">
+        ${[
+          ['Service request number', record.requestNumber],
+          ['Company', record.company],
+          ['Subject', record.subject],
+          ['Category', record.category],
+          ['Priority', record.priority],
+          ['Target date', record.dueDate || 'Not set'],
+          ['Status', record.status],
+        ].map(([label, value]) => `
+          <tr>
+            <td style="border:1px solid #E8E2DA;background:#F8F4EF;padding:9px 12px;font-weight:700;width:190px">${escapeHtml(label)}</td>
+            <td style="border:1px solid #E8E2DA;padding:9px 12px">${escapeHtml(value)}</td>
+          </tr>
+        `).join('')}
+      </table>
+      <div style="margin-top:18px">
+        <p style="font-weight:700;margin:0 0 6px">Your request details</p>
+        <div style="white-space:pre-wrap;border:1px solid #E8E2DA;background:#F8F4EF;padding:12px;border-radius:6px">${escapeHtml(record.description)}</div>
+      </div>
+      <p style="margin-top:18px">You can track this request in your client portal under <strong>Service Requests</strong>.</p>
+      <p>
+        <a href="https://client-portal.mgucatech.com" style="display:inline-block;background:#E8561A;color:#fff;text-decoration:none;padding:10px 14px;border-radius:6px;font-weight:700">Open Client Portal</a>
+      </p>
+      <p style="font-size:13px;color:#6F6258;margin-top:20px">Need to add more context? Reply to this email or contact support@mgucatech.com.</p>
+    </div>
+  `;
+
+  const payload = {
+    from: 'MgucaTECH <admin@mgucatech.com>',
+    to: [clientEmail],
+    reply_to: process.env.SUPPORT_EMAIL || 'support@mgucatech.com',
+    subject,
+    html,
+  };
+
+  const result = await sendEmail(payload);
+  await saveEmailLog({
+    resendId: result.id,
+    recipient: clientEmail,
+    subject,
+    sentAt: new Date().toISOString(),
+    status: 'sent',
+    from: payload.from,
+    replyTo: payload.reply_to,
+    relatedRequestNumber: record.requestNumber,
+    action: 'client_portal_service_request_client_confirmation',
     attachments: [],
   });
 }
