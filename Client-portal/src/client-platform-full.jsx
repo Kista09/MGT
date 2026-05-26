@@ -24,7 +24,7 @@ const T = {
 const font="'DM Sans',sans-serif";
 const serif="'Cormorant Garamond',Georgia,serif";
 const fmtRand = (v) => `R${Number(v).toLocaleString("en-ZA")}`;
-const BOOK_NOW_URL = import.meta.env.VITE_BOOK_NOW_URL || "https://mgtchat-20260516-1916.vercel.app/#book";
+const BOOK_NOW_URL = import.meta.env.VITE_BOOK_NOW_URL || "https://mgt-app.vercel.app/#book";
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://mgucatech.com";
 const STORAGE_KEY = "mgucatech_client_access_token";
 const bookingUrlFor = (user) => {
@@ -48,6 +48,11 @@ const portalFetch = async (path = "/api/client-portal", options = {}) => {
   if (!res.ok) throw new Error(data.error || "Client portal backend unavailable");
   return data;
 };
+
+const portalAction = (action, payload = {}) => portalFetch("/api/client-portal", {
+  method: "POST",
+  body: JSON.stringify({ action, ...payload }),
+});
 
 /* ─── seed data ───────────────────────────────────────────── */
 const INIT_QA = [
@@ -333,14 +338,16 @@ const CT = { /* custom tooltip */
 };
 
 /* ─── INBOX ───────────────────────────────────────────────── */
-function Inbox({ toast }) {
-  const [convs, setConvs] = useState(INIT_CONVS);
-  const [active, setActive] = useState(INIT_CONVS[0]);
+function Inbox({ toast, data }) {
+  const source = data?.length ? data : INIT_CONVS;
+  const [convs, setConvs] = useState(source);
+  const [active, setActive] = useState(source[0]);
   const [draft, setDraft] = useState("");
   const [filter, setFilter] = useState("All");
   const messagesEndRef = useRef(null);
 
   useEffect(()=>{ messagesEndRef.current?.scrollIntoView({behavior:"smooth"}); },[active]);
+  useEffect(()=>{ const next = data?.length ? data : INIT_CONVS; setConvs(next); setActive(next[0]); },[data]);
 
   const filtered = convs.filter(c=>filter==="All"||c.status===filter);
 
@@ -349,12 +356,14 @@ function Inbox({ toast }) {
     const newMsg = {id:Date.now(),from:"agent",text:draft,time:"Now",agentName:"Dina"};
     setConvs(p=>p.map(c=>c.id===active.id?{...c,messages:[...c.messages,newMsg],status:"Escalated"}:c));
     setActive(p=>({...p,messages:[...p.messages,newMsg],status:"Escalated"}));
+    portalAction("send_inbox_message", { conversationId: active.id, text: draft }).catch(()=>{});
     setDraft("");
   };
 
   const resolve = () => {
     setConvs(p=>p.map(c=>c.id===active.id?{...c,status:"Resolved",unread:0}:c));
     setActive(p=>({...p,status:"Resolved",unread:0}));
+    portalAction("resolve_conversation", { conversationId: active.id }).catch(()=>{});
     toast("Conversation resolved");
   };
   const transferToBot = () => {
@@ -491,10 +500,12 @@ function Inbox({ toast }) {
 }
 
 /* ─── CONTACTS ────────────────────────────────────────────── */
-function Contacts({ toast }) {
-  const [contacts, setContacts] = useState(INIT_CONTACTS);
+function Contacts({ toast, data }) {
+  const [contacts, setContacts] = useState(data?.length ? data : INIT_CONTACTS);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
+
+  useEffect(()=>{ if (data?.length) setContacts(data); },[data]);
 
   const filtered = contacts.filter(c=>
     c.name.toLowerCase().includes(search.toLowerCase())||
@@ -587,11 +598,13 @@ function Contacts({ toast }) {
 }
 
 /* ─── TEMPLATES ───────────────────────────────────────────── */
-function Templates({ toast }) {
-  const [items, setItems] = useState(INIT_TEMPLATES);
+function Templates({ toast, data }) {
+  const [items, setItems] = useState(data?.length ? data : INIT_TEMPLATES);
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({name:"",category:"UTILITY",body:"",lang:"English"});
   const [nextId, setNextId] = useState(8);
+
+  useEffect(()=>{ if (data?.length) setItems(data); },[data]);
 
   const statusStyle = s => s==="APPROVED"?{color:T.accent,bg:T.accentBg,bdr:T.accentBdr}
     :s==="PENDING"?{color:T.yellow,bg:T.yellowBg,bdr:T.yellowBdr}
@@ -600,6 +613,7 @@ function Templates({ toast }) {
   const submit = () => {
     if(!form.name.trim()||!form.body.trim()) return;
     setItems(p=>[...p,{...form,id:nextId,status:"PENDING",vars:[],uses:0}]);
+    portalAction("save_templates", { templates: [...items, {...form,id:nextId,status:"PENDING",vars:[],uses:0}] }).catch(()=>{});
     setNextId(n=>n+1);
     setModal(false);
     toast("Template submitted to Meta for review");
@@ -688,9 +702,12 @@ function Templates({ toast }) {
 }
 
 /* ─── ANALYTICS ───────────────────────────────────────────── */
-function Analytics() {
+function Analytics({ data }) {
   const [range, setRange] = useState("30d");
-  const data = range==="7d" ? ANALYTICS_MSGS.slice(-7) : range==="14d" ? ANALYTICS_MSGS.slice(-14) : ANALYTICS_MSGS;
+  const sourceMessages = data?.messages?.length ? data.messages : ANALYTICS_MSGS;
+  const sourceQuestions = data?.topQuestions?.length ? data.topQuestions : TOP_QUESTIONS;
+  const sourceResolution = data?.resolution?.length ? data.resolution : RESOLUTION;
+  const chartData = range==="7d" ? sourceMessages.slice(-7) : range==="14d" ? sourceMessages.slice(-14) : sourceMessages;
 
   return (
     <div style={{padding:"36px 40px",overflowY:"auto",flex:1}}>
@@ -733,7 +750,7 @@ function Analytics() {
         <Card style={{flex:2,minWidth:300}}>
           <div style={{fontSize:13,color:T.muted,fontWeight:700,letterSpacing:.4,textTransform:"uppercase",marginBottom:20}}>Message Volume</div>
           <ResponsiveContainer width="100%" height={200}>
-            <AreaChart data={data}>
+            <AreaChart data={chartData}>
               <defs>
                 <linearGradient id="msgGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={T.accent} stopOpacity={.2}/>
@@ -741,7 +758,7 @@ function Analytics() {
                 </linearGradient>
               </defs>
               <CartesianGrid stroke={T.border} strokeDasharray="3 3" vertical={false}/>
-              <XAxis dataKey="d" tick={{fill:T.muted,fontSize:11}} axisLine={false} tickLine={false} interval={Math.floor(data.length/6)}/>
+              <XAxis dataKey="d" tick={{fill:T.muted,fontSize:11}} axisLine={false} tickLine={false} interval={Math.floor(chartData.length/6)}/>
               <YAxis tick={{fill:T.muted,fontSize:11}} axisLine={false} tickLine={false} tickFormatter={v=>`${(v/1000).toFixed(0)}k`}/>
               <Tooltip content={CT.content}/>
               <Area type="monotone" dataKey="msgs" stroke={T.accent} strokeWidth={2.5} fill="url(#msgGrad)"/>
@@ -752,7 +769,7 @@ function Analytics() {
         <Card style={{flex:1,minWidth:240}}>
           <div style={{fontSize:13,color:T.muted,fontWeight:700,letterSpacing:.4,textTransform:"uppercase",marginBottom:20}}>Resolution Rate</div>
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={RESOLUTION}>
+            <LineChart data={sourceResolution}>
               <CartesianGrid stroke={T.border} strokeDasharray="3 3" vertical={false}/>
               <XAxis dataKey="week" tick={{fill:T.muted,fontSize:10}} axisLine={false} tickLine={false}/>
               <YAxis domain={[75,100]} tick={{fill:T.muted,fontSize:11}} axisLine={false} tickLine={false} tickFormatter={v=>`${v}%`}/>
@@ -765,7 +782,7 @@ function Analytics() {
 
       <Card>
         <div style={{fontSize:13,color:T.muted,fontWeight:700,letterSpacing:.4,textTransform:"uppercase",marginBottom:20}}>Top Questions</div>
-        {TOP_QUESTIONS.map(q=>(
+        {sourceQuestions.map(q=>(
           <div key={q.q} style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
             <div style={{fontSize:13,color:T.text,width:180,flexShrink:0}}>{q.q}</div>
             <div style={{flex:1,background:T.bg,borderRadius:99,height:8,overflow:"hidden"}}>
@@ -781,13 +798,20 @@ function Analytics() {
 }
 
 /* ─── FLOW BUILDER ────────────────────────────────────────── */
-function FlowBuilder({ toast }) {
-  const [nodes, setNodes] = useState(FLOW_NODES);
+function FlowBuilder({ toast, data, refreshPortal }) {
+  const [nodes, setNodes] = useState(data?.length ? data : FLOW_NODES);
   const [selected, setSelected] = useState(null);
-  const [editForm, setEditForm] = useState({label:"",content:""});
+  const [editForm, setEditForm] = useState({label:"",content:"",type:"message",outputs:[]});
+  const [addModal, setAddModal] = useState(false);
+  const [newNode, setNewNode] = useState({label:"",content:"",type:"message"});
 
   const CANVAS_W = 880;
   const CANVAS_H = 560;
+  useEffect(()=>{ if (data?.length) setNodes(data); },[data]);
+  const persistFlow = next => {
+    setNodes(next);
+    portalAction("save_flow", { flowNodes: next }).catch(()=>{});
+  };
 
   const nodeStyle = type => ({
     start:    {bg:T.accentBg,border:T.accentBdr,color:T.accent,icon:"▶"},
@@ -800,18 +824,51 @@ function FlowBuilder({ toast }) {
   const openEdit = (n,e) => {
     e.stopPropagation();
     setSelected(n.id);
-    setEditForm({label:n.label,content:n.content});
+    setEditForm({label:n.label || "",content:n.content || "",type:n.type || "message",outputs:n.outputs || []});
   };
   const saveEdit = () => {
-    setNodes(p=>p.map(n=>n.id===selected?{...n,...editForm}:n));
+    const next = nodes.map(n=>n.id===selected?{...n,...editForm,outputs:editForm.outputs || []}:n);
+    persistFlow(next);
     setSelected(null);
     toast("Flow updated");
+  };
+  const addNode = () => {
+    if(!newNode.label.trim()) return;
+    const id = `node-${Date.now().toString(36)}`;
+    const next = [...nodes,{id,type:newNode.type,label:newNode.label.trim(),content:newNode.content.trim(),x:360,y:420,outputs:[]}];
+    persistFlow(next);
+    setNewNode({label:"",content:"",type:"message"});
+    setAddModal(false);
+    toast("Node added");
+  };
+  const deleteNode = () => {
+    const selectedNode = nodes.find(n=>n.id===selected);
+    if(!selectedNode || selectedNode.type==="start") {
+      toast("Start node cannot be deleted", "warning");
+      return;
+    }
+    const next = nodes
+      .filter(n=>n.id!==selected)
+      .map(n=>({...n,outputs:(n.outputs || []).filter(id=>id!==selected)}));
+    persistFlow(next);
+    setSelected(null);
+    toast("Node deleted");
+  };
+  const publishFlow = async () => {
+    try {
+      const response = await portalAction("publish_flow", { flowNodes: nodes });
+      const requestNumber = response?.workspace?.lastPublishedFlow?.requestNumber;
+      await refreshPortal?.();
+      toast(requestNumber ? `Flow sent to CRM for approval: ${requestNumber}` : "Flow sent to CRM for approval");
+    } catch (error) {
+      toast(error.message || "Could not publish flow", "warning");
+    }
   };
 
   // build SVG paths between nodes
   const paths = [];
   nodes.forEach(src=>{
-    src.outputs.forEach(tgtId=>{
+    (src.outputs || []).forEach(tgtId=>{
       const tgt = nodes.find(n=>n.id===tgtId);
       if(!tgt) return;
       const x1=src.x+160, y1=src.y+36, x2=tgt.x, y2=tgt.y+36;
@@ -833,8 +890,8 @@ function FlowBuilder({ toast }) {
           <div style={{color:T.muted,fontSize:14}}>Click a node to edit its message content</div>
         </div>
         <div style={{display:"flex",gap:8}}>
-          <Btn variant="secondary" small>+ Add node</Btn>
-          <Btn small onClick={()=>toast("Flow published to production!")}>Publish Flow</Btn>
+          <Btn variant="secondary" small onClick={()=>setAddModal(true)}>+ Add node</Btn>
+          <Btn small onClick={publishFlow}>Publish Flow</Btn>
         </div>
       </div>
 
@@ -868,9 +925,9 @@ function FlowBuilder({ toast }) {
             const s=nodeStyle(n.type);
             const isSel=selected===n.id;
             if(n.type==="end") return (
-              <div key={n.id} style={{position:"absolute",left:n.x,top:n.y,width:120,
+              <div key={n.id} onClick={e=>openEdit(n,e)} style={{position:"absolute",left:n.x,top:n.y,width:120,
                 height:72,borderRadius:12,background:s.bg,border:`1.5px solid ${isSel?T.accent:s.border}`,
-                display:"flex",alignItems:"center",justifyContent:"center",cursor:"default",
+                display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",
                 boxShadow:isSel?`0 0 0 3px ${T.accentBg}`:T.shadow}}>
                 <div style={{textAlign:"center"}}>
                   <div style={{fontSize:16}}>{s.icon}</div>
@@ -903,10 +960,39 @@ function FlowBuilder({ toast }) {
         <Modal title={`Edit: ${selectedNode.label}`} onClose={()=>setSelected(null)}>
           <div style={{display:"flex",flexDirection:"column",gap:16}}>
             <div><Label>Node Label</Label><Input value={editForm.label} onChange={e=>setEditForm(f=>({...f,label:e.target.value}))}/></div>
+            <div><Label>Node Type</Label><Select value={editForm.type} onChange={e=>setEditForm(f=>({...f,type:e.target.value}))} options={["start","menu","message","action","end"]}/></div>
             <div><Label>Message Content</Label><Input multiline rows={5} value={editForm.content} onChange={e=>setEditForm(f=>({...f,content:e.target.value}))} placeholder="What the bot says at this step…"/></div>
+            <div>
+              <Label>Connect To</Label>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                {nodes.filter(n=>n.id!==selected).map(n=>(
+                  <label key={n.id} style={{display:"flex",gap:8,alignItems:"center",fontSize:13,color:T.text,background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 10px"}}>
+                    <input type="checkbox" checked={(editForm.outputs || []).includes(n.id)}
+                      onChange={e=>setEditForm(f=>({...f,outputs:e.target.checked?[...(f.outputs || []),n.id]:(f.outputs || []).filter(id=>id!==n.id)}))}/>
+                    {n.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div style={{display:"flex",gap:10,justifyContent:"space-between",flexWrap:"wrap"}}>
+              <Btn danger onClick={deleteNode}>Delete Node</Btn>
+              <div style={{display:"flex",gap:10}}>
+                <Btn variant="secondary" onClick={()=>setSelected(null)}>Cancel</Btn>
+                <Btn onClick={saveEdit}>Save Node</Btn>
+              </div>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {addModal&&(
+        <Modal title="Add Flow Node" onClose={()=>setAddModal(false)}>
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            <div><Label>Node Label</Label><Input value={newNode.label} onChange={e=>setNewNode(f=>({...f,label:e.target.value}))} placeholder="Example: Booking menu"/></div>
+            <div><Label>Node Type</Label><Select value={newNode.type} onChange={e=>setNewNode(f=>({...f,type:e.target.value}))} options={["menu","message","action","end"]}/></div>
+            <div><Label>Message Content</Label><Input multiline rows={4} value={newNode.content} onChange={e=>setNewNode(f=>({...f,content:e.target.value}))} placeholder="What this node should say or do..."/></div>
             <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
-              <Btn variant="secondary" onClick={()=>setSelected(null)}>Cancel</Btn>
-              <Btn onClick={saveEdit}>Save Node</Btn>
+              <Btn variant="secondary" onClick={()=>setAddModal(false)}>Cancel</Btn>
+              <Btn onClick={addNode}>Add Node</Btn>
             </div>
           </div>
         </Modal>
@@ -916,12 +1002,14 @@ function FlowBuilder({ toast }) {
 }
 
 /* ─── BROADCASTS ──────────────────────────────────────────── */
-function Broadcasts({ toast }) {
-  const [campaigns, setCampaigns] = useState(INIT_BROADCASTS);
+function Broadcasts({ toast, data }) {
+  const [campaigns, setCampaigns] = useState(data?.length ? data : INIT_BROADCASTS);
   const [modal, setModal] = useState(false);
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({name:"",template:"order_confirmed",segment:"All subscribers",date:"",time:""});
   const [nextId, setNextId] = useState(5);
+
+  useEffect(()=>{ if (data?.length) setCampaigns(data); },[data]);
 
   const statusStyle = s => s==="Sent"?{color:T.accent,bg:T.accentBg,bdr:T.accentBdr}
     :s==="Scheduled"?{color:T.blue,bg:T.blueBg,bdr:T.blueBdr}
@@ -930,6 +1018,7 @@ function Broadcasts({ toast }) {
   const create = () => {
     setCampaigns(p=>[...p,{...form,id:nextId,status:"Scheduled",sent:0,delivered:0,read:0,
       scheduled:`${form.date} ${form.time}`,sentAt:null}]);
+    portalAction("save_broadcasts", { broadcasts: [...campaigns,{...form,id:nextId,status:"Scheduled",sent:0,delivered:0,read:0,scheduled:`${form.date} ${form.time}`,sentAt:null}] }).catch(()=>{});
     setNextId(n=>n+1);
     setModal(false); setStep(1);
     setForm({name:"",template:"order_confirmed",segment:"All subscribers",date:"",time:""});
@@ -1510,19 +1599,26 @@ function ClientRequests({ portalData, portalLoading, portalError, refreshPortal,
 const DAYS_CAL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],MONTHS_CAL=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function buildCalDays(y,m){const f=new Date(y,m,1).getDay(),t=new Date(y,m+1,0).getDate(),c=[];for(let i=0;i<f;i++)c.push(null);for(let d=1;d<=t;d++)c.push(d);return c;}
 
-function QAView({ toast }) {
-  const [items, setItems] = useState(INIT_QA);
+function QAView({ toast, data }) {
+  const [items, setItems] = useState(data?.length ? data : INIT_QA);
   const [modal, setModal] = useState(null);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({question:"",answer:"",category:"Support",active:true});
   const [nextId, setNextId] = useState(9);
   const cats=["Orders","Returns","Support","Products","Shipping","Payments","Other"];
   const catColors={Orders:"#2563eb",Returns:"#7c3aed",Support:T.accent,Products:"#d97706",Shipping:"#0891b2",Payments:"#db2777",Other:T.muted};
+  useEffect(()=>{ if (data?.length) setItems(data); },[data]);
   const filtered=items.filter(i=>i.question.toLowerCase().includes(search.toLowerCase())||i.answer.toLowerCase().includes(search.toLowerCase()));
   const save=()=>{
     if(!form.question.trim()||!form.answer.trim())return;
-    if(modal.mode==="add"){setItems(p=>[...p,{...form,id:nextId}]);setNextId(n=>n+1);toast("Response added");}
-    else{setItems(p=>p.map(i=>i.id===modal.item.id?{...i,...form}:i));toast("Response updated");}
+    if(modal.mode==="add"){
+      const next=[...items,{...form,id:nextId}];
+      setItems(next);setNextId(n=>n+1);portalAction("save_qa",{qa:next}).catch(()=>{});toast("Response added");
+    }
+    else{
+      const next=items.map(i=>i.id===modal.item.id?{...i,...form}:i);
+      setItems(next);portalAction("save_qa",{qa:next}).catch(()=>{});toast("Response updated");
+    }
     setModal(null);
   };
   return(
@@ -1545,9 +1641,9 @@ function QAView({ toast }) {
                 <div style={{fontSize:13,color:T.muted,lineHeight:1.6}}>{item.answer}</div>
               </div>
               <div style={{display:"flex",gap:6,flexShrink:0}}>
-                <button onClick={()=>setItems(p=>p.map(i=>i.id===item.id?{...i,active:!i.active}:i))} style={{width:34,height:34,borderRadius:9,border:`1.5px solid ${T.border}`,background:T.surface,cursor:"pointer",fontSize:13}}>{item.active?"⏸":"▶"}</button>
+                <button onClick={()=>{const next=items.map(i=>i.id===item.id?{...i,active:!i.active}:i);setItems(next);portalAction("save_qa",{qa:next}).catch(()=>{});}} style={{width:34,height:34,borderRadius:9,border:`1.5px solid ${T.border}`,background:T.surface,cursor:"pointer",fontSize:13}}>{item.active?"⏸":"▶"}</button>
                 <button onClick={()=>{setForm({question:item.question,answer:item.answer,category:item.category,active:item.active});setModal({mode:"edit",item});}} style={{width:34,height:34,borderRadius:9,border:`1.5px solid ${T.border}`,background:T.surface,cursor:"pointer",fontSize:13}}>✏️</button>
-                <button onClick={()=>{setItems(p=>p.filter(i=>i.id!==item.id));toast("Deleted");}} style={{width:34,height:34,borderRadius:9,border:`1.5px solid ${T.redBdr}`,background:T.redBg,cursor:"pointer",fontSize:13}}>🗑</button>
+                <button onClick={()=>{const next=items.filter(i=>i.id!==item.id);setItems(next);portalAction("save_qa",{qa:next}).catch(()=>{});toast("Deleted");}} style={{width:34,height:34,borderRadius:9,border:`1.5px solid ${T.redBdr}`,background:T.redBg,cursor:"pointer",fontSize:13}}>🗑</button>
               </div>
             </div>
           </div>
@@ -1568,16 +1664,19 @@ function QAView({ toast }) {
   );
 }
 
-function CalendarView({ toast, user }) {
-  const [year,setYear]=useState(2026);const [month,setMonth]=useState(4);
-  const [marked,setMarked]=useState({"2026-5-1":"holiday","2026-5-8":"special","2026-5-15":"holiday"});
-  const [hours,setHours]=useState({Sun:{open:false,from:"09:00",to:"18:00"},Mon:{open:true,from:"09:00",to:"18:00"},Tue:{open:true,from:"09:00",to:"18:00"},Wed:{open:true,from:"09:00",to:"18:00"},Thu:{open:true,from:"09:00",to:"18:00"},Fri:{open:false,from:"09:00",to:"18:00"},Sat:{open:false,from:"09:00",to:"14:00"}});
+function CalendarView({ toast, user, data }) {
+  const defaultHours={Sun:{open:false,from:"09:00",to:"18:00"},Mon:{open:true,from:"09:00",to:"18:00"},Tue:{open:true,from:"09:00",to:"18:00"},Wed:{open:true,from:"09:00",to:"18:00"},Thu:{open:true,from:"09:00",to:"18:00"},Fri:{open:false,from:"09:00",to:"18:00"},Sat:{open:false,from:"09:00",to:"14:00"}};
+  const [year,setYear]=useState(data?.year || 2026);const [month,setMonth]=useState(data?.month ?? 4);
+  const [marked,setMarked]=useState(data?.marked || {"2026-5-1":"holiday","2026-5-8":"special","2026-5-15":"holiday"});
+  const [hours,setHours]=useState(data?.hours || defaultHours);
   const [selDay,setSelDay]=useState(null);const [modal,setModal]=useState(false);
   const cells=buildCalDays(year,month);
   const key=d=>`${year}-${month+1}-${d}`;
   const ts={holiday:{bg:"#fee2e2",border:"#fca5a5",color:T.red},special:{bg:"#fef3c7",border:"#fcd34d",color:T.yellow}};
   const prev=()=>{if(month===0){setMonth(11);setYear(y=>y-1);}else setMonth(m=>m-1);};
   const next=()=>{if(month===11){setMonth(0);setYear(y=>y+1);}else setMonth(m=>m+1);};
+  useEffect(()=>{ if(data){setYear(data.year || 2026);setMonth(data.month ?? 4);setMarked(data.marked || {});setHours(data.hours || defaultHours);} },[data]);
+  const saveCalendar=()=>{portalAction("save_calendar",{calendar:{year,month,marked,hours}}).catch(()=>{});toast("Calendar saved");};
   return(
     <div style={{padding:"36px 40px",overflowY:"auto",flex:1}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,flexWrap:"wrap",marginBottom:28}}>
@@ -1626,7 +1725,7 @@ function CalendarView({ toast, user }) {
               </div>):(<span style={{fontSize:12,color:T.muted}}>Closed</span>)}
             </div>
           ))}
-          <Btn onClick={()=>toast("Hours saved")} style={{marginTop:8}}>Save Hours</Btn>
+          <Btn onClick={saveCalendar} style={{marginTop:8}}>Save Hours</Btn>
         </Card>
         <Card style={{flex:"1 1 280px"}}>
           <div style={{fontFamily:serif,fontSize:18,color:T.text,marginBottom:8}}>Book Now App</div>
@@ -1659,9 +1758,11 @@ function CalendarView({ toast, user }) {
   );
 }
 
-function BotSettings({ toast }) {
-  const [s,setS]=useState({botName:"Takealot Partner Support",welcomeMsg:"Hello! Welcome to Takealot Partner Support. How can I help you today?\n\n1. Track my order\n2. Returns & refunds\n3. Speak to an agent",fallbackMsg:"I'm sorry, I didn't understand that. Please reply with a number, or type 'AGENT'.",language:"English",tone:"Friendly",escalation:"+27 83 456 7890",escalationEmail:"support@tapartner.co.za",typingDelay:"1.5",autoClose:"24"});
+function BotSettings({ toast, data }) {
+  const defaultSettings={botName:"Takealot Partner Support",welcomeMsg:"Hello! Welcome to Takealot Partner Support. How can I help you today?\n\n1. Track my order\n2. Returns & refunds\n3. Speak to an agent",fallbackMsg:"I'm sorry, I didn't understand that. Please reply with a number, or type 'AGENT'.",language:"English",tone:"Friendly",escalation:"+27 83 456 7890",escalationEmail:"support@tapartner.co.za",typingDelay:"1.5",autoClose:"24"};
+  const [s,setS]=useState(data || defaultSettings);
   const [tab,setTab]=useState("messages");
+  useEffect(()=>{ if (data) setS(data); },[data]);
   const set=k=>e=>setS(p=>({...p,[k]:e.target.value}));
   return(
     <div style={{padding:"36px 40px",overflowY:"auto",flex:1}}>
@@ -1689,8 +1790,8 @@ function BotSettings({ toast }) {
           <div><Label>Escalation Email</Label><Input value={s.escalationEmail} onChange={set("escalationEmail")}/></div>
         </div>)}
         <div style={{marginTop:24,paddingTop:16,borderTop:`1px solid ${T.border}`,display:"flex",justifyContent:"flex-end",gap:10}}>
-          <Btn variant="secondary" onClick={()=>setS(s)}>Reset</Btn>
-          <Btn onClick={()=>toast("Settings saved")}>Save Settings</Btn>
+          <Btn variant="secondary" onClick={()=>setS(data || defaultSettings)}>Reset</Btn>
+          <Btn onClick={()=>{portalAction("save_settings",{settings:s}).catch(()=>{});toast("Settings saved");}}>Save Settings</Btn>
         </div>
       </Card>
     </div>
@@ -1834,6 +1935,7 @@ export default function App({ user = null, onLogout = null }) {
   useEffect(() => {
     refreshPortal();
   }, [refreshPortal]);
+  const workspace = portalData?.workspace || {};
 
   const NAV = [
     { id:"overview",   icon:"⬡", label:"Overview"      },
@@ -1928,17 +2030,17 @@ export default function App({ user = null, onLogout = null }) {
       {/* main */}
       <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
         {view==="overview"   && <Overview setView={setView} user={user} portalData={portalData} portalLoading={portalLoading} portalError={portalError} refreshPortal={refreshPortal}/>}
-        {view==="qa"         && <QAView toast={showToast}/>}
-        {view==="flows"      && <FlowBuilder toast={showToast}/>}
+        {view==="qa"         && <QAView toast={showToast} data={workspace.qa}/>}
+        {view==="flows"      && <FlowBuilder toast={showToast} data={workspace.flowNodes} refreshPortal={refreshPortal}/>}
         {view==="simulator"  && <Simulator/>}
-        {view==="settings"   && <BotSettings toast={showToast}/>}
-        {view==="inbox"      && <Inbox toast={showToast}/>}
-        {view==="templates"  && <Templates toast={showToast}/>}
-        {view==="broadcasts" && <Broadcasts toast={showToast}/>}
-        {view==="contacts"   && <Contacts toast={showToast}/>}
-        {view==="analytics"  && <Analytics/>}
+        {view==="settings"   && <BotSettings toast={showToast} data={workspace.settings}/>}
+        {view==="inbox"      && <Inbox toast={showToast} data={workspace.inbox}/>}
+        {view==="templates"  && <Templates toast={showToast} data={workspace.templates}/>}
+        {view==="broadcasts" && <Broadcasts toast={showToast} data={workspace.broadcasts}/>}
+        {view==="contacts"   && <Contacts toast={showToast} data={workspace.contacts}/>}
+        {view==="analytics"  && <Analytics data={workspace.analytics}/>}
         {view==="requests"   && <ClientRequests portalData={portalData} portalLoading={portalLoading} portalError={portalError} refreshPortal={refreshPortal} toast={showToast}/>}
-        {view==="calendar"   && <CalendarView toast={showToast} user={user}/>}
+        {view==="calendar"   && <CalendarView toast={showToast} user={user} data={workspace.calendar}/>}
         {view==="team"       && <Team toast={showToast}/>}
         {view==="billing"    && <Billing toast={showToast}/>}
         {view==="status"     && <Status/>}
