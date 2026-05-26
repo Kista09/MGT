@@ -17,6 +17,7 @@ import ServiceRequests from "./views/ServiceRequests";
 import FollowUps   from "./views/FollowUps";
 import Bots        from "./views/Bots";
 import PrivateClients from "./views/ConfidentialClients";
+import Presentations from "./views/Presentations";
 import Analytics   from "./views/Analytics";
 import Settings    from "./views/Settings";
 
@@ -62,6 +63,7 @@ function AppInner({ onLogout }) {
     requests:       <ServiceRequests />,
     followups:      <FollowUps />,
     bots:           <Bots />,
+    presentations:  <Presentations />,
     "private-clients": privateAccess ? <PrivateClients /> : <Clients />,
     analytics:      <Analytics />,
     settings:       <Settings />,
