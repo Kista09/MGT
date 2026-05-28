@@ -73,6 +73,14 @@ function serviceRequestId(request = {}) {
   return serviceRequestNumber(request) || request.id;
 }
 
+function isApprovable(request) {
+  return (
+    request.source === "onboarding" ||
+    request.channel === "Client Portal" ||
+    !!request.onboarding
+  ) && !["Approved", "Resolved", "Closed"].includes(request.status);
+}
+
 function safeText(value) {
   return String(value ?? "");
 }
@@ -1246,7 +1254,7 @@ export default function ServiceRequests() {
                           <button type="button" onClick={(event) => { event.stopPropagation(); closeRequest(request); }}
                             style={tableButton(C, C.successBg, C.success, `1px solid ${C.success}`)}>Resolve</button>
                         )}
-                        {request.source === "onboarding" && !["Approved", "Resolved", "Closed"].includes(request.status) && (
+                        {isApprovable(request) && (
                           <button type="button" disabled={approvingId === serviceRequestId(request)} onClick={(event) => { event.stopPropagation(); approveOnboarding(request); }}
                             style={tableButton(C, C.successBg, C.success, `1px solid ${C.success}`, approvingId === serviceRequestId(request))}>
                             {approvingId === serviceRequestId(request) ? "Approving..." : "Approve"}
@@ -1439,7 +1447,7 @@ export default function ServiceRequests() {
                       style={{ background:C.successBg, border:`1px solid ${C.success}`, color:C.success,
                         borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:800, cursor:"pointer" }}>Resolve</button>
                   )}
-                  {request.source === "onboarding" && !["Approved", "Resolved", "Closed"].includes(request.status) && (
+                  {isApprovable(request) && (
                     <button type="button" disabled={approvingId === serviceRequestId(request)} onClick={() => approveOnboarding(request)}
                       style={{ background:C.successBg, border:`1px solid ${C.success}`, color:C.success,
                         borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:800, cursor:approvingId === serviceRequestId(request) ? "wait" : "pointer" }}>
