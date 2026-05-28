@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { C, SERVICE_LIFECYCLE, font, pill } from "../constants";
 import { useApp } from "../context";
 import { daysUntil, formatDateShort } from "../utils";
@@ -11,11 +12,22 @@ function onboardingData(request = {}) {
   return {};
 }
 
+function safeText(value) {
+  return String(value ?? "");
+}
+
 function statusTone(status) {
   if (["Live", "Support", "Approved"].includes(status)) return pill(C.success, C.successBg);
   if (["In Setup", "Build", "Testing"].includes(status)) return pill(C.accent, C.accentBg);
   if (["Waiting on Client", "Needs Attention"].includes(status)) return pill(C.yellow, C.yellowBg);
   return pill(C.muted, C.subtle);
+}
+
+function priorityTone(priority) {
+  if (priority === "Critical") return pill("#fff", C.red);
+  if (priority === "High") return pill(C.red, C.redBg);
+  if (priority === "Medium") return pill(C.yellow, C.yellowBg);
+  return pill(C.blue, C.blueBg);
 }
 
 function nextAction(request) {
@@ -29,17 +41,32 @@ function nextAction(request) {
   return "Qualify request and capture onboarding details";
 }
 
-function StageRail({ status }) {
-  const current = SERVICE_LIFECYCLE.indexOf(status);
-  const active = current >= 0 ? current : 0;
-  return (
-    <div style={{ display:"grid", gridTemplateColumns:`repeat(${SERVICE_LIFECYCLE.length}, minmax(52px,1fr))`, gap:5 }}>
-      {SERVICE_LIFECYCLE.map((stage, index) => (
-        <div key={stage} title={stage}
-          style={{ height:6, borderRadius:99, background:index <= active ? C.accent : C.subtle }} />
-      ))}
-    </div>
-  );
+function cellStyle(extra = {}) {
+  return {
+    borderRight:`1px solid ${C.border}`,
+    borderBottom:`1px solid ${C.border}`,
+    color:C.text,
+    padding:"8px 10px",
+    minHeight:36,
+    overflow:"hidden",
+    textOverflow:"ellipsis",
+    whiteSpace:"nowrap",
+    verticalAlign:"middle",
+    ...extra,
+  };
+}
+
+function tableButton(background, color, border = "none") {
+  return {
+    background,
+    border,
+    color,
+    borderRadius:4,
+    padding:"4px 8px",
+    fontSize:10,
+    fontWeight:900,
+    cursor:"pointer",
+  };
 }
 
 function Metric({ label, value, color = C.text }) {
@@ -51,16 +78,126 @@ function Metric({ label, value, color = C.text }) {
   );
 }
 
+const ONBOARDING_COLUMNS = [
+  { key:"sr", label:"SR Number", width:150 },
+  { key:"company", label:"Company", width:220 },
+  { key:"requester", label:"Requester", width:170 },
+  { key:"email", label:"Email", width:220 },
+  { key:"sector", label:"Sector", width:130 },
+  { key:"package", label:"Package", width:120 },
+  { key:"priority", label:"Priority", width:96 },
+  { key:"status", label:"Status", width:135 },
+  { key:"portal", label:"Portal", width:110 },
+  { key:"timeline", label:"Timeline", width:150 },
+  { key:"due", label:"Due", width:105 },
+  { key:"next", label:"Next Action", width:300 },
+  { key:"actions", label:"Actions", width:160, filterable:false, sortable:false },
+];
+
+function rowText(request) {
+  const data = onboardingData(request);
+  const delta = daysUntil(request.dueDate);
+  const dueLabel = request.dueDate
+    ? delta < 0 ? `${Math.abs(delta)}d late` : delta === 0 ? "Today" : formatDateShort(request.dueDate)
+    : "Not set";
+  return {
+    sr: serviceRequestId(request),
+    company: data.company || request.company || request.subject || "",
+    requester: request.requester || data.leadName || "",
+    email: request.email || data.email || "",
+    sector: data.sector || "Business",
+    package: data.package || request.plan || "Starter",
+    priority: request.priority || "Medium",
+    status: request.status || "New",
+    portal: request.portalGranted ? "Granted" : "Pending",
+    timeline: data.timeline || "Not specified",
+    due: dueLabel,
+    next: nextAction(request),
+  };
+}
+
+function uniqueOptions(rows, key) {
+  return [...new Set(rows.map(row => safeText(rowText(row)[key]).trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function sortValue(request, key) {
+  const priorityRank = { Critical:0, High:1, Medium:2, Low:3 };
+  const statusRank = Object.fromEntries(SERVICE_LIFECYCLE.map((status, index) => [status, index]));
+  const text = rowText(request);
+  if (key === "priority") return priorityRank[request.priority] ?? 99;
+  if (key === "status") return statusRank[request.status] ?? 99;
+  if (key === "due") return request.dueDate || "";
+  return safeText(text[key]).toLowerCase();
+}
+
 export default function Onboarding() {
   const { state, navigate } = useApp();
+  const [search, setSearch] = useState("");
+  const [columnFilters, setColumnFilters] = useState({});
+  const [sortConfig, setSortConfig] = useState({ key:"sr", dir:"asc" });
+  const [page, setPage] = useState(0);
+  const pageSize = 10;
+
   const onboarding = (state.serviceRequests ?? [])
-    .filter(request => request.source === "onboarding" || request.onboarding || request.portalGranted)
-    .sort((a, b) => new Date(b.receivedAt || 0) - new Date(a.receivedAt || 0));
+    .filter(request => request.source === "onboarding" || request.onboarding || request.portalGranted);
 
   const active = onboarding.filter(request => !["Resolved", "Closed", "Live"].includes(request.status));
   const waiting = onboarding.filter(request => request.status === "Waiting on Client").length;
   const approved = onboarding.filter(request => request.portalGranted || request.status === "Approved").length;
-  const overdue = active.filter(request => daysUntil(request.dueDate) < 0).length;
+  const overdue = active.filter(request => request.dueDate && daysUntil(request.dueDate) < 0).length;
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const activeFilters = Object.entries(columnFilters)
+      .map(([key, value]) => [key, safeText(value).trim().toLowerCase()])
+      .filter(([, value]) => value);
+
+    return onboarding
+      .filter(request => {
+        const text = rowText(request);
+        const searchMatch = !q || Object.values(text).some(value => safeText(value).toLowerCase().includes(q));
+        const columnMatch = activeFilters.every(([key, value]) => safeText(text[key]).trim().toLowerCase() === value);
+        return searchMatch && columnMatch;
+      })
+      .sort((a, b) => {
+        const aValue = sortValue(a, sortConfig.key);
+        const bValue = sortValue(b, sortConfig.key);
+        const compare = typeof aValue === "number" && typeof bValue === "number"
+          ? aValue - bValue
+          : safeText(aValue).localeCompare(safeText(bValue));
+        return sortConfig.dir === "asc" ? compare : -compare;
+      });
+  }, [columnFilters, onboarding, search, sortConfig]);
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(page, pageCount - 1);
+  const pageRows = filtered.slice(currentPage * pageSize, currentPage * pageSize + pageSize);
+
+  const columnOptions = useMemo(() => (
+    Object.fromEntries(ONBOARDING_COLUMNS
+      .filter(column => column.filterable !== false)
+      .map(column => [column.key, uniqueOptions(onboarding, column.key)])
+    )
+  ), [onboarding]);
+
+  const sortBy = column => {
+    if (column.sortable === false) return;
+    setSortConfig(prev => prev.key === column.key
+      ? { key:column.key, dir:prev.dir === "asc" ? "desc" : "asc" }
+      : { key:column.key, dir:"asc" });
+  };
+
+  const setColumnFilter = key => event => {
+    setPage(0);
+    setColumnFilters(prev => ({ ...prev, [key]: event.target.value }));
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setColumnFilters({});
+    setPage(0);
+  };
 
   return (
     <div style={{ padding:32, overflowY:"auto", flex:1 }}>
@@ -89,52 +226,92 @@ export default function Onboarding() {
       </div>
 
       <div style={{ display:"grid", gridTemplateColumns:"minmax(0,1fr) 320px", gap:16 }}>
-        <div style={{ display:"grid", gap:12 }}>
-          {onboarding.map(request => {
-            const data = onboardingData(request);
-            const delta = daysUntil(request.dueDate);
-            return (
-              <article key={serviceRequestId(request)}
-                style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:18 }}>
-                <div style={{ display:"flex", justifyContent:"space-between", gap:14, alignItems:"flex-start", marginBottom:12 }}>
-                  <div style={{ minWidth:0 }}>
-                    <div style={{ color:C.accent, fontFamily:font.mono, fontSize:11, fontWeight:900, marginBottom:4 }}>{serviceRequestId(request)}</div>
-                    <div style={{ color:C.text, fontSize:17, fontWeight:900, lineHeight:1.25 }}>{data.company || request.company || request.subject}</div>
-                    <div style={{ color:C.muted, fontSize:12, marginTop:4 }}>
-                      {request.requester} · {request.email} · {data.location || "South Africa"}
-                    </div>
-                  </div>
-                  <span style={statusTone(request.status)}>{request.status}</span>
-                </div>
-                <StageRail status={request.status} />
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(4,minmax(0,1fr))", gap:10, marginTop:14 }}>
-                  {[
-                    ["Package", data.package || request.plan || "Starter"],
-                    ["Sector", data.sector || "Business"],
-                    ["Timeline", data.timeline || "Not specified"],
-                    ["Due", delta < 0 ? `${Math.abs(delta)}d late` : formatDateShort(request.dueDate)],
-                  ].map(([label, value]) => (
-                    <div key={label} style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:"8px 10px" }}>
-                      <div style={{ color:C.muted, fontSize:9, fontWeight:900, letterSpacing:.5, textTransform:"uppercase", marginBottom:3 }}>{label}</div>
-                      <div style={{ color:C.text, fontSize:12, fontWeight:800, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{value}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ marginTop:12, display:"flex", justifyContent:"space-between", gap:12, alignItems:"center" }}>
-                  <div style={{ color:C.text, fontSize:13, fontWeight:800 }}>{nextAction(request)}</div>
-                  <button type="button" onClick={() => navigate("requests")}
-                    style={{ background:C.subtle, border:`1px solid ${C.border}`, color:C.text, borderRadius:7, padding:"7px 11px", fontSize:12, fontWeight:900, cursor:"pointer" }}>
-                    Manage
-                  </button>
-                </div>
-              </article>
-            );
-          })}
-          {onboarding.length === 0 && (
-            <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, padding:36, color:C.muted, textAlign:"center" }}>
-              No onboarding records yet. Use the capture form or sync onboarding requests.
+        <div>
+          <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:8, overflow:"hidden" }}>
+            <div style={{ display:"flex", gap:10, alignItems:"center", justifyContent:"space-between", padding:12, borderBottom:`1px solid ${C.border}`, flexWrap:"wrap" }}>
+              <input value={search} onChange={event => { setSearch(event.target.value); setPage(0); }}
+                placeholder="Search onboarding records..."
+                style={{ minWidth:260, flex:"1 1 300px", background:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:"9px 11px", color:C.text, outline:"none" }} />
+              <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+                <span style={{ color:C.muted, fontSize:12, fontWeight:800 }}>{filtered.length} records</span>
+                <button type="button" onClick={() => setPage(Math.max(0, currentPage - 1))} disabled={currentPage === 0}
+                  style={tableButton(C.subtle, currentPage === 0 ? C.muted : C.text)}>Prev 10</button>
+                <button type="button" onClick={() => setPage(Math.min(pageCount - 1, currentPage + 1))} disabled={currentPage >= pageCount - 1}
+                  style={tableButton(C.subtle, currentPage >= pageCount - 1 ? C.muted : C.text)}>Next 10</button>
+                <button type="button" onClick={clearFilters} style={tableButton(C.subtle, C.muted)}>Clear</button>
+              </div>
             </div>
-          )}
+
+            <div style={{ overflowX:"auto" }}>
+              <table style={{ width:"100%", minWidth:1880, borderCollapse:"collapse", tableLayout:"fixed", fontSize:12 }}>
+                <colgroup>
+                  {ONBOARDING_COLUMNS.map(column => <col key={column.key} style={{ width:column.width }} />)}
+                </colgroup>
+                <thead>
+                  <tr style={{ background:C.dark }}>
+                    {ONBOARDING_COLUMNS.map(column => (
+                      <th key={column.key} style={{ ...cellStyle({ color:"#fff", fontSize:10, fontWeight:900, letterSpacing:.5, textTransform:"uppercase", background:C.dark, position:"sticky", top:0, zIndex:1 }) }}>
+                        <button type="button" onClick={() => sortBy(column)}
+                          style={{ background:"transparent", border:"none", color:"#fff", padding:0, cursor:column.sortable === false ? "default" : "pointer", fontSize:10, fontWeight:900, letterSpacing:.5, textTransform:"uppercase" }}>
+                          {column.label}
+                          {sortConfig.key === column.key && column.sortable !== false ? (sortConfig.dir === "asc" ? " ^" : " v") : ""}
+                        </button>
+                      </th>
+                    ))}
+                  </tr>
+                  <tr style={{ background:C.surface }}>
+                    {ONBOARDING_COLUMNS.map(column => (
+                      <th key={`${column.key}-filter`} style={cellStyle({ padding:6, background:C.surface })}>
+                        {column.filterable === false ? null : (
+                          <select value={columnFilters[column.key] || ""} onChange={setColumnFilter(column.key)}
+                            style={{ width:"100%", background:C.card, color:C.text, border:`1px solid ${C.border}`, borderRadius:4, padding:"5px 6px", fontSize:10, outline:"none" }}>
+                            <option value="">All</option>
+                            {(columnOptions[column.key] ?? []).map(option => (
+                              <option key={option} value={option.toLowerCase()}>{option}</option>
+                            ))}
+                          </select>
+                        )}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((request, index) => {
+                    const text = rowText(request);
+                    const rowBg = index % 2 === 0 ? C.card : C.surface;
+                    return (
+                      <tr key={serviceRequestId(request)} style={{ background:rowBg }}>
+                        <td style={cellStyle({ color:C.accent, fontWeight:900, fontFamily:font.mono })}>{text.sr}</td>
+                        <td style={cellStyle({ fontWeight:900 })} title={text.company}>{text.company}</td>
+                        <td style={cellStyle()} title={text.requester}>{text.requester}</td>
+                        <td style={cellStyle()} title={text.email}>{text.email}</td>
+                        <td style={cellStyle()}>{text.sector}</td>
+                        <td style={cellStyle()}>{text.package}</td>
+                        <td style={cellStyle()}><span style={priorityTone(text.priority)}>{text.priority}</span></td>
+                        <td style={cellStyle()}><span style={statusTone(text.status)}>{text.status}</span></td>
+                        <td style={cellStyle()}><span style={pill(request.portalGranted ? C.success : C.yellow, request.portalGranted ? C.successBg : C.yellowBg)}>{text.portal}</span></td>
+                        <td style={cellStyle()} title={text.timeline}>{text.timeline}</td>
+                        <td style={cellStyle({ color:request.dueDate && daysUntil(request.dueDate) < 0 ? C.red : C.muted, fontWeight:800 })}>{text.due}</td>
+                        <td style={cellStyle()} title={text.next}>{text.next}</td>
+                        <td style={{ ...cellStyle(), overflow:"visible" }}>
+                          <div style={{ display:"flex", gap:6, whiteSpace:"nowrap" }}>
+                            <button type="button" onClick={() => navigate("requests")} style={tableButton(C.subtle, C.text)}>Manage</button>
+                            <button type="button" onClick={() => navigate("requests")} style={tableButton(C.accentBg, C.accent, `1px solid ${C.accent}`)}>Capture</button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {filtered.length === 0 && (
+              <div style={{ padding:36, color:C.muted, textAlign:"center", fontSize:14 }}>
+                No onboarding records match your filters.
+              </div>
+            )}
+          </div>
         </div>
 
         <aside style={{ display:"grid", gap:12, alignContent:"start" }}>
@@ -158,7 +335,7 @@ export default function Onboarding() {
             <div style={{ color:"rgba(255,255,255,.7)", fontSize:12, lineHeight:1.5, marginBottom:12 }}>
               Use this during onboarding to test booking rules, SAST availability, and client handoff.
             </div>
-            <a href={state.settings?.bookNowUrl || "https://mgtchat-20260516-1916.vercel.app/#book"} target="_blank" rel="noreferrer"
+            <a href={state.settings?.bookNowUrl || "https://mgt-app.vercel.app/#book"} target="_blank" rel="noreferrer"
               style={{ display:"inline-flex", background:C.accent, color:"#000", borderRadius:7, padding:"8px 12px", textDecoration:"none", fontSize:12, fontWeight:900 }}>
               Open Book Now
             </a>

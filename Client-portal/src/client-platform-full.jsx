@@ -53,6 +53,21 @@ const portalAction = (action, payload = {}) => portalFetch("/api/client-portal",
   method: "POST",
   body: JSON.stringify({ action, ...payload }),
 });
+const PRIVATE_CLIENT_TOKEN_KEY = "mgucatech_private_client_access_token";
+const privateClientToken = () => localStorage.getItem(PRIVATE_CLIENT_TOKEN_KEY);
+const privateClientFetch = async (options = {}) => {
+  const res = await fetch(`${API_BASE}/api/private-clients`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${privateClientToken() || ""}`,
+      ...(options.headers || {}),
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || "Private clients backend unavailable");
+  return data;
+};
 
 /* ─── seed data ───────────────────────────────────────────── */
 const INIT_QA = [
@@ -803,15 +818,55 @@ function FlowBuilder({ toast, data, refreshPortal }) {
   const [selected, setSelected] = useState(null);
   const [editForm, setEditForm] = useState({label:"",content:"",type:"message",outputs:[]});
   const [addModal, setAddModal] = useState(false);
-  const [newNode, setNewNode] = useState({label:"",content:"",type:"message"});
+  const [newNode, setNewNode] = useState({label:"",content:"",type:"message",connectFrom:""});
+  const [previewInput, setPreviewInput] = useState("");
+  const [previewLog, setPreviewLog] = useState([]);
+  const canvasRef = useRef(null);
+  const dragRef = useRef(null);
+  const lastDragMoved = useRef(false);
 
-  const CANVAS_W = 880;
-  const CANVAS_H = 560;
+  const CANVAS_W = 1040;
+  const CANVAS_H = 620;
   useEffect(()=>{ if (data?.length) setNodes(data); },[data]);
   const persistFlow = next => {
     setNodes(next);
     portalAction("save_flow", { flowNodes: next }).catch(()=>{});
   };
+  const nodeWidth = type => type==="end" ? 128 : 220;
+  const nodeHeight = type => type==="end" ? 78 : 116;
+  const clampNode = (node, x, y) => ({
+    x: Math.max(16, Math.min(CANVAS_W - nodeWidth(node.type) - 16, x)),
+    y: Math.max(16, Math.min(CANVAS_H - nodeHeight(node.type) - 16, y)),
+  });
+
+  useEffect(()=>{
+    const move = e => {
+      if(!dragRef.current) return;
+      const rect = canvasRef.current?.getBoundingClientRect();
+      const node = nodes.find(n=>n.id===dragRef.current.id);
+      if(!rect || !node) return;
+      const pos = clampNode(node, e.clientX - rect.left - dragRef.current.offsetX, e.clientY - rect.top - dragRef.current.offsetY);
+      lastDragMoved.current = true;
+      setNodes(prev=>prev.map(n=>n.id===node.id?{...n,...pos}:n));
+    };
+    const up = () => {
+      if(!dragRef.current) return;
+      const id = dragRef.current.id;
+      dragRef.current = null;
+      setNodes(prev=>{
+        portalAction("save_flow", { flowNodes: prev }).catch(()=>{});
+        const node = prev.find(n=>n.id===id);
+        if (node) setEditForm({label:node.label || "",content:node.content || "",type:node.type || "message",outputs:node.outputs || []});
+        return prev;
+      });
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    return ()=>{
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
+  }, [nodes]);
 
   const nodeStyle = type => ({
     start:    {bg:T.accentBg,border:T.accentBdr,color:T.accent,icon:"▶"},
@@ -823,8 +878,20 @@ function FlowBuilder({ toast, data, refreshPortal }) {
 
   const openEdit = (n,e) => {
     e.stopPropagation();
+    if(lastDragMoved.current) {
+      lastDragMoved.current = false;
+      return;
+    }
     setSelected(n.id);
     setEditForm({label:n.label || "",content:n.content || "",type:n.type || "message",outputs:n.outputs || []});
+  };
+  const beginDrag = (n,e) => {
+    if(e.button !== 0) return;
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if(!rect) return;
+    setSelected(n.id);
+    setEditForm({label:n.label || "",content:n.content || "",type:n.type || "message",outputs:n.outputs || []});
+    dragRef.current = { id:n.id, offsetX:e.clientX - rect.left - n.x, offsetY:e.clientY - rect.top - n.y };
   };
   const saveEdit = () => {
     const next = nodes.map(n=>n.id===selected?{...n,...editForm,outputs:editForm.outputs || []}:n);
@@ -835,10 +902,18 @@ function FlowBuilder({ toast, data, refreshPortal }) {
   const addNode = () => {
     if(!newNode.label.trim()) return;
     const id = `node-${Date.now().toString(36)}`;
-    const next = [...nodes,{id,type:newNode.type,label:newNode.label.trim(),content:newNode.content.trim(),x:360,y:420,outputs:[]}];
+    const source = nodes.find(n=>n.id===newNode.connectFrom);
+    const pos = source ? clampNode({type:newNode.type}, source.x + 280, source.y + 24) : clampNode({type:newNode.type}, 420, 440);
+    const nextNode = {id,type:newNode.type,label:newNode.label.trim(),content:newNode.content.trim(),x:pos.x,y:pos.y,outputs:[]};
+    const next = [
+      ...nodes.map(n=>n.id===newNode.connectFrom?{...n,outputs:[...new Set([...(n.outputs || []),id])]}:n),
+      nextNode,
+    ];
     persistFlow(next);
-    setNewNode({label:"",content:"",type:"message"});
+    setNewNode({label:"",content:"",type:"message",connectFrom:""});
     setAddModal(false);
+    setSelected(id);
+    setEditForm({label:nextNode.label,content:nextNode.content,type:nextNode.type,outputs:[]});
     toast("Node added");
   };
   const deleteNode = () => {
@@ -854,7 +929,110 @@ function FlowBuilder({ toast, data, refreshPortal }) {
     setSelected(null);
     toast("Node deleted");
   };
+  const duplicateNode = () => {
+    const selectedNode = nodes.find(n=>n.id===selected);
+    if(!selectedNode) return;
+    const id = `node-${Date.now().toString(36)}`;
+    const pos = clampNode(selectedNode, selectedNode.x + 28, selectedNode.y + 28);
+    const duplicate = {...selectedNode,id,label:`${selectedNode.label} copy`,x:pos.x,y:pos.y,outputs:[]};
+    persistFlow([...nodes, duplicate]);
+    setSelected(id);
+    setEditForm({label:duplicate.label,content:duplicate.content || "",type:duplicate.type || "message",outputs:[]});
+    toast("Node duplicated");
+  };
+  const autoLayout = () => {
+    const start = nodes.find(n=>n.type==="start") || nodes[0];
+    if(!start) return;
+    const levels = new Map([[start.id,0]]);
+    const queue = [start.id];
+    while(queue.length) {
+      const id = queue.shift();
+      const node = nodes.find(n=>n.id===id);
+      (node?.outputs || []).forEach(out=>{
+        if(!levels.has(out)) {
+          levels.set(out, (levels.get(id) || 0) + 1);
+          queue.push(out);
+        }
+      });
+    }
+    const buckets = {};
+    nodes.forEach(n=>{
+      const level = levels.has(n.id) ? levels.get(n.id) : 3;
+      buckets[level] = [...(buckets[level] || []), n.id];
+    });
+    const next = nodes.map(n=>{
+      const level = levels.has(n.id) ? levels.get(n.id) : 3;
+      const group = buckets[level] || [];
+      const index = group.indexOf(n.id);
+      const count = group.length || 1;
+      const pos = clampNode(n, 48 + level * 260, Math.max(28, (CANVAS_H / 2) - ((count - 1) * 72) + index * 144));
+      return {...n,...pos};
+    });
+    persistFlow(next);
+    toast("Flow laid out");
+  };
+  const resetFlow = () => {
+    persistFlow(FLOW_NODES.map(n=>({...n})));
+    setSelected(null);
+    setPreviewLog([]);
+    toast("Flow reset to default");
+  };
+  const validateFlow = () => {
+    const warnings = [];
+    const ids = new Set(nodes.map(n=>n.id));
+    const start = nodes.find(n=>n.type==="start");
+    if(!start) warnings.push("Add one Start node.");
+    nodes.forEach(n=>{
+      if(!String(n.label || "").trim()) warnings.push(`${n.id} needs a label.`);
+      if(n.type!=="start" && n.type!=="end" && !String(n.content || "").trim()) warnings.push(`${n.label || n.id} needs message content.`);
+      (n.outputs || []).forEach(out=>{ if(!ids.has(out)) warnings.push(`${n.label || n.id} connects to a missing node.`); });
+    });
+    if(start) {
+      const reached = new Set([start.id]);
+      const queue = [start.id];
+      while(queue.length) {
+        const node = nodes.find(n=>n.id===queue.shift());
+        (node?.outputs || []).forEach(out=>{
+          if(ids.has(out) && !reached.has(out)) {
+            reached.add(out);
+            queue.push(out);
+          }
+        });
+      }
+      nodes.filter(n=>!reached.has(n.id)).forEach(n=>warnings.push(`${n.label || n.id} is not connected to the Start path.`));
+    }
+    return warnings;
+  };
+  const flowWarnings = validateFlow();
+  const runPreview = () => {
+    const start = nodes.find(n=>n.type==="start") || nodes[0];
+    if(!start) return toast("Add a start node first", "warning");
+    const trail = [];
+    let current = start;
+    const seen = new Set();
+    const input = previewInput.trim().toLowerCase();
+    for(let i=0;i<8 && current && !seen.has(current.id);i+=1) {
+      seen.add(current.id);
+      trail.push(current);
+      const outputs = current.outputs || [];
+      if(!outputs.length) break;
+      let nextId = outputs[0];
+      if(current.type==="menu" && input) {
+        const numeric = input.match(/\d+/)?.[0];
+        if(numeric && outputs[Number(numeric)-1]) nextId = outputs[Number(numeric)-1];
+        if(input.includes("agent")) nextId = outputs.find(id=>nodes.find(n=>n.id===id)?.type==="action") || nextId;
+        if(input.includes("book")) nextId = outputs.find(id=>/book/i.test(nodes.find(n=>n.id===id)?.label || "")) || nextId;
+        if(input.includes("faq")) nextId = outputs.find(id=>/faq/i.test(nodes.find(n=>n.id===id)?.label || "")) || nextId;
+      }
+      current = nodes.find(n=>n.id===nextId);
+    }
+    setPreviewLog(trail);
+  };
   const publishFlow = async () => {
+    if(flowWarnings.length) {
+      toast(`Fix ${flowWarnings.length} flow issue${flowWarnings.length===1?"":"s"} before publishing`, "warning");
+      return;
+    }
     try {
       const response = await portalAction("publish_flow", { flowNodes: nodes });
       const requestNumber = response?.workspace?.lastPublishedFlow?.requestNumber;
@@ -871,7 +1049,7 @@ function FlowBuilder({ toast, data, refreshPortal }) {
     (src.outputs || []).forEach(tgtId=>{
       const tgt = nodes.find(n=>n.id===tgtId);
       if(!tgt) return;
-      const x1=src.x+160, y1=src.y+36, x2=tgt.x, y2=tgt.y+36;
+      const x1=src.x+nodeWidth(src.type), y1=src.y+Math.round(nodeHeight(src.type)/2), x2=tgt.x, y2=tgt.y+Math.round(nodeHeight(tgt.type)/2);
       const mx=(x1+x2)/2;
       paths.push(<path key={`${src.id}-${tgtId}`}
         d={`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`}
@@ -890,9 +1068,46 @@ function FlowBuilder({ toast, data, refreshPortal }) {
           <div style={{color:T.muted,fontSize:14}}>Click a node to edit its message content</div>
         </div>
         <div style={{display:"flex",gap:8}}>
+          <Btn variant="secondary" small onClick={autoLayout}>Auto layout</Btn>
+          <Btn variant="secondary" small onClick={resetFlow}>Reset</Btn>
           <Btn variant="secondary" small onClick={()=>setAddModal(true)}>+ Add node</Btn>
-          <Btn small onClick={publishFlow}>Publish Flow</Btn>
+          <Btn small onClick={publishFlow} style={flowWarnings.length?{opacity:.6}:{}}>Publish Flow</Btn>
         </div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"minmax(280px,1.1fr) minmax(260px,.9fr)",gap:16,marginBottom:18}}>
+        <Card style={{padding:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",gap:16,alignItems:"flex-start",flexWrap:"wrap"}}>
+            <div>
+              <div style={{fontSize:12,color:T.muted,fontWeight:800,textTransform:"uppercase",letterSpacing:.5}}>Publish readiness</div>
+              <div style={{fontSize:20,fontWeight:800,color:flowWarnings.length?T.yellow:T.teal,marginTop:4}}>
+                {flowWarnings.length ? `${flowWarnings.length} item${flowWarnings.length===1?"":"s"} to fix` : "Ready for CRM approval"}
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <span style={{fontSize:12,fontWeight:800,color:T.text,background:T.bg,border:`1px solid ${T.border}`,borderRadius:99,padding:"6px 10px"}}>{nodes.length} nodes</span>
+              <span style={{fontSize:12,fontWeight:800,color:T.text,background:T.bg,border:`1px solid ${T.border}`,borderRadius:99,padding:"6px 10px"}}>{nodes.reduce((sum,n)=>sum+(n.outputs || []).length,0)} links</span>
+            </div>
+          </div>
+          {flowWarnings.length>0&&(
+            <div style={{display:"grid",gap:6,marginTop:12}}>
+              {flowWarnings.slice(0,4).map(w=><div key={w} style={{fontSize:12,color:T.yellow,fontWeight:700}}>- {w}</div>)}
+              {flowWarnings.length>4&&<div style={{fontSize:12,color:T.muted}}>+ {flowWarnings.length-4} more</div>}
+            </div>
+          )}
+        </Card>
+        <Card style={{padding:16}}>
+          <div style={{fontSize:12,color:T.muted,fontWeight:800,textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>Test path</div>
+          <div style={{display:"flex",gap:8}}>
+            <Input value={previewInput} onChange={e=>setPreviewInput(e.target.value)} placeholder="Try: 1, book, faq, agent" style={{padding:"8px 10px",fontSize:13}}/>
+            <Btn small onClick={runPreview}>Run</Btn>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
+            {(previewLog.length ? previewLog : [nodes.find(n=>n.type==="start")].filter(Boolean)).map(n=>(
+              <span key={n.id} style={{fontSize:11,fontWeight:800,color:T.teal,background:T.blueBg,border:`1px solid ${T.blueBdr}`,borderRadius:99,padding:"5px 8px"}}>{n.label}</span>
+            ))}
+          </div>
+        </Card>
       </div>
 
       {/* legend */}
@@ -909,7 +1124,7 @@ function FlowBuilder({ toast, data, refreshPortal }) {
       </div>
 
       <Card style={{padding:0,overflow:"auto"}}>
-        <div style={{position:"relative",width:CANVAS_W,height:CANVAS_H,minWidth:CANVAS_W}}>
+        <div ref={canvasRef} style={{position:"relative",width:CANVAS_W,height:CANVAS_H,minWidth:CANVAS_W}}>
           {/* SVG connections */}
           <svg style={{position:"absolute",top:0,left:0,width:CANVAS_W,height:CANVAS_H,pointerEvents:"none"}}>
             <defs>
@@ -925,7 +1140,7 @@ function FlowBuilder({ toast, data, refreshPortal }) {
             const s=nodeStyle(n.type);
             const isSel=selected===n.id;
             if(n.type==="end") return (
-              <div key={n.id} onClick={e=>openEdit(n,e)} style={{position:"absolute",left:n.x,top:n.y,width:120,
+              <div key={n.id} onMouseDown={e=>beginDrag(n,e)} onClick={e=>openEdit(n,e)} style={{position:"absolute",left:n.x,top:n.y,width:128,
                 height:72,borderRadius:12,background:s.bg,border:`1.5px solid ${isSel?T.accent:s.border}`,
                 display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",
                 boxShadow:isSel?`0 0 0 3px ${T.accentBg}`:T.shadow}}>
@@ -936,8 +1151,8 @@ function FlowBuilder({ toast, data, refreshPortal }) {
               </div>
             );
             return (
-              <div key={n.id} onClick={e=>openEdit(n,e)}
-                style={{position:"absolute",left:n.x,top:n.y,width:200,
+              <div key={n.id} onMouseDown={e=>beginDrag(n,e)} onClick={e=>openEdit(n,e)}
+                style={{position:"absolute",left:n.x,top:n.y,width:220,
                   borderRadius:14,background:s.bg,border:`1.5px solid ${isSel?T.accent:s.border}`,
                   padding:"12px 14px",cursor:"pointer",transition:"all .15s",
                   boxShadow:isSel?`0 0 0 3px ${T.accentBg}`:T.shadow}}
@@ -975,7 +1190,10 @@ function FlowBuilder({ toast, data, refreshPortal }) {
               </div>
             </div>
             <div style={{display:"flex",gap:10,justifyContent:"space-between",flexWrap:"wrap"}}>
-              <Btn danger onClick={deleteNode}>Delete Node</Btn>
+              <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+                <Btn variant="secondary" onClick={duplicateNode}>Duplicate</Btn>
+                <Btn danger onClick={deleteNode}>Delete Node</Btn>
+              </div>
               <div style={{display:"flex",gap:10}}>
                 <Btn variant="secondary" onClick={()=>setSelected(null)}>Cancel</Btn>
                 <Btn onClick={saveEdit}>Save Node</Btn>
@@ -990,6 +1208,7 @@ function FlowBuilder({ toast, data, refreshPortal }) {
             <div><Label>Node Label</Label><Input value={newNode.label} onChange={e=>setNewNode(f=>({...f,label:e.target.value}))} placeholder="Example: Booking menu"/></div>
             <div><Label>Node Type</Label><Select value={newNode.type} onChange={e=>setNewNode(f=>({...f,type:e.target.value}))} options={["menu","message","action","end"]}/></div>
             <div><Label>Message Content</Label><Input multiline rows={4} value={newNode.content} onChange={e=>setNewNode(f=>({...f,content:e.target.value}))} placeholder="What this node should say or do..."/></div>
+            <div><Label>Connect From</Label><Select value={newNode.connectFrom} onChange={e=>setNewNode(f=>({...f,connectFrom:e.target.value}))} options={["",...nodes.map(n=>n.id)]}/></div>
             <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
               <Btn variant="secondary" onClick={()=>setAddModal(false)}>Cancel</Btn>
               <Btn onClick={addNode}>Add Node</Btn>
@@ -1596,6 +1815,168 @@ function ClientRequests({ portalData, portalLoading, portalError, refreshPortal,
   );
 }
 
+function PrivateClients({ toast }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [session, setSession] = useState(null);
+  const [clients, setClients] = useState([]);
+
+  const loadPrivateClients = useCallback(async () => {
+    if (!privateClientToken()) return;
+    setLoading(true);
+    setError("");
+    try {
+      const data = await privateClientFetch();
+      setSession(data.user || null);
+      setClients(data.clients || []);
+    } catch (err) {
+      localStorage.removeItem(PRIVATE_CLIENT_TOKEN_KEY);
+      setSession(null);
+      setClients([]);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadPrivateClients(); }, [loadPrivateClients]);
+
+  const unlock = async () => {
+    if (!email.trim() || !password.trim()) {
+      setError("Private client email and password are required");
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      const data = await privateClientFetch({
+        method: "POST",
+        body: JSON.stringify({ action:"private_login", email, password }),
+      });
+      localStorage.setItem(PRIVATE_CLIENT_TOKEN_KEY, data.accessToken);
+      setSession(data.user || null);
+      setClients(data.clients || []);
+      setPassword("");
+      toast("Private clients unlocked");
+    } catch (err) {
+      setError(err.message);
+      toast(err.message, "warning");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const lock = () => {
+    localStorage.removeItem(PRIVATE_CLIENT_TOKEN_KEY);
+    setSession(null);
+    setClients([]);
+    setError("");
+    toast("Private clients locked");
+  };
+
+  const sensitivityStyle = level => level === "Critical"
+    ? { color:T.red, bg:T.redBg, border:T.redBdr }
+    : { color:T.yellow, bg:T.yellowBg, border:T.yellowBdr };
+
+  if (!session) {
+    return (
+      <div style={{padding:"36px 40px",overflowY:"auto",flex:1}}>
+        <Card style={{maxWidth:760}}>
+          <div style={{fontSize:11,color:T.accent,fontWeight:800,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>Private Access</div>
+          <div style={{fontFamily:serif,fontSize:34,color:T.text,marginBottom:8}}>Private Clients</div>
+          <div style={{color:T.muted,fontSize:15,lineHeight:1.65,marginBottom:22}}>
+            This area is separate from the normal client workspace. Unlock it with approved private-client credentials before viewing restricted records.
+          </div>
+          <div style={{background:T.yellowBg,border:`1.5px solid ${T.yellowBdr}`,borderRadius:10,padding:"12px 14px",color:T.yellow,fontSize:13,lineHeight:1.5,marginBottom:20}}>
+            Staff or normal portal access does not automatically unlock these records. Use the approved private-client account only.
+          </div>
+          <div style={{display:"grid",gap:16}}>
+            <div><Label>Private Client Email</Label><Input value={email} onChange={e=>setEmail(e.target.value)} placeholder="private@example.com"/></div>
+            <div><Label>Private Client Password</Label><Input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password"/></div>
+            {error&&<div style={{color:T.red,fontSize:13,fontWeight:700}}>{error}</div>}
+            <div><Btn onClick={unlock} style={{opacity:loading?.7:1}}>{loading ? "Unlocking..." : "Unlock Private Clients"}</Btn></div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{padding:"36px 40px",overflowY:"auto",flex:1}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,flexWrap:"wrap",marginBottom:28}}>
+        <div>
+          <div style={{fontFamily:serif,fontSize:30,color:T.text,marginBottom:4}}>Private Clients</div>
+          <div style={{color:T.muted,fontSize:14}}>{clients.length} restricted records · unlocked as {session.email}</div>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <Btn variant="secondary" onClick={loadPrivateClients}>{loading ? "Refreshing..." : "Refresh"}</Btn>
+          <Btn danger onClick={lock}>Lock</Btn>
+        </div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14,marginBottom:22}}>
+        {clients.map(client=>{
+          const tone=sensitivityStyle(client.sensitivity);
+          return (
+            <Card key={client.id} style={{padding:20}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:12,alignItems:"flex-start",marginBottom:12}}>
+                <div style={{minWidth:0}}>
+                  <div style={{fontSize:18,fontWeight:800,color:T.text,marginBottom:3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{client.name}</div>
+                  <div style={{fontSize:13,color:T.muted}}>{client.contact} · {client.sector}</div>
+                </div>
+                <Pill label={client.sensitivity} color={tone.color} bg={tone.bg} border={tone.border}/>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+                {[
+                  ["Status",client.status],
+                  ["Plan",client.plan],
+                  ["Owner",client.owner],
+                  ["NDA",client.nda],
+                  ["Review",client.nextReview],
+                  ["Phone",client.phone],
+                ].map(([label,value])=>(
+                  <div key={label} style={{background:T.bg,border:`1px solid ${T.border}`,borderRadius:8,padding:"8px 10px"}}>
+                    <div style={{fontSize:9,color:T.muted,fontWeight:800,letterSpacing:.5,textTransform:"uppercase",marginBottom:3}}>{label}</div>
+                    <div style={{fontSize:12,color:T.text,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{value || "-"}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{fontSize:13,color:T.muted,lineHeight:1.55,borderTop:`1px solid ${T.border}`,paddingTop:12}}>{client.notes}</div>
+            </Card>
+          );
+        })}
+      </div>
+
+      <Card style={{padding:0,overflow:"hidden"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+          <thead>
+            <tr style={{background:T.dark,color:"#fff"}}>
+              {["Client","Contact","Email","Sector","Plan","Sensitivity","Next Review"].map(h=>(
+                <th key={h} style={{textAlign:"left",padding:"11px 14px",fontSize:10,letterSpacing:.6,textTransform:"uppercase"}}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {clients.map((client,index)=>(
+              <tr key={client.id} style={{background:index%2?T.bg:T.card}}>
+                <td style={{padding:"11px 14px",borderBottom:`1px solid ${T.border}`,fontWeight:800}}>{client.name}</td>
+                <td style={{padding:"11px 14px",borderBottom:`1px solid ${T.border}`}}>{client.contact}</td>
+                <td style={{padding:"11px 14px",borderBottom:`1px solid ${T.border}`}}>{client.email}</td>
+                <td style={{padding:"11px 14px",borderBottom:`1px solid ${T.border}`}}>{client.sector}</td>
+                <td style={{padding:"11px 14px",borderBottom:`1px solid ${T.border}`}}>{client.plan}</td>
+                <td style={{padding:"11px 14px",borderBottom:`1px solid ${T.border}`}}>{client.sensitivity}</td>
+                <td style={{padding:"11px 14px",borderBottom:`1px solid ${T.border}`}}>{client.nextReview}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+}
+
 const DAYS_CAL=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],MONTHS_CAL=["January","February","March","April","May","June","July","August","September","October","November","December"];
 function buildCalDays(y,m){const f=new Date(y,m,1).getDay(),t=new Date(y,m+1,0).getDate(),c=[];for(let i=0;i<f;i++)c.push(null);for(let d=1;d<=t;d++)c.push(d);return c;}
 
@@ -1953,6 +2334,7 @@ export default function App({ user = null, onLogout = null }) {
     { id:"analytics",  icon:"📊", label:"Analytics"    },
     { group:"Operations" },
     { id:"requests",   icon:"📋", label:"Service Requests" },
+    { id:"private-clients", icon:"P", label:"Private Clients" },
     { id:"book-now",   icon:"↗", label:"Book Now", external:true },
     { id:"calendar",   icon:"📅", label:"Calendar"     },
     { id:"team",       icon:"🫂", label:"Team"          },
@@ -2040,6 +2422,7 @@ export default function App({ user = null, onLogout = null }) {
         {view==="contacts"   && <Contacts toast={showToast} data={workspace.contacts}/>}
         {view==="analytics"  && <Analytics data={workspace.analytics}/>}
         {view==="requests"   && <ClientRequests portalData={portalData} portalLoading={portalLoading} portalError={portalError} refreshPortal={refreshPortal} toast={showToast}/>}
+        {view==="private-clients" && <PrivateClients toast={showToast}/>}
         {view==="calendar"   && <CalendarView toast={showToast} user={user} data={workspace.calendar}/>}
         {view==="team"       && <Team toast={showToast}/>}
         {view==="billing"    && <Billing toast={showToast}/>}
