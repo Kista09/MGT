@@ -1,6 +1,15 @@
 const { list, put } = require('@vercel/blob');
-const { normalizeEmail, publicUser, readPortalUser, readToken, slugify } = require('../lib/portal');
-const { saveEmailLog } = require('../lib/crm-ops');
+const {
+  normalizeEmail,
+  publicUser,
+  readPortalUser,
+  readToken,
+  readWorkspace,
+  savePortalUser,
+  saveWorkspace,
+  slugify,
+} = require('../lib/portal');
+const { saveEmailLog, updateRequestStatus, getRequest } = require('../lib/crm-ops');
 const { auditSilently } = require('../lib/audit');
 
 const SR_PREFIX = 'MGT-SR-0000-';
@@ -166,22 +175,9 @@ function mergeWorkspace(stored = {}) {
   };
 }
 
-function workspacePathFor(user) {
-  const clientId = user.clientId || slugify(user.clientName || user.email || 'client');
-  return `client-workspaces/${clientId}.json`;
-}
-
-async function readWorkspace(user) {
-  const records = await listJson(workspacePathFor(user), 1);
-  return mergeWorkspace(records[0] || {});
-}
-
-async function saveWorkspace(user, workspace) {
-  return writeJson(workspacePathFor(user), {
-    ...workspace,
-    updatedAt: new Date().toISOString(),
-    updatedBy: normalizeEmail(user.email),
-  });
+async function getWorkspace(user) {
+  const stored = await readWorkspace(user);
+  return mergeWorkspace(stored);
 }
 
 async function requirePortalUser(req) {
@@ -284,7 +280,7 @@ async function portalPayload(user) {
     requestNumber: request.requestNumber,
   })));
 
-  const workspace = await readWorkspace(user);
+  const workspace = await getWorkspace(user);
 
   return {
     user: {
@@ -317,7 +313,7 @@ async function portalPayload(user) {
 
 async function updateWorkspace(req, user) {
   const body = req.body || {};
-  const workspace = await readWorkspace(user);
+  const workspace = await getWorkspace(user);
   const now = new Date().toISOString();
 
   const save = async (action, metadata = {}) => {
@@ -338,6 +334,29 @@ async function updateWorkspace(req, user) {
   };
 
   switch (body.action) {
+    case 'approve_request': {
+      const { requestNumber } = body;
+      if (!requestNumber) throw new Error('requestNumber is required');
+      const request = await getRequest(requestNumber);
+      if (!request) throw new Error(`Request ${requestNumber} not found`);
+      if (!requestBelongsToUser(request, user)) throw new Error('Access denied');
+
+      await updateRequestStatus(requestNumber, {
+        status: 'Approved',
+        timeline: [
+          {
+            id: `timeline-${Date.now()}`,
+            time: now,
+            type: 'edited',
+            detail: 'Request approved by client via portal',
+            actor: user.name || user.email,
+          },
+          ...(request.timeline || []),
+        ],
+      });
+      await save('Service request approved by client', { requestNumber });
+      break;
+    }
     case 'save_qa':
       workspace.qa = Array.isArray(body.qa) ? body.qa : workspace.qa;
       await save('Q&A responses saved', { count: workspace.qa.length });

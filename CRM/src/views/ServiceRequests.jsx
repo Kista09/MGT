@@ -964,30 +964,37 @@ export default function ServiceRequests() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error ?? "Approval failed");
 
-      const approvalNote = [
-        approvalAction === "resend"
-          ? `Starter kit resent by ${state.user.name} on ${approvedAt.slice(0, 10)}.`
-          : `Approved for onboarding by ${state.user.name} on ${approvedAt.slice(0, 10)}.`,
-        `Client portal access granted to ${data.portalUser?.email ?? request.email}.`,
-        approvalAction === "resend" ? "Starter-kit email resent." : "Approval email and starter-kit PDF sent.",
-      ].join("\n");
-      dispatch({
-        type:"UPDATE_SERVICE_REQUEST",
-        request: {
-          ...request,
-          status:approvalAction === "resend" ? request.status : "Approved",
-          owner: request.owner || state.user.name,
-          approvedAt: request.approvedAt || approvedAt,
-          approvedBy: request.approvedBy || state.user.name,
-          portalGranted: true,
-          portalUser: data.portalUser,
-          lastEmailId: data.emailId,
-          attachments: [...(data.attachments ?? []), ...(request.attachments ?? [])],
-          notes: mergeInternalNotes(request.notes, approvalNote),
-        },
-      });
-      dispatch({ type:"ADD_REQUEST_TIMELINE_EVENT", id:serviceRequestId(request), eventType:approvalAction === "resend" ? "email_resent" : "approved", detail:`${data.emailId ? `Email ${data.emailId}` : "Approval email"} sent to ${data.portalUser?.email ?? request.email}` });
+      if (data.action === "flow_approved" || data.action === "request_approved") {
+        updateRequestField(request, "status", "Approved");
+        toast(data.action === "flow_approved" ? "Flow deployed to production" : "Request approved", "ok");
+      } else {
+        const approvalNote = [
+          approvalAction === "resend"
+            ? `Starter kit resent by ${state.user.name} on ${approvedAt.slice(0, 10)}.`
+            : `Approved for onboarding by ${state.user.name} on ${approvedAt.slice(0, 10)}.`,
+          `Client portal access granted to ${data.portalUser?.email ?? request.email}.`,
+          approvalAction === "resend" ? "Starter-kit email resent." : "Approval email and starter-kit PDF sent.",
+        ].join("\n");
+        dispatch({
+          type:"UPDATE_SERVICE_REQUEST",
+          request: {
+            ...request,
+            status:approvalAction === "resend" ? request.status : "Approved",
+            owner: request.owner || state.user.name,
+            approvedAt: request.approvedAt || approvedAt,
+            approvedBy: request.approvedBy || state.user.name,
+            portalGranted: true,
+            portalUser: data.portalUser,
+            lastEmailId: data.emailId,
+            attachments: [...(data.attachments ?? []), ...(request.attachments ?? [])],
+            notes: mergeInternalNotes(request.notes, approvalNote),
+          },
+        });
+        toast(approvalAction === "resend" ? "Starter kit resent" : "Portal access granted and email sent", "ok");
+      }
+
       if (data.emailId) {
+        dispatch({ type:"ADD_REQUEST_TIMELINE_EVENT", id:serviceRequestId(request), eventType:approvalAction === "resend" ? "email_resent" : "approved", detail:`${data.emailId ? `Email ${data.emailId}` : "Approval email"} sent to ${data.portalUser?.email ?? request.email}` });
         dispatch({ type:"ADD_EMAIL_LOG", log:{
           id:data.emailId,
           resendId:data.emailId,
@@ -999,7 +1006,8 @@ export default function ServiceRequests() {
           attachments:data.attachments ?? [],
         }});
       }
-      if (approvalAction !== "resend") {
+
+      if (approvalAction !== "resend" && (request.category === "Onboarding" || !!request.onboarding)) {
         const bookingUrl = state.settings?.bookNowUrl ?? "";
         dispatch({
           type: "UPDATE_FLOW_BOOK_NOW",
@@ -1007,7 +1015,6 @@ export default function ServiceRequests() {
           url: bookingUrl,
         });
       }
-      toast(approvalAction === "resend" ? "Starter kit resent" : "Portal access granted and email sent", "ok");
     } catch (error) {
       toast(error.message || "Could not approve onboarding", "!", "warning");
     } finally {

@@ -1,5 +1,13 @@
-const { makePassword, normalizeEmail, readPortalUser, savePortalUser, slugify } = require('../lib/portal');
-const { archiveAttachment, saveEmailLog } = require('../lib/crm-ops');
+const {
+  makePassword,
+  normalizeEmail,
+  readPortalUser,
+  readWorkspace,
+  savePortalUser,
+  saveWorkspace,
+  slugify,
+} = require('../lib/portal');
+const { archiveAttachment, saveEmailLog, updateRequestStatus } = require('../lib/crm-ops');
 const { auditSilently } = require('../lib/audit');
 const fs = require('fs');
 const path = require('path');
@@ -217,6 +225,74 @@ module.exports = async (req, res) => {
   try {
     const email   = normalizeEmail(request.email);
     const company = request.company || request.onboarding?.company || request.subject?.replace(/^Onboarding:\s*/i, '') || 'MgucaTECH Client';
+    const requestNumber = request.requestNumber || request.id || request.externalId;
+
+    // 1. Handle Flow Approval requests
+    if (request.category === 'Flow Approval' && request.flowApproval?.nodes) {
+      const workspace = await readWorkspace({ email, clientId: slugify(company) });
+      workspace.flowNodes = request.flowApproval.nodes;
+      workspace.flowStatus = 'Live';
+      workspace.flowApprovedAt = new Date().toISOString();
+      workspace.flowApprovedBy = approvedBy;
+      await saveWorkspace({ email, clientId: slugify(company) }, workspace);
+
+      await updateRequestStatus(requestNumber, {
+        status: 'Approved',
+        timeline: [
+          { id: `timeline-${Date.now()}`, time: new Date().toISOString(), type: 'edited', detail: 'Bot flow approved and deployed to production', actor: approvedBy },
+          ...(request.timeline || []),
+        ],
+      });
+
+      const emailPayload = {
+        from: 'MgucaTECH <admin@mgucatech.com>',
+        to: [email],
+        reply_to: 'admin@mgucatech.com',
+        subject: 'Your bot conversation flow has been approved',
+        html: `
+          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1A1A1A">
+            <h1 style="color:#0C4A4A">Flow Approved</h1>
+            <p>Hi ${escapeHtml(request.requester)},</p>
+            <p>Your bot conversation flow for <strong>${escapeHtml(company)}</strong> has been approved by ${escapeHtml(approvedBy)} and is now live.</p>
+            <p>You can view and test the updated flow in your client portal.</p>
+            <p><a href="https://client-portal.mgucatech.com" style="display:inline-block;background:#E8561A;color:#fff;text-decoration:none;padding:10px 14px;border-radius:6px;font-weight:700">Open Client Portal</a></p>
+          </div>
+        `,
+      };
+      await sendEmail(emailPayload);
+      return res.status(200).json({ success: true, action: 'flow_approved' });
+    }
+
+    // 2. Handle generic service requests (not onboarding)
+    if (request.category !== 'Onboarding' && !request.onboarding?.company) {
+      await updateRequestStatus(requestNumber, {
+        status: 'Approved',
+        timeline: [
+          { id: `timeline-${Date.now()}`, time: new Date().toISOString(), type: 'edited', detail: `Request approved by ${approvedBy}`, actor: approvedBy },
+          ...(request.timeline || []),
+        ],
+      });
+
+      const emailPayload = {
+        from: 'MgucaTECH <admin@mgucatech.com>',
+        to: [email],
+        reply_to: 'admin@mgucatech.com',
+        subject: `Service request approved: ${requestNumber}`,
+        html: `
+          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1A1A1A">
+            <h1 style="color:#0C4A4A">Request Approved</h1>
+            <p>Hi ${escapeHtml(request.requester)},</p>
+            <p>Your service request <strong>${escapeHtml(requestNumber)}</strong> (${escapeHtml(request.subject)}) has been approved and is now being processed.</p>
+            <p>Status: <strong>Approved</strong></p>
+            <p><a href="https://client-portal.mgucatech.com" style="display:inline-block;background:#E8561A;color:#fff;text-decoration:none;padding:10px 14px;border-radius:6px;font-weight:700">Open Client Portal</a></p>
+          </div>
+        `,
+      };
+      await sendEmail(emailPayload);
+      return res.status(200).json({ success: true, action: 'request_approved' });
+    }
+
+    // 3. Existing Onboarding flow
     const existingUser = await readPortalUser(email);
     const password = suppliedPassword || (action === 'resend' && existingUser?.password) || makePassword();
 

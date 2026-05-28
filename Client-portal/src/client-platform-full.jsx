@@ -1798,7 +1798,24 @@ function ClientRequests({ portalData, portalLoading, portalError, refreshPortal,
                       <div style={{fontWeight:700,color:T.text}}>{request.subject}</div>
                       <div style={{color:T.muted,fontSize:12,marginTop:2,maxWidth:360,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{request.description || request.category}</div>
                     </td>
-                    <td style={{padding:"11px 8px",borderBottom:`1px solid ${T.border}`}}><Pill label={request.status} color={T.blue} bg={T.blueBg} border={T.blueBdr}/></td>
+                    <td style={{padding:"11px 8px",borderBottom:`1px solid ${T.border}`}}>
+                      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                        <Pill label={request.status} color={T.blue} bg={T.blueBg} border={T.blueBdr}/>
+                        {["Proposal Sent", "Waiting on Client"].includes(request.status) && (
+                          <button onClick={async () => {
+                            try {
+                              await portalAction("approve_request", { requestNumber: request.requestNumber });
+                              refreshPortal();
+                              toast("Request approved");
+                            } catch (err) {
+                              toast(err.message, "warning");
+                            }
+                          }} style={{padding:"3px 10px",borderRadius:6,border:`1.5px solid ${T.accentBdr}`,background:T.accentBg,color:T.accent,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                            Approve
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     <td style={{padding:"11px 8px",borderBottom:`1px solid ${T.border}`}}>{request.priority}</td>
                     <td style={{padding:"11px 8px",borderBottom:`1px solid ${T.border}`,color:T.muted,whiteSpace:"nowrap"}}>{request.dueDate || "Not set"}</td>
                   </tr>
