@@ -367,7 +367,41 @@ async function updateWorkspace(req, user) {
       break;
     case 'publish_flow': {
       workspace.flowNodes = Array.isArray(body.flowNodes) ? body.flowNodes : workspace.flowNodes;
-      const approvalRequest = await createFlowApprovalRequest(req, user, workspace.flowNodes);
+      const allReqs = await listJson('crm-requests/', 500);
+      const existingFlowSR = allReqs.find(r =>
+        r.category === 'Flow Approval' &&
+        !['Closed', 'Completed', 'Resolved'].includes(r.status) &&
+        requestBelongsToUser(r, user)
+      );
+      let approvalRequest;
+      if (existingFlowSR) {
+        const updatedNodes = workspace.flowNodes;
+        const flowSummary = summarizeFlowNodes(updatedNodes);
+        const updatedRecord = {
+          ...existingFlowSR,
+          description: `Client published a bot conversation flow for CRM review and approval.\n\n${flowSummary}`,
+          status: 'New',
+          flowApproval: {
+            status: 'Pending CRM approval',
+            publishedAt: now,
+            nodes: updatedNodes,
+          },
+          timeline: [
+            {
+              id: `timeline-${Date.now()}`,
+              time: now,
+              type: 'edited',
+              detail: 'Client re-published updated bot flow for approval',
+              actor: user.name || user.email,
+            },
+            ...(existingFlowSR.timeline || []),
+          ],
+        };
+        await writeJson(`crm-requests/${existingFlowSR.requestNumber}.json`, updatedRecord);
+        approvalRequest = summarizeRequest(updatedRecord);
+      } else {
+        approvalRequest = await createFlowApprovalRequest(req, user, workspace.flowNodes);
+      }
       workspace.flowStatus = 'Pending CRM approval';
       workspace.lastPublishedFlow = {
         requestNumber: approvalRequest.requestNumber,
