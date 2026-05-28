@@ -1801,7 +1801,7 @@ function ClientRequests({ portalData, portalLoading, portalError, refreshPortal,
                     <td style={{padding:"11px 8px",borderBottom:`1px solid ${T.border}`}}>
                       <div style={{display:"flex",gap:8,alignItems:"center"}}>
                         <Pill label={request.status} color={T.blue} bg={T.blueBg} border={T.blueBdr}/>
-                        {["Proposal Sent", "Waiting on Client"].includes(request.status) && (
+                        {["New", "Proposal Sent", "Waiting on Client"].includes(request.status) && (
                           <button onClick={async () => {
                             try {
                               await portalAction("approve_request", { requestNumber: request.requestNumber });

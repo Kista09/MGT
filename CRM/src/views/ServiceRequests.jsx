@@ -77,6 +77,7 @@ function isApprovable(request) {
   return (
     request.source === "onboarding" ||
     request.channel === "Client Portal" ||
+    request.category === "Client Portal" ||
     !!request.onboarding
   ) && !["Approved", "Resolved", "Closed"].includes(request.status);
 }

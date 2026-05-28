@@ -263,8 +263,8 @@ module.exports = async (req, res) => {
       return res.status(200).json({ success: true, action: 'flow_approved' });
     }
 
-    // 2. Handle generic service requests (not onboarding)
-    if (request.category !== 'Onboarding' && !request.onboarding?.company) {
+    // 2. Handle generic service requests (not onboarding or already in portal)
+    if (request.channel === 'Client Portal' || (request.category !== 'Onboarding' && !request.onboarding?.company)) {
       await updateRequestStatus(requestNumber, {
         status: 'Approved',
         timeline: [
