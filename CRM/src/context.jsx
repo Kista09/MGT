@@ -44,6 +44,7 @@ function getInitial() {
         portalUsers: parsed.portalUsers ?? INITIAL_STATE.portalUsers,
         consultants: parsed.consultants ?? INITIAL_STATE.consultants,
         onboardingChecklist: parsed.onboardingChecklist ?? INITIAL_STATE.onboardingChecklist,
+        flows: parsed.flows ?? INITIAL_STATE.flows,
         billing: parsed.billing ?? INITIAL_STATE.billing,
         auditLog: parsed.auditLog ?? INITIAL_STATE.auditLog,
         settings: {
@@ -579,6 +580,54 @@ function reducer(state, action) {
       return { ...state, settings: { ...state.settings, ...action.settings } };
     case "UPDATE_USER":
       return { ...state, user: { ...state.user, ...action.user } };
+
+    /* ── Flow Builder ────────────────────────────────────────── */
+    case "ADD_FLOW_NODE": {
+      const lastNode = (state.flows ?? [])
+        .find(f => f.id === action.flowId)
+        ?.nodes.reduce((max, n) => n.x > max.x ? n : max, { x: 60, y: 220 });
+      const newNode = {
+        id: `node-${generateId()}`,
+        type: action.node.type,
+        label: action.node.label,
+        content: action.node.content ?? "",
+        x: (lastNode?.x ?? 60) + 200,
+        y: lastNode?.y ?? 220,
+      };
+      return {
+        ...state,
+        flows: (state.flows ?? []).map(f =>
+          f.id !== action.flowId ? f : { ...f, nodes: [...f.nodes, newNode] }
+        ),
+      };
+    }
+    case "UPDATE_FLOW_NODE":
+      return {
+        ...state,
+        flows: (state.flows ?? []).map(f =>
+          f.id !== action.flowId ? f : {
+            ...f,
+            nodes: f.nodes.map(n => n.id === action.nodeId ? { ...n, ...action.updates } : n),
+          }
+        ),
+      };
+    case "UPDATE_FLOW_BOOK_NOW":
+      return {
+        ...state,
+        flows: (state.flows ?? []).map(f => ({
+          ...f,
+          nodes: f.nodes.map(n =>
+            n.label === "Book Now" ? { ...n, content: action.content, url: action.url } : n
+          ),
+        })),
+      };
+    case "PUBLISH_FLOW":
+      return {
+        ...state,
+        flows: (state.flows ?? []).map(f =>
+          f.id === action.flowId ? { ...f, published: true } : f
+        ),
+      };
 
     default:
       return state;

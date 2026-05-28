@@ -73,6 +73,14 @@ function serviceRequestId(request = {}) {
   return serviceRequestNumber(request) || request.id;
 }
 
+function safeText(value) {
+  return String(value ?? "");
+}
+
+function safeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
 function cellStyle(C, extra = {}) {
   return {
     borderRight:`1px solid ${C.border}`,
@@ -144,7 +152,7 @@ function requestColumnText(request, clientMap) {
     category: request.category ?? "",
     priority: request.priority ?? "",
     status: request.status ?? "",
-    due: `${request.dueDate ?? ""} ${delta < 0 ? `${Math.abs(delta)}d late overdue` : delta === 0 ? "today" : formatDateShort(request.dueDate)}`,
+    due: `${request.dueDate ?? ""} ${request.dueDate ? (delta < 0 ? `${Math.abs(delta)}d late overdue` : delta === 0 ? "today" : formatDateShort(request.dueDate)) : ""}`,
     channel: request.source === "onboarding" ? "Onboarding" : request.channel ?? "",
     owner: request.owner ?? "",
     received: `${request.receivedAt ?? ""} ${formatDateShort(request.receivedAt?.slice(0, 10))}`,
@@ -657,14 +665,14 @@ function RequestAuditTrail({ trail = [] }) {
       .join(" ")
       .trim();
   };
-  const visibleChanges = (changes = []) => changes
+  const visibleChanges = (changes = []) => safeArray(changes)
     .map(change => {
       if (change.field !== "notes") return change;
       const added = addedInternalNote(change.before, change.after);
       return added ? { ...change, label: "Added note", before: "", after: added } : null;
     })
     .filter(Boolean);
-  const items = trail.slice(0, 3);
+  const items = safeArray(trail).slice(0, 3);
   if (!items.length) return null;
   return (
     <div style={{ background:C.surface, border:`1px solid ${C.border}`, borderRadius:6, padding:"9px 10px", marginBottom:12 }}>
@@ -784,9 +792,9 @@ export default function ServiceRequests() {
         const categoryMatch = category === "All" || request.category === category;
         const searchMatch = !q ||
           serviceRequestNumber(request).toLowerCase().includes(q) ||
-          request.subject.toLowerCase().includes(q) ||
-          request.description.toLowerCase().includes(q) ||
-          request.requester.toLowerCase().includes(q) ||
+          safeText(request.subject).toLowerCase().includes(q) ||
+          safeText(request.description).toLowerCase().includes(q) ||
+          safeText(request.requester).toLowerCase().includes(q) ||
           (client?.name ?? "").toLowerCase().includes(q);
         const columnMatch = activeColumnFilters.every(([key, value]) =>
           String(columnText[key] ?? "").trim().toLowerCase() === value
@@ -799,7 +807,7 @@ export default function ServiceRequests() {
         const compare = typeof aValue === "number" && typeof bValue === "number"
           ? aValue - bValue
           : String(aValue).localeCompare(String(bValue));
-        return (sortConfig.dir === "asc" ? compare : -compare) || a.dueDate.localeCompare(b.dueDate);
+        return (sortConfig.dir === "asc" ? compare : -compare) || safeText(a.dueDate).localeCompare(safeText(b.dueDate));
       });
   }, [category, clientMap, columnFilters, queue, requests, search, sortConfig]);
 
@@ -982,6 +990,14 @@ export default function ServiceRequests() {
           relatedRequestNumber:serviceRequestNumber(request),
           attachments:data.attachments ?? [],
         }});
+      }
+      if (approvalAction !== "resend") {
+        const bookingUrl = state.settings?.bookNowUrl ?? "";
+        dispatch({
+          type: "UPDATE_FLOW_BOOK_NOW",
+          content: `Open the booking link and choose your service.\n${bookingUrl}`.trim(),
+          url: bookingUrl,
+        });
       }
       toast(approvalAction === "resend" ? "Starter kit resent" : "Portal access granted and email sent", "ok");
     } catch (error) {
@@ -1219,7 +1235,7 @@ export default function ServiceRequests() {
                       </select>
                     </td>
                     <td style={cellStyle(C, { color:dueColor, fontWeight:800 })}>
-                      {delta < 0 ? `${Math.abs(delta)}d late` : delta === 0 ? "Today" : formatDateShort(request.dueDate)}
+                      {request.dueDate ? (delta < 0 ? `${Math.abs(delta)}d late` : delta === 0 ? "Today" : formatDateShort(request.dueDate)) : "Not set"}
                     </td>
                     <td style={cellStyle(C)}>{request.source === "onboarding" ? "Onboarding" : request.channel}</td>
                     <td style={cellStyle(C)}>{request.owner}</td>
@@ -1326,11 +1342,11 @@ export default function ServiceRequests() {
                 </button>
               )}
             </div>
-            {(activeRequest.attachments ?? []).length > 0 && (
+            {safeArray(activeRequest.attachments).length > 0 && (
               <div style={{ marginTop:12 }}>
                 <div style={{ color:C.muted, fontSize:10, fontWeight:900, letterSpacing:.6, textTransform:"uppercase", marginBottom:6 }}>Attachment archive</div>
                 <div style={{ display:"grid", gap:6 }}>
-                  {(activeRequest.attachments ?? []).slice(0, 6).map((attachment, index) => (
+                  {safeArray(activeRequest.attachments).slice(0, 6).map((attachment, index) => (
                     <a key={`${attachment.url}-${index}`} href={attachment.url} target="_blank" rel="noreferrer"
                       style={{ color:C.blue, fontSize:12, fontWeight:800, textDecoration:"none", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                       {attachment.filename}
@@ -1345,8 +1361,8 @@ export default function ServiceRequests() {
                 {[
                   { id:"created", time:activeRequest.receivedAt, type:"created", detail:`Request created by ${activeRequest.requester}` },
                   ...(activeRequest.approvedAt ? [{ id:"approved-at", time:activeRequest.approvedAt, type:"approved", detail:`Approved by ${activeRequest.approvedBy || "MgucaTECH"}` }] : []),
-                  ...(activeRequest.timeline ?? []),
-                  ...(activeRequest.auditTrail ?? []).map(item => ({ id:item.id, time:item.time, type:"edited", detail:`${item.consultantName || item.actor} amended ${(item.changes ?? []).map(change => change.label).join(", ")}` })),
+                  ...safeArray(activeRequest.timeline),
+                  ...safeArray(activeRequest.auditTrail).map(item => ({ id:item.id, time:item.time, type:"edited", detail:`${item.consultantName || item.actor} amended ${safeArray(item.changes).map(change => change.label).join(", ")}` })),
                 ].filter(item => item.time || item.detail).map(item => (
                   <div key={item.id} style={{ borderLeft:`3px solid ${item.type?.includes("email") ? C.blue : item.type === "approved" ? C.success : C.accent}`, paddingLeft:9 }}>
                     <div style={{ color:C.text, fontSize:12, fontWeight:800 }}>{item.detail}</div>

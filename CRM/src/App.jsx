@@ -16,6 +16,7 @@ import Onboarding  from "./views/Onboarding";
 import ServiceRequests from "./views/ServiceRequests";
 import FollowUps   from "./views/FollowUps";
 import Bots        from "./views/Bots";
+import FlowBuilder  from "./views/FlowBuilder";
 import PrivateClients from "./views/ConfidentialClients";
 import Presentations from "./views/Presentations";
 import Analytics   from "./views/Analytics";
@@ -63,6 +64,7 @@ function AppInner({ onLogout }) {
     requests:       <ServiceRequests />,
     followups:      <FollowUps />,
     bots:           <Bots />,
+    "flow-builder": <FlowBuilder />,
     presentations:  <Presentations />,
     "private-clients": privateAccess ? <PrivateClients /> : <Clients />,
     analytics:      <Analytics />,

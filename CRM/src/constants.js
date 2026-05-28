@@ -60,6 +60,7 @@ export const NAV_ITEMS = [
   { id: "requests",  icon: "Q",  label: "Requests" },
   { id: "followups", icon: "!",  label: "Follow-ups" },
   { id: "bots",      icon: "O",  label: "Operations" },
+  { id: "flow-builder", icon: "F", label: "Flow Builder" },
   { id: "presentations", icon: "P", label: "Presentations" },
   { id: "private-clients", icon: "P", label: "Private Clients" },
   { id: "analytics", icon: "A",  label: "Analytics" },
@@ -73,7 +74,7 @@ export const NAV_GROUPS = [
   },
   {
     label: "Consultant",
-    items: NAV_ITEMS.filter(item => ["onboarding", "requests", "followups", "bots"].includes(item.id)),
+    items: NAV_ITEMS.filter(item => ["onboarding", "requests", "followups", "bots", "flow-builder"].includes(item.id)),
   },
   {
     label: "Admin",

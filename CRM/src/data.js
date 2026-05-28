@@ -114,7 +114,7 @@ export const INITIAL_SETTINGS = {
   vatNumber: "",
   supportEmail: "admin@mgucatech.com",
   supportWhatsApp: "+27 76 047 0141",
-  bookNowUrl: "https://mgtchat-20260516-1916.vercel.app/#book",
+  bookNowUrl: "https://mgt-app.vercel.app/#book",
   banking: {
     accountName: "MgucaTech Solutions",
     bank: "South African bank",
@@ -147,6 +147,33 @@ export const INITIAL_CONSULTANTS = [
 export const INITIAL_EMAIL_LOGS = [];
 export const INITIAL_PORTAL_USERS = [];
 
+export const INITIAL_FLOWS = [
+  {
+    id: "flow-default",
+    name: "Main Flow",
+    published: false,
+    nodes: [
+      { id:"node-start",     type:"start",   label:"User sends message",                                         x:60,  y:220 },
+      { id:"node-menu-main", type:"menu",    label:"Main Menu",      content:"Reply with a number: 1. Book 2. FAQ 3. Speak to agent", x:280, y:220 },
+      { id:"node-book",      type:"message", label:"Book Now",       content:"Open the booking link and choose your service.",         x:520, y:80  },
+      { id:"node-faq",       type:"message", label:"FAQ",            content:"Ask your question and I will check the approved Q&A list.", x:520, y:250 },
+      { id:"node-agent",     type:"action",  label:"Escalate to Agent", content:"Connecting you to a live support agent.",             x:520, y:420 },
+      { id:"node-time",      type:"menu",    label:"Time Request",   content:"1. 9:00 2. 12:00 3. 15:00 4. 18:00",                   x:310, y:420 },
+      { id:"node-end-1",     type:"end",     label:"Continue / Resolved",                                        x:760, y:80  },
+      { id:"node-end-2",     type:"end",     label:"Continue / Resolved",                                        x:760, y:250 },
+    ],
+    edges: [
+      { id:"e1", from:"node-start",     to:"node-menu-main" },
+      { id:"e2", from:"node-menu-main", to:"node-book"  },
+      { id:"e3", from:"node-menu-main", to:"node-faq"   },
+      { id:"e4", from:"node-menu-main", to:"node-agent" },
+      { id:"e5", from:"node-menu-main", to:"node-time"  },
+      { id:"e6", from:"node-book",      to:"node-end-1" },
+      { id:"e7", from:"node-faq",       to:"node-end-2" },
+    ],
+  },
+];
+
 export const INITIAL_ONBOARDING_CHECKLIST = [
   "Submit logo, brand colours, and business profile",
   "Confirm WhatsApp number, operating hours, and handoff contact",
@@ -175,6 +202,7 @@ export const INITIAL_STATE = {
   billing: INITIAL_BILLING,
   consultants: INITIAL_CONSULTANTS,
   onboardingChecklist: INITIAL_ONBOARDING_CHECKLIST,
+  flows: INITIAL_FLOWS,
   auditLog: INITIAL_AUDIT_LOG,
   tasks: INITIAL_TASKS,
   serviceRequests: INITIAL_SERVICE_REQUESTS,
