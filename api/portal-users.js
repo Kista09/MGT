@@ -1,5 +1,5 @@
-const { listPortalUsers, makePassword, normalizeEmail, readPortalUser, savePortalUser } = require('./_portal');
-const { auditSilently } = require('./_audit');
+const { listPortalUsers, makePassword, normalizeEmail, readPortalUser, savePortalUser } = require('../lib/portal');
+const { auditSilently } = require('../lib/audit');
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

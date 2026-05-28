@@ -1,6 +1,6 @@
-const { makePassword, normalizeEmail, readPortalUser, savePortalUser, slugify } = require('./_portal');
-const { archiveAttachment, saveEmailLog } = require('./_crm-ops');
-const { auditSilently } = require('./_audit');
+const { makePassword, normalizeEmail, readPortalUser, savePortalUser, slugify } = require('../lib/portal');
+const { archiveAttachment, saveEmailLog } = require('../lib/crm-ops');
+const { auditSilently } = require('../lib/audit');
 const fs = require('fs');
 const path = require('path');
 

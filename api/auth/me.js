@@ -1,4 +1,4 @@
-const { publicUser, readPortalUser, readToken } = require('../_portal');
+const { publicUser, readPortalUser, readToken } = require('../../lib/portal');
 
 function setCors(req, res) {
   const origin = req.headers.origin || '';

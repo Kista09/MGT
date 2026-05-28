@@ -1,7 +1,7 @@
 const { list, put } = require('@vercel/blob');
-const { normalizeEmail, publicUser, readPortalUser, readToken, slugify } = require('./_portal');
-const { saveEmailLog } = require('./_crm-ops');
-const { auditSilently } = require('./_audit');
+const { normalizeEmail, publicUser, readPortalUser, readToken, slugify } = require('../lib/portal');
+const { saveEmailLog } = require('../lib/crm-ops');
+const { auditSilently } = require('../lib/audit');
 
 const SR_PREFIX = 'MGT-SR-0000-';
 

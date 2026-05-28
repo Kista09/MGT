@@ -1,5 +1,5 @@
-const { auditSilently } = require('../_audit');
-const { readToken } = require('../_portal');
+const { auditSilently } = require('../../lib/audit');
+const { readToken } = require('../../lib/portal');
 
 function setCors(req, res) {
   const origin = req.headers.origin || '';

@@ -1,5 +1,5 @@
-const { listEmailLogs } = require('./_crm-ops');
-const { listAuditTrail } = require('./_audit');
+const { listEmailLogs } = require('../lib/crm-ops');
+const { listAuditTrail } = require('../lib/audit');
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

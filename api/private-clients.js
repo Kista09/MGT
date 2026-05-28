@@ -1,5 +1,5 @@
-const { makeToken, readToken, normalizeEmail } = require('./_portal');
-const { auditSilently } = require('./_audit');
+const { makeToken, readToken, normalizeEmail } = require('../lib/portal');
+const { auditSilently } = require('../lib/audit');
 
 const PRIVATE_CLIENTS = [
   {

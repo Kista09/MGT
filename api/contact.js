@@ -1,7 +1,7 @@
 
 const { put } = require('@vercel/blob');
-const { readToken } = require('./_portal');
-const { auditSilently } = require('./_audit');
+const { readToken } = require('../lib/portal');
+const { auditSilently } = require('../lib/audit');
 
 function escapeHtml(value = '') {
   return String(value)

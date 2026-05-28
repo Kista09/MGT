@@ -1,5 +1,5 @@
 const { list } = require('@vercel/blob');
-const { normalizeEmail, readPortalUser } = require('./_portal');
+const { normalizeEmail, readPortalUser } = require('../lib/portal');
 
 function setCors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');

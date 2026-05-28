@@ -1,5 +1,5 @@
-const { makeToken, publicUser, readPortalUser, savePortalUser } = require('../_portal');
-const { auditSilently } = require('../_audit');
+const { makeToken, publicUser, readPortalUser, savePortalUser } = require('../../lib/portal');
+const { auditSilently } = require('../../lib/audit');
 
 function setCors(req, res) {
   const origin = req.headers.origin || '';
