@@ -156,7 +156,11 @@ function migrateServiceRequests(requests) {
   const pool = [];
   const seen = new Set();
   return requests.map(request => {
-    const normalized = normalizeServiceRequest(request);
+    let normalized = normalizeServiceRequest(request);
+    // Backfill channel for imported portal requests that pre-date the channel field being set
+    if (normalized.imported && !normalized.source && !normalized.channel) {
+      normalized = { ...normalized, channel: "Client Portal" };
+    }
     const id = normalized.requestNumber;
     const valid = id && SR_SHORT_RE.test(id) && !seen.has(id);
     if (valid) {
