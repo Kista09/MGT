@@ -388,50 +388,76 @@ function reducer(state, action) {
       };
     }
     case "IMPORT_SERVICE_REQUESTS": {
-      const existingIds = new Set(state.serviceRequests.flatMap(request => [
-        request.externalId,
-        normalizeServiceRequestNumber(request.requestNumber),
-        normalizeServiceRequestNumber(request.id),
-      ].filter(Boolean)));
-      let pool = [...state.serviceRequests];
-      const imported = (action.requests ?? [])
-        .filter(request => !existingIds.has(request.externalId ?? normalizeServiceRequestNumber(request.requestNumber) ?? normalizeServiceRequestNumber(request.id)))
-        .map(request => {
-          const requestNumber = normalizeServiceRequestNumber(request.requestNumber) ?? makeServiceRequestNumber(pool);
-          const record = {
-            ...request,
-            id: requestNumber,
-            requestNumber,
-            imported: true,
-            status: request.status ?? "New",
-            clientId: request.clientId ?? null,
-          };
-          pool = [record, ...pool];
-          return record;
-        });
+      const API_FIELDS = ["channel", "onboarding", "category", "company", "requester", "email", "subject", "description", "owner", "timeline", "auditTrail", "flowApproval", "outstandingItems", "attachments"];
+      const existingMap = new Map(state.serviceRequests.flatMap(request => {
+        const id = normalizeServiceRequestNumber(request.requestNumber) ?? normalizeServiceRequestNumber(request.id);
+        return id ? [[id, request], ...(request.externalId ? [[request.externalId, request]] : [])] : [];
+      }));
 
-      if (!imported.length) return state;
+      let pool = [...state.serviceRequests];
+      const fresh = [];
+      const patchMap = new Map();
+
+      for (const request of (action.requests ?? [])) {
+        const requestNumber = normalizeServiceRequestNumber(request.requestNumber) ?? normalizeServiceRequestNumber(request.id);
+        const key = request.externalId ?? requestNumber;
+        const existing = key ? existingMap.get(key) : null;
+
+        if (existing) {
+          // Backfill API fields that may have been missing on the original import
+          const patch = {};
+          for (const field of API_FIELDS) {
+            if (request[field] !== undefined && (existing[field] === undefined || existing[field] === null || existing[field] === "")) {
+              patch[field] = request[field];
+            }
+          }
+          if (Object.keys(patch).length) patchMap.set(normalizeServiceRequestNumber(existing.requestNumber) ?? normalizeServiceRequestNumber(existing.id), patch);
+          continue;
+        }
+
+        const rn = requestNumber ?? makeServiceRequestNumber(pool);
+        const record = {
+          ...request,
+          id: rn,
+          requestNumber: rn,
+          imported: true,
+          status: request.status ?? "New",
+          clientId: request.clientId ?? null,
+        };
+        pool = [record, ...pool];
+        fresh.push(record);
+      }
+
+      const patched = patchMap.size
+        ? state.serviceRequests.map(r => {
+            const id = normalizeServiceRequestNumber(r.requestNumber) ?? normalizeServiceRequestNumber(r.id);
+            const p = id ? patchMap.get(id) : null;
+            return p ? { ...r, ...p } : r;
+          })
+        : state.serviceRequests;
+
+      if (!fresh.length && !patchMap.size) return state;
 
       return {
         ...state,
-        serviceRequests: [...imported, ...state.serviceRequests],
+        serviceRequests: [...fresh, ...patched],
         tasks: [
-          ...imported.map(request => requestFollowUp(request, request.owner ?? state.user?.name)),
+          ...fresh.map(request => requestFollowUp(request, request.owner ?? state.user?.name)),
           ...state.tasks,
         ],
-        notifications: imported.map(request => ({
+        notifications: fresh.map(request => ({
           id: generateId(),
           icon: "!",
           text: `Onboarding request received - ${request.company ?? request.requester}`,
           time: "Just now",
           read: false,
         })).concat(state.notifications).slice(0, 50),
-        activity: imported.reduce((activity, request) => addToActivity(activity, {
+        activity: fresh.reduce((activity, request) => addToActivity(activity, {
           time: "Just now",
           icon: "!",
           text: `Onboarding request imported - ${request.company ?? request.subject}`,
         }), state.activity),
-        auditLog: imported.reduce((auditLog, request) => [
+        auditLog: fresh.reduce((auditLog, request) => [
           auditItem(state, "Onboarding request imported", request.company ?? request.subject),
           ...auditLog,
         ], state.auditLog ?? []).slice(0, 120),
