@@ -227,14 +227,17 @@ module.exports = async (req, res) => {
     const company = request.company || request.onboarding?.company || request.subject?.replace(/^Onboarding:\s*/i, '') || 'MgucaTECH Client';
     const requestNumber = request.requestNumber || request.id || request.externalId;
 
-    // 1. Handle Flow Approval requests
-    if (request.category === 'Flow Approval' && request.flowApproval?.nodes) {
-      const workspace = await readWorkspace({ email, clientId: slugify(company) });
-      workspace.flowNodes = request.flowApproval.nodes;
-      workspace.flowStatus = 'Live';
-      workspace.flowApprovedAt = new Date().toISOString();
-      workspace.flowApprovedBy = approvedBy;
-      await saveWorkspace({ email, clientId: slugify(company) }, workspace);
+    // 1. Handle Flow Approval requests — catches all Flow Approval SRs regardless of
+    //    whether the CRM state includes flowApproval.nodes (avoids falling into PDF path)
+    if (request.category === 'Flow Approval') {
+      if (request.flowApproval?.nodes) {
+        const workspace = await readWorkspace({ email, clientId: slugify(company) });
+        workspace.flowNodes = request.flowApproval.nodes;
+        workspace.flowStatus = 'Live';
+        workspace.flowApprovedAt = new Date().toISOString();
+        workspace.flowApprovedBy = approvedBy;
+        await saveWorkspace({ email, clientId: slugify(company) }, workspace);
+      }
 
       await updateRequestStatus(requestNumber, {
         status: 'Approved',
@@ -263,8 +266,9 @@ module.exports = async (req, res) => {
       return res.status(200).json({ success: true, action: 'flow_approved' });
     }
 
-    // 2. Handle generic service requests (not onboarding or already in portal)
-    if (request.channel === 'Client Portal' || (request.category !== 'Onboarding' && !request.onboarding?.company)) {
+    // 2. Handle all non-Onboarding requests — keyed off category, not onboarding.company,
+    //    so Client Portal SRs with onboarding metadata don't fall into the PDF path
+    if (request.category !== 'Onboarding' || request.channel === 'Client Portal') {
       await updateRequestStatus(requestNumber, {
         status: 'Approved',
         timeline: [
