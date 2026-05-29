@@ -267,8 +267,48 @@ function summarizeRequest(request) {
   };
 }
 
+function isOpenFlowApprovalRequest(request, user) {
+  return request.category === 'Flow Approval'
+    && !['Closed', 'Completed', 'Resolved'].includes(request.status)
+    && requestBelongsToUser(request, user);
+}
+
+function withDuplicateResolution(request, keepRequestNumber, now, index = 0) {
+  return {
+    ...request,
+    status: 'Resolved',
+    timeline: [
+      {
+        id: `timeline-${Date.now()}-${index}`,
+        time: now,
+        type: 'edited',
+        detail: `Closed as duplicate of ${keepRequestNumber}`,
+        actor: 'System',
+      },
+      ...(request.timeline || []),
+    ],
+  };
+}
+
 async function portalPayload(user) {
   const allRequests = await listJson('crm-requests/', 500);
+
+  const openFlowSRs = allRequests
+    .filter(r => isOpenFlowApprovalRequest(r, user))
+    .sort((a, b) => new Date(b.receivedAt || 0) - new Date(a.receivedAt || 0));
+  if (openFlowSRs.length > 1) {
+    const keepRN = openFlowSRs[0].requestNumber;
+    const now = new Date().toISOString();
+    const resolvedDuplicates = openFlowSRs.slice(1).map((dup, index) => withDuplicateResolution(dup, keepRN, now, index));
+    await Promise.all(resolvedDuplicates.map(dup =>
+      writeJson(`crm-requests/${dup.requestNumber}.json`, dup)
+    ));
+    for (const duplicate of resolvedDuplicates) {
+      const idx = allRequests.findIndex(r => r.requestNumber === duplicate.requestNumber);
+      if (idx !== -1) allRequests[idx] = duplicate;
+    }
+  }
+
   const requests = allRequests
     .filter(request => requestBelongsToUser(request, user))
     .sort((a, b) => new Date(b.receivedAt || b.createdAt || 0) - new Date(a.receivedAt || a.createdAt || 0))
@@ -368,11 +408,11 @@ async function updateWorkspace(req, user) {
     case 'publish_flow': {
       workspace.flowNodes = Array.isArray(body.flowNodes) ? body.flowNodes : workspace.flowNodes;
       const allReqs = await listJson('crm-requests/', 500);
-      const existingFlowSR = allReqs.find(r =>
-        r.category === 'Flow Approval' &&
-        !['Closed', 'Completed', 'Resolved'].includes(r.status) &&
-        requestBelongsToUser(r, user)
-      );
+      const openFlowSRs = allReqs
+        .filter(r => isOpenFlowApprovalRequest(r, user))
+        .sort((a, b) => new Date(b.receivedAt || 0) - new Date(a.receivedAt || 0));
+      const existingFlowSR = openFlowSRs[0];
+      const duplicateFlowSRs = openFlowSRs.slice(1);
       let approvalRequest;
       if (existingFlowSR) {
         const updatedNodes = workspace.flowNodes;
@@ -398,6 +438,12 @@ async function updateWorkspace(req, user) {
           ],
         };
         await writeJson(`crm-requests/${existingFlowSR.requestNumber}.json`, updatedRecord);
+        await Promise.all(duplicateFlowSRs.map((dup, index) =>
+          writeJson(
+            `crm-requests/${dup.requestNumber}.json`,
+            withDuplicateResolution(dup, existingFlowSR.requestNumber, now, index)
+          )
+        ));
         approvalRequest = summarizeRequest(updatedRecord);
       } else {
         approvalRequest = await createFlowApprovalRequest(req, user, workspace.flowNodes);

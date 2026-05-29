@@ -639,7 +639,7 @@ function OnboardingGrid({ onboarding: o }) {
 
 function ApprovalTrail({ notes }) {
   if (!notes) return null;
-  // Notes may be a single long string without newlines — use regex to find sentences
+  // Notes may be a single long string without newlines, so use regex to find sentences.
   const KEYS = ["Approved for onboarding", "Client portal access granted", "Approval email"];
   const lines = KEYS.map(k => {
     const m = notes.match(new RegExp(k + "[^.]*\\.", "i"));
@@ -658,7 +658,7 @@ function RequestAuditTrail({ trail = [] }) {
   const cleanNoteBlock = (value = "", part = "last") => {
     const chunks = String(value || "")
       .replace(/^Internal notes:\s*/i, "")
-      .split(/\s+â†’\s+|\s+→\s+/)
+      .split(/\s+(?:â†’|\u2192)\s+/)
       .map(chunk => chunk.trim())
       .filter(Boolean);
     return (part === "first" ? chunks[0] : chunks[chunks.length - 1]) || "";
