@@ -2310,6 +2310,537 @@ function Overview({ setView, user, portalData, portalLoading, portalError, refre
   );
 }
 
+/* ─── CLIENT ADMIN PANEL ────────────────────────────────────── */
+const CA_MODS = ["Client Portal","WhatsApp Automation","Booking Workflow","Analytics Dashboard","Contracts & Docs","Invoices & Billing","CRM Access","Compliance Module"];
+const CA_TABS = [
+  {id:"report",num:"01",label:"My Report"},{id:"client",num:"02",label:"My Details"},
+  {id:"access",num:"03",label:"Grant Access"},{id:"employees",num:"04",label:"Team List"},
+  {id:"invoice",num:"05",label:"My Invoice"},{id:"statement",num:"06",label:"Statement"},
+];
+const CA_CSS = `
+.ca-root{--o:#E8561A;--o2:#F07A46;--obg:#FDF0EB;--bg:#F8F4EF;--sf:#FFFFFF;--cd:#F3ECE3;--bd:#E8E2DA;--bd2:#D7CCBE;--tx:#1A1A1A;--mt:#6F6258;--ft:#9E9B94;--gn:#1a9948;--gnbg:#E3F5EB;--rd:#B42318;--rdbg:#FFF1F0;--bl:#0C4A4A;--blbg:#E4F2F2;--r:12px;--rs:8px;--rx:5px;font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--tx);position:relative;}
+.ca-elephant{position:absolute;bottom:0;right:-4%;width:60%;max-width:720px;opacity:.04;pointer-events:none;z-index:0;filter:grayscale(1);user-select:none;}
+.ca-tabnav{display:flex;gap:0;border-bottom:1px solid var(--bd);padding:0 24px;overflow-x:auto;background:var(--sf);position:sticky;top:0;z-index:50;flex-shrink:0;}
+.ca-tabnav::-webkit-scrollbar{height:3px;}
+.ca-tab{display:flex;align-items:center;gap:8px;padding:14px 16px;border:none;background:none;color:var(--mt);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;transition:all .2s;}
+.ca-tab:hover{color:var(--tx);}
+.ca-tab.ca-active{color:var(--tx);border-bottom-color:var(--o);}
+.ca-tabnum{width:18px;height:18px;border-radius:50%;background:var(--bd2);font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;color:var(--mt);flex-shrink:0;transition:all .2s;}
+.ca-tab.ca-active .ca-tabnum{background:var(--o);color:#fff;}
+.ca-page{position:relative;z-index:1;padding:28px 28px 64px;max-width:1000px;margin:0 auto;}
+.ca-sh{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+.ca-snum{width:28px;height:28px;border-radius:50%;background:var(--o);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;}
+.ca-stitle{font-family:'Cormorant Garamond',Georgia,serif;font-size:19px;font-weight:700;letter-spacing:-.02em;color:var(--tx);}
+.ca-srule{flex:1;height:1px;background:linear-gradient(90deg,var(--bd2),transparent);}
+.ca-g2{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;}
+.ca-g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px 16px;}
+.ca-g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.ca-span2{grid-column:1/-1;}
+.ca-field{display:flex;flex-direction:column;gap:5px;}
+.ca-field label{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--mt);}
+.ca-field label span{color:var(--o);}
+.ca-field input,.ca-field select,.ca-field textarea{background:var(--sf);border:1.5px solid var(--bd2);border-radius:var(--rs);padding:9px 12px;font-family:'DM Sans',sans-serif;font-size:13px;color:var(--tx);transition:border-color .2s,box-shadow .2s;outline:none;width:100%;}
+.ca-field input::placeholder,.ca-field textarea::placeholder{color:var(--ft);}
+.ca-field input:focus,.ca-field select:focus,.ca-field textarea:focus{border-color:var(--o);box-shadow:0 0 0 3px rgba(232,86,26,.10);}
+.ca-field select{appearance:none;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236F6258'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;}
+.ca-field textarea{resize:vertical;min-height:80px;}
+.ca-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:20px;}
+.ca-kpi{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:16px 14px;}
+.ca-kpi-lbl{font-size:9px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--mt);margin-bottom:7px;}
+.ca-kpi-val{font-family:'Cormorant Garamond',Georgia,serif;font-size:26px;font-weight:700;color:var(--o);line-height:1;}
+.ca-kpi-ch{font-size:11px;font-weight:600;margin-top:4px;}
+.ca-up{color:var(--gn);}.ca-dn{color:var(--rd);}.ca-neu{color:var(--mt);}
+.ca-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;}
+.ca-po{background:var(--obg);color:var(--o);border:1px solid rgba(232,86,26,.3);}
+.ca-pg{background:var(--gnbg);color:var(--gn);border:1px solid rgba(26,153,72,.3);}
+.ca-pr{background:var(--rdbg);color:var(--rd);border:1px solid rgba(180,35,24,.3);}
+.ca-pb{background:var(--blbg);color:var(--bl);border:1px solid rgba(12,74,74,.3);}
+.ca-pm{background:var(--bd);color:var(--mt);border:1px solid var(--bd2);}
+.ca-notice{border-radius:var(--rs);padding:12px 14px;font-size:12px;line-height:1.6;color:var(--mt);display:flex;gap:10px;align-items:flex-start;}
+.ca-no{background:var(--obg);border:1px solid rgba(232,86,26,.25);}
+.ca-notice-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+.ca-sr{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd);}
+.ca-sr:last-child{border-bottom:none;}
+.ca-sk{font-size:12px;color:var(--mt);}
+.ca-sv{font-size:12.5px;font-weight:600;color:var(--tx);}
+.ca-prog-row{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+.ca-prog-lbl{font-size:12px;color:var(--mt);width:140px;flex-shrink:0;}
+.ca-prog-bar{flex:1;height:5px;background:var(--bd);border-radius:3px;overflow:hidden;}
+.ca-prog-fill{height:100%;background:linear-gradient(90deg,var(--o),var(--o2));border-radius:3px;}
+.ca-prog-val{font-family:'DM Mono',monospace;font-size:11px;color:var(--tx);width:50px;text-align:right;flex-shrink:0;}
+.ca-rec{display:flex;align-items:flex-start;gap:10px;background:var(--cd);border-left:3px solid var(--o);border-radius:0 var(--rs) var(--rs) 0;padding:10px 12px;margin-bottom:7px;}
+.ca-rec-tag{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:20px;flex-shrink:0;margin-top:1px;}
+.ca-rec-text{font-size:12px;color:var(--mt);line-height:1.55;}
+.ca-tbl-wrap{border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;}
+.ca-tbl-wrap table{width:100%;border-collapse:collapse;}
+.ca-tbl-wrap thead tr{background:var(--o);}
+.ca-tbl-wrap thead th{padding:9px 11px;font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#fff;text-align:left;}
+.ca-tbl-wrap thead th.r{text-align:right;}
+.ca-tbl-wrap tbody tr{border-bottom:1px solid var(--bd);}
+.ca-tbl-wrap tbody tr:last-child{border-bottom:none;}
+.ca-tbl-wrap tbody tr:nth-child(odd){background:var(--sf);}
+.ca-tbl-wrap tbody tr:nth-child(even){background:var(--cd);}
+.ca-tbl-wrap tbody td{padding:8px 11px;font-size:12px;color:var(--mt);}
+.ca-tbl-wrap tbody td.val{color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;}
+.ca-tbl-wrap tbody td.r{text-align:right;}
+.ca-tbl-wrap tbody td.debit{color:var(--rd);font-family:'DM Mono',monospace;font-size:11px;text-align:right;}
+.ca-tbl-wrap tbody td.credit{color:var(--gn);font-family:'DM Mono',monospace;font-size:11px;text-align:right;}
+.ca-tbl-wrap tbody td.balance{color:var(--tx);font-family:'DM Mono',monospace;font-size:11px;text-align:right;}
+.ca-tbl-wrap tbody td.neg{color:var(--rd)!important;}
+.ca-tbl-footer{background:var(--rdbg);border-top:1px solid rgba(180,35,24,.3);padding:9px 11px;display:flex;justify-content:space-between;align-items:center;}
+.ca-tbl-footer .tfl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mt);}
+.ca-tbl-footer .tft{font-family:'DM Mono',monospace;font-size:14px;font-weight:700;color:var(--rd);}
+.ca-totals{background:var(--cd);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;width:260px;margin-left:auto;}
+.ca-tot-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--bd);font-size:12px;}
+.ca-tot-row:last-child{border-bottom:none;}
+.ca-tot-key{color:var(--mt);}
+.ca-tot-val{font-family:'DM Mono',monospace;font-weight:600;}
+.ca-tot-grand{background:var(--o);border-radius:var(--rx);display:flex;justify-content:space-between;padding:8px 11px;margin-top:7px;font-weight:700;font-size:12px;color:#fff;}
+.ca-tot-grand span:last-child{font-family:'DM Mono',monospace;}
+.ca-pay{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rs);padding:16px;}
+.ca-pay-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--bd);}
+.ca-pay-row:last-child{border-bottom:none;}
+.ca-pay-key{font-size:11px;color:var(--mt);}
+.ca-pay-val{font-size:12.5px;font-weight:600;color:var(--tx);}
+.ca-pay-val.orange{color:var(--o);}
+.ca-ic-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px;}
+.ca-ic{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rs);overflow:hidden;}
+.ca-ic-head{background:var(--o);padding:7px 13px;font-size:9px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#fff;}
+.ca-ic-body{padding:10px 13px;}
+.ca-access-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ca-ac{background:var(--sf);border:2px solid var(--bd);border-radius:var(--rs);padding:14px;cursor:pointer;transition:all .2s;}
+.ca-ac:hover,.ca-ac.sel{border-color:var(--o);background:var(--obg);}
+.ca-ac-icon{font-size:18px;margin-bottom:7px;}
+.ca-ac-name{font-size:12.5px;font-weight:600;color:var(--tx);margin-bottom:2px;}
+.ca-ac-desc{font-size:10.5px;color:var(--mt);line-height:1.4;}
+.ca-mod-row{display:flex;flex-wrap:wrap;gap:7px;}
+.ca-mod{padding:5px 13px;border:1.5px solid var(--bd2);border-radius:20px;font-size:11.5px;color:var(--mt);cursor:pointer;transition:all .15s;user-select:none;}
+.ca-mod:hover,.ca-mod.on{background:var(--o);border-color:var(--o);color:#fff;}
+.ca-check{display:flex;align-items:center;gap:10px;background:var(--sf);border:1px solid var(--bd);border-radius:var(--rx);padding:9px 12px;cursor:pointer;transition:all .15s;margin-bottom:18px;}
+.ca-check:hover,.ca-check.on{border-color:var(--o);background:var(--obg);}
+.ca-check input[type=checkbox]{accent-color:var(--o);width:14px;height:14px;}
+.ca-check span{font-size:12px;color:var(--mt);}
+.ca-check.on span{color:var(--tx);}
+.ca-emp-card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;margin-bottom:10px;}
+.ca-emp-head{display:flex;align-items:center;gap:9px;margin-bottom:12px;}
+.ca-emp-num{width:22px;height:22px;border-radius:50%;background:var(--o);font-size:9px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.ca-emp-name{font-size:13px;font-weight:600;color:var(--tx);}
+.ca-emp-rm{margin-left:auto;padding:2px 9px;background:var(--rdbg);border:1px solid rgba(180,35,24,.25);border-radius:5px;color:var(--rd);font-size:10px;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.ca-emp-add{display:flex;align-items:center;gap:7px;padding:7px 14px;background:var(--obg);border:1px solid rgba(232,86,26,.3);border-radius:var(--rs);color:var(--o);font-size:11.5px;font-weight:600;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .2s;}
+.ca-emp-add:hover{background:rgba(232,86,26,.15);}
+.ca-age{background:var(--sf);border:1px solid var(--bd);border-radius:var(--rs);padding:14px;text-align:center;}
+.ca-age-lbl{font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--mt);margin-bottom:5px;}
+.ca-age-bar{height:4px;border-radius:3px;margin:6px 0 5px;}
+.ca-age-val{font-family:'Cormorant Garamond',Georgia,serif;font-size:18px;font-weight:700;}
+.ca-btn-row{display:flex;justify-content:flex-end;gap:9px;margin-top:20px;padding-top:16px;border-top:1px solid var(--bd);}
+.ca-btn-ghost{padding:9px 20px;background:transparent;border:1.5px solid var(--bd2);border-radius:var(--rs);color:var(--mt);font-family:'DM Sans',sans-serif;font-size:12.5px;cursor:pointer;transition:all .2s;}
+.ca-btn-ghost:hover{border-color:var(--o);color:var(--tx);}
+.ca-btn-pri{padding:9px 24px;background:linear-gradient(135deg,var(--o),var(--o2));border:none;border-radius:var(--rs);color:#fff;font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(232,86,26,.25);transition:all .2s;}
+.ca-btn-pri:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 20px rgba(232,86,26,.35);}
+.ca-btn-pri:disabled{opacity:.5;cursor:not-allowed;}
+.ca-ov{position:fixed;inset:0;background:rgba(26,26,26,.5);z-index:300;backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;}
+.ca-ov-box{background:var(--sf);border:1px solid var(--bd);border-radius:18px;padding:40px 32px;text-align:center;max-width:380px;width:90%;box-shadow:0 8px 48px rgba(26,26,26,.15);}
+.ca-ov-icon{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--o),var(--o2));display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:24px;}
+.ca-ov-title{font-family:'Cormorant Garamond',Georgia,serif;font-size:22px;font-weight:700;margin-bottom:7px;color:var(--tx);}
+.ca-ov-sub{font-size:12.5px;color:var(--mt);margin-bottom:18px;line-height:1.6;}
+.ca-ref{background:var(--obg);border:1px solid rgba(232,86,26,.3);border-radius:9px;padding:10px 18px;margin-bottom:18px;}
+.ca-ref-lbl{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--o);margin-bottom:3px;}
+.ca-ref-code{font-family:'DM Mono',monospace;font-size:16px;font-weight:700;color:var(--tx);letter-spacing:.1em;}
+@media(max-width:680px){.ca-g2,.ca-g3,.ca-g4{grid-template-columns:1fr;}.ca-span2{grid-column:1;}.ca-ic-grid{grid-template-columns:1fr;}.ca-access-grid{grid-template-columns:1fr;}.ca-totals{width:100%;}.ca-page{padding:18px 14px 48px;}}
+`;
+
+function CASecHead({ num, title, children }) {
+  return (
+    <div className="ca-sh">
+      <div className="ca-snum" style={String(num).length > 2 ? { fontSize: 9 } : {}}>{num}</div>
+      <div className="ca-stitle">{title}</div>
+      <div className="ca-srule" />
+      {children}
+    </div>
+  );
+}
+function CAStatRow({ label, value, style }) {
+  return <div className="ca-sr"><span className="ca-sk">{label}</span><span className="ca-sv" style={style}>{value}</span></div>;
+}
+function CAProgBar({ label, value, color }) {
+  return (
+    <div className="ca-prog-row">
+      <span className="ca-prog-lbl">{label}</span>
+      <div className="ca-prog-bar"><div className="ca-prog-fill" style={{ width: value, ...(color ? { background: color } : {}) }} /></div>
+      <span className="ca-prog-val">{value}</span>
+    </div>
+  );
+}
+function CAEmpRow({ num, onRemove }) {
+  const [name, setName] = useState("New Employee");
+  const [active, setActive] = useState(new Set());
+  const toggle = (m) => setActive(p => { const n = new Set(p); n.has(m) ? n.delete(m) : n.add(m); return n; });
+  return (
+    <div className="ca-emp-card">
+      <div className="ca-emp-head">
+        <div className="ca-emp-num">{num}</div>
+        <span className="ca-emp-name">{name || "New Employee"}</span>
+        {onRemove && <button className="ca-emp-rm" onClick={onRemove}>Remove</button>}
+      </div>
+      <div className="ca-g2" style={{ marginBottom: 10 }}>
+        <div className="ca-field"><label>Full Name <span>*</span></label><input type="text" placeholder="John Nkosi" value={name} onChange={e => setName(e.target.value)} /></div>
+        <div className="ca-field"><label>Work Email <span>*</span></label><input type="email" placeholder="john@company.co.za" /></div>
+        <div className="ca-field"><label>Job Title</label><input type="text" placeholder="e.g. Account Manager" /></div>
+        <div className="ca-field"><label>Access Role</label><select><option value="">Select role…</option>{["Admin","Manager","Standard User","Read-Only","External Reviewer"].map(r => <option key={r}>{r}</option>)}</select></div>
+      </div>
+      <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--mt)", marginBottom: 7 }}>Module Access</div>
+      <div className="ca-mod-row">{CA_MODS.map(m => <div key={m} className={`ca-mod${active.has(m) ? " on" : ""}`} onClick={() => toggle(m)}>{m}</div>)}</div>
+    </div>
+  );
+}
+
+function ClientAdminPanel({ user }) {
+  const [tab, setTab] = useState("report");
+  const [employees, setEmployees] = useState([{ id: 1 }]);
+  const [nextId, setNextId] = useState(2);
+  const [selAccess, setSelAccess] = useState(null);
+  const [activeMods, setActiveMods] = useState(new Set());
+  const [success, setSuccess] = useState(null);
+  const [cdConsent, setCdConsent] = useState(false);
+  const [gaConsent, setGaConsent] = useState(false);
+  const [eaConsent, setEaConsent] = useState(false);
+
+  const genRef = () => Date.now().toString(36).toUpperCase().slice(-6);
+  const addEmp = () => { setEmployees(p => [...p, { id: nextId }]); setNextId(p => p + 1); };
+  const removeEmp = (id) => setEmployees(p => p.filter(e => e.id !== id));
+  const toggleMod = (m) => setActiveMods(p => { const n = new Set(p); n.has(m) ? n.delete(m) : n.add(m); return n; });
+
+  const company = user?.clientName || "Your Company";
+
+  return (
+    <div className="ca-root" style={{ flex: 1, overflowY: "auto" }}>
+      <style>{CA_CSS}</style>
+      <svg className="ca-elephant" viewBox="0 0 1400 1000" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <ellipse cx="510" cy="540" rx="310" ry="210" fill="#888"/><ellipse cx="775" cy="355" rx="155" ry="160" fill="#8a8a8a"/>
+        <ellipse cx="920" cy="310" rx="170" ry="200" fill="#737373"/><ellipse cx="898" cy="330" rx="120" ry="150" fill="#8f8f8f" opacity=".6"/>
+        <polygon points="820,450 850,460 865,530 900,610 890,700 870,790 840,870 820,920 800,920 780,870 800,790 820,700 820,610 795,530 775,460 790,450" fill="#7a7a7a"/>
+        <rect x="260" y="650" width="90" height="110" rx="6" fill="#757575"/><rect x="370" y="670" width="90" height="110" rx="6" fill="#757575"/>
+        <rect x="490" y="650" width="90" height="110" rx="6" fill="#757575"/><rect x="610" y="640" width="90" height="110" rx="6" fill="#757575"/>
+        <polygon points="210,440 200,440 175,500 165,560 162,600 168,610 178,600 182,562 190,504 215,445" fill="#727272"/>
+      </svg>
+
+      <div className="ca-tabnav">
+        {CA_TABS.map(t => (
+          <button key={t.id} className={`ca-tab${tab === t.id ? " ca-active" : ""}`} onClick={() => setTab(t.id)}>
+            <span className="ca-tabnum">{t.num}</span>{t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Report */}
+      {tab === "report" && (
+        <div className="ca-page">
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 24 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--o)", marginBottom: 5 }}>Client Performance Report · April 2026</div>
+              <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 28, fontWeight: 700, letterSpacing: "-.02em", lineHeight: 1.1, color: "var(--tx)" }}>Monthly <em style={{ color: "var(--o)" }}>Review.</em></h1>
+              <p style={{ fontSize: 13, color: "var(--mt)", marginTop: 5 }}>{company} · 01–30 April 2026</p>
+            </div>
+            <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+              <span className="ca-pill ca-pm">RPT-2026-APR-019</span>
+              <span className="ca-pill ca-po">Cape Town</span>
+              <span className="ca-pill ca-pb">Financial Services</span>
+            </div>
+          </div>
+          <div className="ca-g4" style={{ marginBottom: 24 }}>
+            {[["Active Users","12","▲ +2 MoM","ca-up"],["Sessions","847","▲ +18%","ca-up"],["Uptime","99.8%","— stable","ca-neu"],["CSAT Score","4.7/5","▲ +0.2","ca-up"]].map(([l,v,c,cls]) => (
+              <div key={l} className="ca-kpi"><div className="ca-kpi-lbl">{l}</div><div className="ca-kpi-val" style={{ fontSize: 20 }}>{v}</div><div className={`ca-kpi-ch ${cls}`}>{c}</div></div>
+            ))}
+          </div>
+          <CASecHead num="01" title="Executive Summary" />
+          <div className="ca-card" style={{ marginBottom: 24 }}>
+            <p style={{ fontSize: 13, color: "var(--mt)", lineHeight: 1.75 }}>
+              <strong style={{ color: "var(--tx)" }}>Strong performance in April 2026.</strong> WhatsApp automation handled <strong style={{ color: "var(--o)" }}>623 interactions</strong> with a <strong style={{ color: "var(--o)" }}>94% resolution rate</strong>. Booking workflow processed <strong style={{ color: "var(--tx)" }}>184 appointments</strong> with zero conflicts. Portal adoption grew <strong style={{ color: "var(--gn)" }}>18% month-on-month</strong>. One outstanding invoice <strong style={{ color: "var(--rd)" }}>(R 8,900)</strong> requires attention.
+            </p>
+          </div>
+          <CASecHead num="02" title="Usage & Engagement" />
+          <div className="ca-g3" style={{ marginBottom: 24 }}>
+            {[["Sessions","847","+18% MoM","ca-up"],["Page Views","4,312","+22% MoM","ca-up"],["Avg. Session","6m 42s","−4% MoM","ca-dn"],["Docs Accessed","138","+9% MoM","ca-up"],["Reports Downloaded","34","New","ca-neu"],["Support Tickets","3","All resolved","ca-up"]].map(([l,v,c,cls]) => (
+              <div key={l} className="ca-kpi"><div className="ca-kpi-lbl">{l}</div><div className="ca-kpi-val" style={{ fontSize: 18 }}>{v}</div><div className={`ca-kpi-ch ${cls}`}>{c}</div></div>
+            ))}
+          </div>
+          <div className="ca-g2" style={{ marginBottom: 24 }}>
+            <div>
+              <CASecHead num="03" title="WhatsApp Automation" />
+              <div className="ca-card">
+                <CAStatRow label="Messages Sent" value="623" /><CAStatRow label="Auto-resolved" value="587 (94.2%)" style={{ color: "var(--gn)" }} />
+                <CAStatRow label="Avg. Response Time" value="< 8 seconds" /><CAStatRow label="Escalated" value="36 (5.8%)" />
+                <CAStatRow label="New Subscribers" value="47" style={{ color: "var(--gn)" }} />
+                <div style={{ marginTop: 14 }}><CAProgBar label="Resolution Rate" value="94.2%" /><CAProgBar label="Subscriber Growth" value="72%" /></div>
+              </div>
+            </div>
+            <div>
+              <CASecHead num="04" title="Booking & Appointments" />
+              <div className="ca-card">
+                <CAStatRow label="Booked" value="184" /><CAStatRow label="Completed" value="171 (92.9%)" style={{ color: "var(--gn)" }} />
+                <CAStatRow label="Cancelled" value="9 (4.9%)" /><CAStatRow label="No-Show" value="4 (2.2%)" style={{ color: "var(--rd)" }} />
+                <CAStatRow label="Top Channel" value="WhatsApp Bot" />
+                <div style={{ marginTop: 14 }}><CAProgBar label="Completion Rate" value="92.9%" /><CAProgBar label="No-Show Rate" value="2.2%" color="var(--rd)" /></div>
+              </div>
+            </div>
+          </div>
+          <CASecHead num="05" title="Financial Overview" />
+          <div className="ca-g4" style={{ marginBottom: 24 }}>
+            <div className="ca-kpi"><div className="ca-kpi-lbl">Invoiced</div><div className="ca-kpi-val" style={{ fontSize: 16 }}>R 11,650</div><div className="ca-kpi-ch ca-neu">This month</div></div>
+            <div className="ca-kpi"><div className="ca-kpi-lbl">Received</div><div className="ca-kpi-val" style={{ fontSize: 16, color: "var(--gn)" }}>R 4,250</div><div className="ca-kpi-ch ca-up">EFT cleared</div></div>
+            <div className="ca-kpi" style={{ borderColor: "rgba(180,35,24,.3)", background: "rgba(180,35,24,.04)" }}><div className="ca-kpi-lbl">Outstanding</div><div className="ca-kpi-val" style={{ fontSize: 16, color: "var(--rd)" }}>R 8,900</div><div className="ca-kpi-ch ca-dn">Overdue</div></div>
+            <div className="ca-kpi"><div className="ca-kpi-lbl">Next Due</div><div className="ca-kpi-val" style={{ fontSize: 14, color: "var(--o)" }}>28 Jun 2026</div></div>
+          </div>
+          <CASecHead num="06" title="Recommendations" />
+          {[
+            { bc:"var(--rd)", tbg:"rgba(180,35,24,.12)", tc:"var(--rd)", tbdr:"rgba(180,35,24,.3)", tag:"Priority", text:"Settle outstanding invoice (R 8,900) before 28 June to avoid late payment fees and potential service suspension." },
+            { bc:"var(--bl)", tbg:"rgba(12,74,74,.12)",  tc:"var(--bl)", tbdr:"rgba(12,74,74,.3)",  tag:"Growth",   text:"Upgrade to the Business Tier to unlock an additional 5,000 WhatsApp broadcast credits per month." },
+            { bc:"var(--gn)", tbg:"rgba(26,153,72,.12)", tc:"var(--gn)", tbdr:"rgba(26,153,72,.3)", tag:"Optimise", text:"Enable automated appointment reminders — projected to reduce no-shows by ~60% based on sector benchmarks." },
+            { bc:"var(--o)",  tbg:"rgba(232,86,26,.12)", tc:"var(--o)",  tbdr:"rgba(232,86,26,.3)", tag:"Explore",  text:"Peak portal usage is 08:00–10:00 SAST. Consider scheduling automated reports for 07:30 delivery." },
+          ].map(({ bc,tbg,tc,tbdr,tag,text }) => (
+            <div key={tag} className="ca-rec" style={{ borderLeftColor: bc }}>
+              <span className="ca-rec-tag" style={{ background: tbg, color: tc, border: `1px solid ${tbdr}` }}>{tag}</span>
+              <p className="ca-rec-text">{text}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* My Details */}
+      {tab === "client" && (
+        <div className="ca-page">
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--o)", marginBottom: 5 }}>Form 01</div>
+            <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 26, fontWeight: 700, letterSpacing: "-.02em", color: "var(--tx)" }}>My <em style={{ color: "var(--o)" }}>Details.</em></h1>
+            <p style={{ fontSize: 13, color: "var(--mt)", marginTop: 5 }}>Update your contact information and identity verification details.</p>
+          </div>
+          <CASecHead num="01" title="Organisation & Contact" />
+          <div className="ca-g2" style={{ marginBottom: 20 }}>
+            <div className="ca-field"><label>First Name <span>*</span></label><input type="text" placeholder="e.g. Sarah" defaultValue={user?.name?.split(" ")[0] || ""} /></div>
+            <div className="ca-field"><label>Last Name <span>*</span></label><input type="text" placeholder="e.g. Dlamini" defaultValue={user?.name?.split(" ").slice(1).join(" ") || ""} /></div>
+            <div className="ca-field"><label>Company / Practice Name</label><input type="text" placeholder="e.g. Meridian Holdings" defaultValue={company} /></div>
+            <div className="ca-field"><label>Sector <span>*</span></label><select><option value="">Select sector…</option>{["Healthcare","Financial Services","Retail","Education","Legal","Real Estate","Other"].map(s => <option key={s}>{s}</option>)}</select></div>
+            <div className="ca-field"><label>Email Address <span>*</span></label><input type="email" placeholder="sarah@company.co.za" defaultValue={user?.email || ""} /></div>
+            <div className="ca-field"><label>Phone Number <span>*</span></label><input type="tel" placeholder="+27 82 000 0000" /></div>
+            <div className="ca-field"><label>WhatsApp Number</label><input type="tel" placeholder="If different from phone" /></div>
+            <div className="ca-field"><label>City</label><input type="text" placeholder="e.g. Cape Town" /></div>
+            <div className="ca-field"><label>Country</label><select><option value="">Select…</option>{["South Africa","Botswana","Namibia","Zimbabwe","Kenya","Nigeria","United Kingdom","United States"].map(s => <option key={s}>{s}</option>)}</select></div>
+          </div>
+          <CASecHead num="02" title="Identity Verification" />
+          <div className="ca-notice ca-no" style={{ marginBottom: 14 }}><span className="ca-notice-icon">🔒</span><span>All identity information is encrypted and stored in compliance with POPIA. Never shared with third parties without written consent.</span></div>
+          <div className="ca-g2" style={{ marginBottom: 20 }}>
+            <div className="ca-field"><label>ID / Document Type <span>*</span></label><select><option value="">Select…</option>{["SA National ID Card","Passport","Driver's Licence","Company Registration No.","Trust Deed No."].map(s => <option key={s}>{s}</option>)}</select></div>
+            <div className="ca-field"><label>Document Number <span>*</span></label><input type="text" placeholder="Enter exactly as it appears" /></div>
+            <div className="ca-field"><label>Tax / VAT Number</label><input type="text" placeholder="Optional" /></div>
+          </div>
+          <CASecHead num="03" title="Declaration & Consent" />
+          <div className="ca-notice ca-no" style={{ marginBottom: 14 }}><span className="ca-notice-icon">📋</span><span>I confirm the information provided is accurate and consent to MgucaTech Solutions storing and processing my personal data in accordance with POPIA.</span></div>
+          <label className={`ca-check${cdConsent ? " on" : ""}`} style={{ display: "flex" }}>
+            <input type="checkbox" checked={cdConsent} onChange={e => setCdConsent(e.target.checked)} />
+            <span>I have read and agree to the above declaration.</span>
+          </label>
+          <div className="ca-btn-row">
+            <button className="ca-btn-ghost" onClick={() => setCdConsent(false)}>Clear</button>
+            <button className="ca-btn-pri" disabled={!cdConsent} onClick={() => setSuccess({ msg: "Details updated successfully.", ref: "CD-" + genRef() })}>Save Details →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Grant Access */}
+      {tab === "access" && (
+        <div className="ca-page">
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--o)", marginBottom: 5 }}>Form 02</div>
+            <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 26, fontWeight: 700, letterSpacing: "-.02em", color: "var(--tx)" }}>Grant Portal <em style={{ color: "var(--o)" }}>Access.</em></h1>
+            <p style={{ fontSize: 13, color: "var(--mt)", marginTop: 5 }}>Authorise a team member's access to selected portal modules.</p>
+          </div>
+          <CASecHead num="01" title="User Identification" />
+          <div className="ca-g2" style={{ marginBottom: 20 }}>
+            <div className="ca-field"><label>Full Name <span>*</span></label><input type="text" placeholder="Team member name" /></div>
+            <div className="ca-field"><label>Work Email <span>*</span></label><input type="email" placeholder="Portal login email" /></div>
+            <div className="ca-field"><label>Notification Method</label><select><option value="">Notify via…</option>{["Email","WhatsApp","Both","Do not notify"].map(s => <option key={s}>{s}</option>)}</select></div>
+          </div>
+          <CASecHead num="02" title="Access Level" />
+          <div className="ca-access-grid" style={{ marginBottom: 20 }}>
+            {[["👁","View Only","Read-only on all assigned modules"],["✦","Standard","View, download and comment"],["⬡","Full Access","Edit, upload and manage"],["⚡","Administrator","Full control + team management"]].map(([icon,name,desc]) => (
+              <div key={name} className={`ca-ac${selAccess === name ? " sel" : ""}`} onClick={() => setSelAccess(name)}>
+                <div className="ca-ac-icon">{icon}</div><div className="ca-ac-name">{name}</div><div className="ca-ac-desc">{desc}</div>
+              </div>
+            ))}
+          </div>
+          <CASecHead num="03" title="Module Permissions" />
+          <div className="ca-mod-row" style={{ marginBottom: 20 }}>
+            {CA_MODS.map(m => <div key={m} className={`ca-mod${activeMods.has(m) ? " on" : ""}`} onClick={() => toggleMod(m)}>{m}</div>)}
+          </div>
+          <div className="ca-g2" style={{ marginBottom: 20 }}>
+            <div className="ca-field"><label>Access Expiry Date</label><input type="date" /></div>
+            <div className="ca-field ca-span2"><label>Notes</label><textarea placeholder="Reason for access, special conditions…" /></div>
+          </div>
+          <div className="ca-notice ca-no" style={{ marginBottom: 14 }}><span className="ca-notice-icon">📋</span><span>I am authorised to grant this access and confirm the user has been briefed on data confidentiality and acceptable use policies.</span></div>
+          <label className={`ca-check${gaConsent ? " on" : ""}`} style={{ display: "flex" }}>
+            <input type="checkbox" checked={gaConsent} onChange={e => setGaConsent(e.target.checked)} />
+            <span>I confirm and authorise this access grant.</span>
+          </label>
+          <div className="ca-btn-row">
+            <button className="ca-btn-ghost" onClick={() => setGaConsent(false)}>Clear</button>
+            <button className="ca-btn-pri" disabled={!gaConsent} onClick={() => setSuccess({ msg: "Portal access granted successfully.", ref: "GA-" + genRef() })}>Grant Access →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Team List */}
+      {tab === "employees" && (
+        <div className="ca-page">
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--o)", marginBottom: 5 }}>Form 03</div>
+            <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 26, fontWeight: 700, letterSpacing: "-.02em", color: "var(--tx)" }}>Team <em style={{ color: "var(--o)" }}>Access List.</em></h1>
+            <p style={{ fontSize: 13, color: "var(--mt)", marginTop: 5 }}>Register all team members authorised to use the client portal.</p>
+          </div>
+          <CASecHead num="01" title="Organisation Details" />
+          <div className="ca-g2" style={{ marginBottom: 20 }}>
+            <div className="ca-field"><label>Company / Organisation <span>*</span></label><input type="text" placeholder="Your company" defaultValue={company} /></div>
+            <div className="ca-field"><label>Department / Team</label><input type="text" placeholder="e.g. Operations" /></div>
+            <div className="ca-field"><label>Submission Date</label><input type="date" /></div>
+            <div className="ca-field"><label>Authorised Manager <span>*</span></label><input type="text" placeholder="Full name" /></div>
+          </div>
+          <CASecHead num="02" title="Team Register"><button className="ca-emp-add" onClick={addEmp}>+ Add Member</button></CASecHead>
+          <div style={{ marginBottom: 20 }}>
+            {employees.map((e, i) => <CAEmpRow key={e.id} num={i + 1} onRemove={employees.length > 1 ? () => removeEmp(e.id) : null} />)}
+          </div>
+          <div className="ca-notice ca-no" style={{ marginBottom: 14 }}><span className="ca-notice-icon">📋</span><span>I confirm all listed team members are authorised and have been briefed on data confidentiality and acceptable use policies.</span></div>
+          <label className={`ca-check${eaConsent ? " on" : ""}`} style={{ display: "flex" }}>
+            <input type="checkbox" checked={eaConsent} onChange={e => setEaConsent(e.target.checked)} />
+            <span>I have read and agree to the above declaration.</span>
+          </label>
+          <div className="ca-btn-row">
+            <button className="ca-btn-pri" disabled={!eaConsent} onClick={() => setSuccess({ msg: "Team access list submitted.", ref: "EA-" + genRef() })}>Submit Team List →</button>
+          </div>
+        </div>
+      )}
+
+      {/* Invoice */}
+      {tab === "invoice" && (
+        <div className="ca-page">
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 24 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--o)", marginBottom: 5 }}>Tax Invoice</div>
+              <h1 style={{ fontFamily: "'DM Mono',monospace", fontSize: 24, fontWeight: 700, letterSpacing: ".02em", color: "var(--tx)" }}>INV-2026-052</h1>
+              <p style={{ fontSize: 12, color: "var(--mt)", marginTop: 5 }}>Issue Date: 29 May 2026 · Due: 28 June 2026 · VAT Reg: 4180123456</p>
+            </div>
+            <span className="ca-pill ca-pr" style={{ fontSize: 11, padding: "5px 14px" }}>UNPAID</span>
+          </div>
+          <div className="ca-ic-grid">
+            <div className="ca-ic"><div className="ca-ic-head">Billed To</div><div className="ca-ic-body">
+              <CAStatRow label="Company" value={company} /><CAStatRow label="Email" value={user?.email || "—"} />
+              <CAStatRow label="Address" value="Cape Town, South Africa" /><CAStatRow label="VAT No." value="4290000001" />
+            </div></div>
+            <div className="ca-ic"><div className="ca-ic-head">From</div><div className="ca-ic-body">
+              <CAStatRow label="Company" value="MgucaTech Solutions" /><CAStatRow label="Email" value="admin@mgucatech.com" />
+              <CAStatRow label="Address" value="Cape Town, South Africa" /><CAStatRow label="VAT No." value="4180123456" />
+            </div></div>
+          </div>
+          <CASecHead num="SVC" title="Services Rendered" />
+          <div className="ca-tbl-wrap" style={{ marginBottom: 18 }}>
+            <table>
+              <thead><tr><th>#</th><th>Description</th><th className="r">Qty</th><th className="r">Unit Price</th><th className="r">Disc.</th><th className="r">Total</th></tr></thead>
+              <tbody>
+                {[["1","WhatsApp Automation – Monthly Licence","1","R 2,500.00","—","R 2,500.00"],["2","Booking Workflow – Setup & Configuration","1","R 3,200.00","—","R 3,200.00"],["3","Client Portal – Monthly Access Fee","1","R 1,800.00","5%","R 1,710.00"],["4","Analytics Dashboard Module","1","R 1,400.00","—","R 1,400.00"],["5","CRM Integration – Professional Tier","1","R 2,000.00","—","R 2,000.00"],["6","Dedicated Support Hours (×3)","3","R 450.00","—","R 1,350.00"]].map(([n,d,q,u,disc,tot]) => (
+                  <tr key={n}><td className="val">{n}</td><td>{d}</td><td className="r val">{q}</td><td className="r val">{u}</td><td className="r val" style={disc !== "—" ? { color: "var(--gn)" } : {}}>{disc}</td><td className="r val" style={{ color: "var(--o)" }}>{tot}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 24 }}>
+            <div className="ca-totals">
+              <div className="ca-tot-row"><span className="ca-tot-key">Subtotal</span><span className="ca-tot-val">R 12,160.00</span></div>
+              <div className="ca-tot-row"><span className="ca-tot-key">Discount (5% Portal)</span><span className="ca-tot-val" style={{ color: "var(--gn)" }}>− R 90.00</span></div>
+              <div className="ca-tot-row"><span className="ca-tot-key">VAT (15%)</span><span className="ca-tot-val" style={{ color: "var(--mt)" }}>R 1,810.50</span></div>
+              <div className="ca-tot-grand"><span>Total Due</span><span>R 13,880.50</span></div>
+            </div>
+          </div>
+          <CASecHead num="PAY" title="Payment Details" />
+          <div className="ca-pay" style={{ marginBottom: 14 }}>
+            {[["Bank","Nedbank Business Banking"],["Account No.","1234 5678 9012"],["Branch Code","198765"],["Reference","INV-2026-052 / Your Company Name"],["Amount Due","R 13,880.50 by 28 June 2026"]].map(([k,v],i) => (
+              <div key={k} className="ca-pay-row"><span className="ca-pay-key">{k}</span><span className={`ca-pay-val${i >= 3 ? " orange" : ""}`}>{v}</span></div>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: "var(--ft)" }}>Tax invoice as defined by VAT Act 89/1991. E&amp;OE. Late payments attract 2% monthly interest. Queries within 7 days of issue.</p>
+        </div>
+      )}
+
+      {/* Statement */}
+      {tab === "statement" && (
+        <div className="ca-page">
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 24 }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--o)", marginBottom: 5 }}>Account Statement</div>
+              <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 24, fontWeight: 700, letterSpacing: "-.02em", color: "var(--tx)" }}>01 April – 30 April 2026</h1>
+              <p style={{ fontSize: 12, color: "var(--mt)", marginTop: 5 }}>Ref: ST-2026-0047 · Account: MGT-2024-019 · Generated: 29 May 2026</p>
+            </div>
+            <span className="ca-pill ca-pr" style={{ fontSize: 11, padding: "5px 14px" }}>BALANCE DUE</span>
+          </div>
+          <div className="ca-ic-grid">
+            <div className="ca-ic"><div className="ca-ic-head">Client Details</div><div className="ca-ic-body">
+              <CAStatRow label="Name" value={company} /><CAStatRow label="Email" value={user?.email || "—"} />
+              <CAStatRow label="Location" value="Cape Town, SA" /><CAStatRow label="Account" value="MGT-2024-019" />
+            </div></div>
+            <div className="ca-ic"><div className="ca-ic-head">Statement Info</div><div className="ca-ic-body">
+              <CAStatRow label="Reference" value="ST-2026-0047" /><CAStatRow label="Period" value="April 2026" />
+              <CAStatRow label="Currency" value="ZAR" /><CAStatRow label="Status" value="Balance Due" />
+            </div></div>
+          </div>
+          <CASecHead num="SUM" title="Account Summary" />
+          <div className="ca-g4" style={{ marginBottom: 24 }}>
+            <div className="ca-kpi"><div className="ca-kpi-lbl">Opening Balance</div><div className="ca-kpi-val" style={{ fontSize: 16 }}>R 4,250</div></div>
+            <div className="ca-kpi"><div className="ca-kpi-lbl">Charges</div><div className="ca-kpi-val" style={{ fontSize: 16, color: "var(--o)" }}>R 8,900</div></div>
+            <div className="ca-kpi"><div className="ca-kpi-lbl">Payments</div><div className="ca-kpi-val" style={{ fontSize: 16, color: "var(--gn)" }}>R 4,250</div></div>
+            <div className="ca-kpi" style={{ borderColor: "rgba(180,35,24,.35)", background: "rgba(180,35,24,.04)" }}><div className="ca-kpi-lbl">Balance Due</div><div className="ca-kpi-val" style={{ fontSize: 16, color: "var(--rd)" }}>R 8,900</div></div>
+          </div>
+          <CASecHead num="TXN" title="Transaction History" />
+          <div className="ca-tbl-wrap" style={{ marginBottom: 22 }}>
+            <table>
+              <thead><tr><th>Date</th><th>Description</th><th>Ref No.</th><th className="r">Debit (R)</th><th className="r">Credit (R)</th><th className="r">Balance (R)</th></tr></thead>
+              <tbody>
+                {[["01 Apr","Opening Balance b/f","BF-001","","","4,250.00",false],["03 Apr","WhatsApp Automation – Monthly Fee","INV-2026-041","2,500.00","","1,750.00",false],["05 Apr","Booking Workflow Setup","INV-2026-042","3,200.00","","(1,450.00)",true],["10 Apr","Payment Received – EFT","PAY-0089","","4,250.00","2,800.00",false],["15 Apr","Client Portal Licence – April","INV-2026-043","1,800.00","","1,000.00",false],["18 Apr","Analytics Module Add-on","INV-2026-044","1,400.00","","(400.00)",true],["22 Apr","CRM Integration","INV-2026-045","2,000.00","","(2,400.00)",true],["28 Apr","Late Payment Fee","FEE-026","750.00","","(3,150.00)",true],["30 Apr","Credit Note Adj.","CN-011","","500.00","(2,650.00)",true],["30 Apr","VAT Adjustment (15%)","VAT-030","6,250.00","","(8,900.00)",true]].map(([date,desc,ref,debit,credit,bal,neg]) => (
+                  <tr key={ref}><td>{date}</td><td>{desc}</td><td className="val">{ref}</td><td className="debit">{debit}</td><td className="credit">{credit}</td><td className={`balance${neg ? " neg" : ""}`}>{bal}</td></tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="ca-tbl-footer"><span className="tfl">Closing Balance</span><span className="tft">R 8,900.00 OVERDUE</span></div>
+          </div>
+          <CASecHead num="AGE" title="Ageing Analysis" />
+          <div className="ca-g4" style={{ marginBottom: 22 }}>
+            {[["Current (0–30 days)","var(--gn)","R 2,000"],["31–60 Days","var(--o)","R 3,150"],["61–90 Days","var(--o2)","R 1,800"],["90+ Days","var(--rd)","R 1,950"]].map(([lbl,c,val],i) => (
+              <div key={lbl} className="ca-age" style={i === 3 ? { background: "rgba(180,35,24,.04)", border: "1px solid rgba(180,35,24,.2)" } : {}}>
+                <div className="ca-age-lbl">{lbl}</div><div className="ca-age-bar" style={{ background: c }} /><div className="ca-age-val" style={{ color: c }}>{val}</div>
+              </div>
+            ))}
+          </div>
+          <CASecHead num="PAY" title="Payment Instructions" />
+          <div className="ca-pay">
+            {[["Bank","Nedbank Business Banking"],["Account No.","1234 5678 9012"],["Branch Code","198765"],["Reference","MGT-2024-019 / ST-2026-0047"],["Amount Due","R 8,900.00"],["Due Date","15 June 2026"]].map(([k,v],i) => (
+              <div key={k} className="ca-pay-row"><span className="ca-pay-key">{k}</span><span className="ca-pay-val" style={i >= 3 && i <= 4 ? { color: "var(--o)" } : i === 5 ? { color: "var(--rd)" } : {}}>{v}</span></div>
+            ))}
+          </div>
+          <p style={{ fontSize: 11, color: "var(--ft)", marginTop: 10 }}>Queries: admin@mgucatech.com · WhatsApp: +27 60 000 0000 · Terms: 30 days from invoice date.</p>
+        </div>
+      )}
+
+      {success && (
+        <div className="ca-ov" onClick={() => setSuccess(null)}>
+          <div className="ca-ov-box" onClick={e => e.stopPropagation()}>
+            <div className="ca-ov-icon">✓</div>
+            <div className="ca-ov-title">Submitted</div>
+            <p className="ca-ov-sub">{success.msg}</p>
+            <div className="ca-ref"><div className="ca-ref-lbl">Reference ID</div><div className="ca-ref-code">{success.ref}</div></div>
+            <button className="ca-btn-ghost" onClick={() => setSuccess(null)}>Close</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── APP ──────────────────────────────────────────────────── */
 export default function App({ user = null, onLogout = null }) {
   const [view, setView] = useState("overview");
@@ -2355,9 +2886,10 @@ export default function App({ user = null, onLogout = null }) {
     { id:"book-now",   icon:"↗", label:"Book Now", external:true },
     { id:"calendar",   icon:"📅", label:"Calendar"     },
     { id:"team",       icon:"🫂", label:"Team"          },
-    { id:"billing",    icon:"💳", label:"Billing"       },
-    { id:"status",     icon:"🔋", label:"Status"        },
-    { id:"onboarding", icon:"🚀", label:"Setup Checklist"},
+    { id:"billing",      icon:"💳", label:"Billing"        },
+    { id:"client-admin", icon:"📄", label:"Reports & Admin" },
+    { id:"status",       icon:"🔋", label:"Status"         },
+    { id:"onboarding",   icon:"🚀", label:"Setup Checklist" },
   ];
 
   return (
@@ -2444,7 +2976,8 @@ export default function App({ user = null, onLogout = null }) {
         {view==="team"       && <Team toast={showToast}/>}
         {view==="billing"    && <Billing toast={showToast}/>}
         {view==="status"     && <Status/>}
-        {view==="onboarding" && <Onboarding toast={showToast} user={user}/>}
+        {view==="onboarding"    && <Onboarding toast={showToast} user={user}/>}
+        {view==="client-admin"  && <ClientAdminPanel user={user}/>}
       </div>
 
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
