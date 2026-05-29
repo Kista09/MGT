@@ -225,7 +225,7 @@ module.exports = async (req, res) => {
   try {
     const email   = normalizeEmail(request.email);
     const company = request.company || request.onboarding?.company || request.subject?.replace(/^Onboarding:\s*/i, '') || 'MgucaTECH Client';
-    const requestNumber = request.requestNumber || request.id || request.externalId;
+    let requestNumber = request.requestNumber || request.id || request.externalId;
 
     // 1. Handle Flow Approval requests — catches all Flow Approval SRs regardless of
     //    whether the CRM state includes flowApproval.nodes (avoids falling into PDF path)
@@ -328,7 +328,7 @@ module.exports = async (req, res) => {
       throw new Error(`Starter kit PDF render failed: ${puppeteerErr.message}`);
     }
 
-    const requestNumber = request.requestNumber || request.id || request.externalId || user.requestId;
+    requestNumber = requestNumber || user.requestId;
     const pdfFilename = `${slugify(company)}-starter-kit.pdf`;
     const htmlFilename = `${slugify(company)}-starter-kit.html`;
     const archivedAttachments = await Promise.all([
