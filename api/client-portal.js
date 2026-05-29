@@ -818,6 +818,25 @@ module.exports = async (req, res) => {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return res.status(500).json({ error: 'Portal storage is not configured' });
 
   try {
+    // Admin form submissions from the CRM use a relaxed auth check
+    if (req.method === 'POST' && req.body?.action === 'admin_form_request') {
+      const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+      let session;
+      try { session = readToken(token); } catch { return res.status(401).json({ error: 'Session expired or invalid' }); }
+      const isAdmin = session.email?.endsWith('@mgucatech.com') || ['admin', 'superadmin'].includes(session.role);
+      if (!isAdmin) return res.status(403).json({ error: 'Admin access required' });
+      const adminUser = {
+        id: session.sub,
+        email: session.email,
+        name: session.name || 'MgucaTECH Admin',
+        role: 'admin',
+        clientId: 'mgucatech-admin',
+        clientName: 'MgucaTECH',
+      };
+      const request = await createRequest(req, adminUser);
+      return res.status(201).json({ request });
+    }
+
     const user = await requirePortalUser(req);
 
     if (req.method === 'POST') {

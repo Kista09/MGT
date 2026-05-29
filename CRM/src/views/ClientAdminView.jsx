@@ -214,6 +214,9 @@ function EmpRow({ num, onRemove }) {
   );
 }
 
+const CRM_API_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+const CRM_TOKEN_KEY = "mgucatech_crm_access_token";
+
 export default function ClientAdminView() {
   const [tab, setTab] = useState("report");
   const [employees, setEmployees] = useState([{ id: 1 }]);
@@ -221,16 +224,37 @@ export default function ClientAdminView() {
   const [selAccess, setSelAccess] = useState(null);
   const [activeMods, setActiveMods] = useState(new Set());
   const [success, setSuccess] = useState(null);
-  const [cdConsent, setCdConsent] = useState(false);
-  const [gaConsent, setGaConsent] = useState(false);
-  const [eaConsent, setEaConsent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  const genRef = () => Date.now().toString(36).toUpperCase().slice(-6);
-  const showSuccess = (msg, ref) => setSuccess({ msg, ref });
+  // Form state
+  const [cd, setCd] = useState({ firstName: "", lastName: "", company: "", sector: "", email: "", phone: "", city: "", idType: "", idNumber: "", notes: "", consent: false });
+  const [ga, setGa] = useState({ name: "", email: "", notification: "", expiry: "", notes: "", consent: false });
+  const [ea, setEa] = useState({ company: "", dept: "", manager: "", consent: false });
 
   const addEmp = () => { setEmployees(p => [...p, { id: nextId }]); setNextId(p => p + 1); };
   const removeEmp = (id) => setEmployees(p => p.filter(e => e.id !== id));
   const toggleMod = (m) => setActiveMods(p => { const n = new Set(p); n.has(m) ? n.delete(m) : n.add(m); return n; });
+
+  const submitAdminForm = async (subject, category, description, priority = "Medium") => {
+    setSubmitting(true);
+    setError("");
+    try {
+      const token = localStorage.getItem(CRM_TOKEN_KEY) || "";
+      const res = await fetch(`${CRM_API_BASE}/api/client-portal`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ action: "admin_form_request", subject, category, priority, description }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Submission failed");
+      setSuccess({ msg: "Request submitted successfully.", ref: data.request?.requestNumber || data.request?.id });
+    } catch (err) {
+      setError(err.message || "Submission failed");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="ca-root">
@@ -364,8 +388,8 @@ export default function ClientAdminView() {
           </div>
           <SecHead num="01" title="Organisation & Contact" />
           <div className="ca-g2" style={{ marginBottom: 24 }}>
-            <div className="ca-field"><label>First Name <span>*</span></label><input type="text" placeholder="e.g. Sarah" /></div>
-            <div className="ca-field"><label>Last Name <span>*</span></label><input type="text" placeholder="e.g. Dlamini" /></div>
+            <div className="ca-field"><label>First Name <span>*</span></label><input type="text" placeholder="e.g. Sarah" value={cd.firstName} onChange={e => setCd(p => ({ ...p, firstName: e.target.value }))} /></div>
+            <div className="ca-field"><label>Last Name <span>*</span></label><input type="text" placeholder="e.g. Dlamini" value={cd.lastName} onChange={e => setCd(p => ({ ...p, lastName: e.target.value }))} /></div>
             <div className="ca-field"><label>Company / Practice Name</label><input type="text" placeholder="e.g. Meridian Holdings" /></div>
             <div className="ca-field"><label>Sector <span>*</span></label><select><option value="">Select sector…</option>{["Healthcare","Financial Services","Retail","Education","Legal","Real Estate","Other"].map(s => <option key={s}>{s}</option>)}</select></div>
             <div className="ca-field"><label>Client Type <span>*</span></label><select><option value="">Select type…</option>{["Individual","Corporate","Trust / Entity","Government","Non-Profit"].map(s => <option key={s}>{s}</option>)}</select></div>
@@ -389,13 +413,19 @@ export default function ClientAdminView() {
           <div className="ca-field" style={{ marginBottom: 24 }}><label>Additional Notes / Special Requirements</label><textarea placeholder="Any context about this client, special requirements, packages requested…" /></div>
           <SecHead num="04" title="Declaration & Consent" />
           <div className="ca-notice ca-no" style={{ marginBottom: 16 }}><span className="ca-notice-icon">📋</span><span>I confirm the information provided is accurate. I consent to MgucaTech Solutions storing and processing my personal data for client portal setup and service delivery, in accordance with POPIA and the MgucaTech Privacy Policy.</span></div>
-          <label className={`ca-check${cdConsent ? " on" : ""}`} style={{ display: "flex" }}>
-            <input type="checkbox" checked={cdConsent} onChange={e => setCdConsent(e.target.checked)} />
+          <label className={`ca-check${cd.consent ? " on" : ""}`} style={{ display: "flex" }}>
+            <input type="checkbox" checked={cd.consent} onChange={e => setCd(p => ({ ...p, consent: e.target.checked }))} />
             <span>I have read and agree to the above declaration.</span>
           </label>
+          {error && tab === "client" && <p style={{ color: "var(--rd)", fontSize: 12, marginBottom: 8 }}>{error}</p>}
           <div className="ca-btn-row">
-            <button className="ca-btn-ghost" onClick={() => setCdConsent(false)}>Clear Form</button>
-            <button className="ca-btn-pri" disabled={!cdConsent} onClick={() => showSuccess("Client record saved.", "CD-" + genRef())}>Save Client Record →</button>
+            <button className="ca-btn-ghost" onClick={() => setCd(p => ({ ...p, consent: false }))}>Clear Form</button>
+            <button className="ca-btn-pri" disabled={!cd.consent || submitting} onClick={() => submitAdminForm(
+              `New client details: ${cd.firstName} ${cd.lastName}`.trim() || "New client details",
+              "Client Details",
+              `Client details form submitted from CRM admin panel.\n\nName: ${cd.firstName} ${cd.lastName}\nCompany: ${cd.company}\nSector: ${cd.sector}\nEmail: ${cd.email}\nPhone: ${cd.phone}\nCity: ${cd.city}\nID Type: ${cd.idType}\nID Number: ${cd.idNumber}\nNotes: ${cd.notes || "None"}`,
+              "Medium"
+            )}>{submitting ? "Submitting…" : "Save Client Record →"}</button>
           </div>
         </div>
       )}
@@ -410,8 +440,8 @@ export default function ClientAdminView() {
           </div>
           <SecHead num="01" title="Client Identification" />
           <div className="ca-g2" style={{ marginBottom: 24 }}>
-            <div className="ca-field"><label>Client Full Name <span>*</span></label><input type="text" placeholder="As registered in the system" /></div>
-            <div className="ca-field"><label>Client Email <span>*</span></label><input type="email" placeholder="Portal login email" /></div>
+            <div className="ca-field"><label>Client Full Name <span>*</span></label><input type="text" placeholder="As registered in the system" value={ga.name} onChange={e => setGa(p => ({ ...p, name: e.target.value }))} /></div>
+            <div className="ca-field"><label>Client Email <span>*</span></label><input type="email" placeholder="Portal login email" value={ga.email} onChange={e => setGa(p => ({ ...p, email: e.target.value }))} /></div>
             <div className="ca-field"><label>Existing Client Reference ID</label><input type="text" placeholder="CD-XXXXXXXX (from client details form)" /></div>
             <div className="ca-field"><label>Notification Method</label><select><option value="">Notify client via…</option>{["Email","WhatsApp","Both","Do not notify"].map(s => <option key={s}>{s}</option>)}</select></div>
           </div>
@@ -436,13 +466,19 @@ export default function ClientAdminView() {
           </div>
           <SecHead num="04" title="Authorisation" />
           <div className="ca-notice ca-no" style={{ marginBottom: 16 }}><span className="ca-notice-icon">📋</span><span>I am authorised to grant this access level and confirm the client has been verified per MgucaTech's onboarding policy and data protection requirements.</span></div>
-          <label className={`ca-check${gaConsent ? " on" : ""}`} style={{ display: "flex" }}>
-            <input type="checkbox" checked={gaConsent} onChange={e => setGaConsent(e.target.checked)} />
+          <label className={`ca-check${ga.consent ? " on" : ""}`} style={{ display: "flex" }}>
+            <input type="checkbox" checked={ga.consent} onChange={e => setGa(p => ({ ...p, consent: e.target.checked }))} />
             <span>I confirm the above declaration and authorise this access grant.</span>
           </label>
+          {error && tab === "access" && <p style={{ color: "var(--rd)", fontSize: 12, marginBottom: 8 }}>{error}</p>}
           <div className="ca-btn-row">
-            <button className="ca-btn-ghost" onClick={() => setGaConsent(false)}>Clear</button>
-            <button className="ca-btn-pri" disabled={!gaConsent} onClick={() => showSuccess("Portal access granted successfully.", "GA-" + genRef())}>Grant Access →</button>
+            <button className="ca-btn-ghost" onClick={() => setGa(p => ({ ...p, consent: false }))}>Clear</button>
+            <button className="ca-btn-pri" disabled={!ga.consent || submitting} onClick={() => submitAdminForm(
+              `Grant portal access: ${ga.name || "New user"}`,
+              "Access Request",
+              `Portal access request submitted from CRM admin panel.\n\nName: ${ga.name}\nEmail: ${ga.email}\nAccess Level: ${selAccess || "Not selected"}\nModules: ${[...activeMods].join(", ") || "None selected"}\nNotification: ${ga.notification || "Not specified"}\nExpiry: ${ga.expiry || "No expiry"}\nNotes: ${ga.notes || "None"}`,
+              "High"
+            )}>{submitting ? "Submitting…" : "Grant Access →"}</button>
           </div>
         </div>
       )}
@@ -467,12 +503,21 @@ export default function ClientAdminView() {
             {employees.map((e, i) => <EmpRow key={e.id} num={i + 1} onRemove={employees.length > 1 ? () => removeEmp(e.id) : null} />)}
           </div>
           <div className="ca-notice ca-no" style={{ marginBottom: 16 }}><span className="ca-notice-icon">📋</span><span>I confirm all listed employees are authorised to access the portal and have been briefed on data confidentiality and acceptable use policies.</span></div>
-          <label className={`ca-check${eaConsent ? " on" : ""}`} style={{ display: "flex" }}>
-            <input type="checkbox" checked={eaConsent} onChange={e => setEaConsent(e.target.checked)} />
+          <label className={`ca-check${ea.consent ? " on" : ""}`} style={{ display: "flex" }}>
+            <input type="checkbox" checked={ea.consent} onChange={e => setEa(p => ({ ...p, consent: e.target.checked }))} />
             <span>I have read and agree to the above declaration.</span>
           </label>
+          {error && tab === "employees" && <p style={{ color: "var(--rd)", fontSize: 12, marginBottom: 8 }}>{error}</p>}
           <div className="ca-btn-row">
-            <button className="ca-btn-pri" disabled={!eaConsent} onClick={() => showSuccess("Employee list submitted.", "EA-" + genRef())}>Submit Employee List →</button>
+            <button className="ca-btn-pri" disabled={!ea.consent || submitting} onClick={() => {
+              const empList = employees.map((e, i) => `  ${i + 1}. Employee ${e.id}`).join("\n");
+              submitAdminForm(
+                `Employee portal access: ${ea.company || "Company"}`,
+                "Team Access",
+                `Employee access list submitted from CRM admin panel.\n\nCompany: ${ea.company}\nDepartment: ${ea.dept || "Not specified"}\nAuthorised Manager: ${ea.manager || "Not specified"}\nEmployee Count: ${employees.length}\n\nEmployees:\n${empList}`,
+                "Medium"
+              );
+            }}>{submitting ? "Submitting…" : "Submit Employee List →"}</button>
           </div>
         </div>
       )}
