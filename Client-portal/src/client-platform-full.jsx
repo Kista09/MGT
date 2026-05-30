@@ -204,6 +204,41 @@ const FLOW_NODES = [
   { id:"done3",    type:"end",     label:"Continue / Resolved", content:"",                                      x:740, y:320, outputs:[]          },
 ];
 
+// Medical booking wizard — 10 steps matching the booking app flow
+const MEDICAL_BOOKING_NODES = [
+  { id:"start",    type:"start",   label:"Booking starts",       content:"",                                                        x:40,   y:400, outputs:["q1"]      },
+  { id:"q1",       type:"menu",    label:"Reason for visit",      content:"What brings you in today?",
+    options:["Symptoms / illness","Routine checkup","Prescription refill","Test results","Other"],
+    x:240,  y:400, outputs:["q2","q2","q2","q2","q2"] },
+  { id:"q2",       type:"menu",    label:"Emergency check",       content:"Is this an emergency?",
+    options:["Emergency — go to ER","Not an emergency"],
+    x:460,  y:400, outputs:["er","q3"] },
+  { id:"er",       type:"action",  label:"Emergency — go to ER",  content:"Please call 10177 or go to your nearest Emergency Room immediately. Do not wait.",
+    x:680,  y:200, outputs:[] },
+  { id:"q3",       type:"menu",    label:"Symptom duration",      content:"How long have you had this?",
+    options:["Just started","A few days","A week or more","Ongoing / chronic"],
+    x:680,  y:500, outputs:["q4","q4","q4","q4"] },
+  { id:"q4",       type:"menu",    label:"Previous visit",        content:"Have you seen a doctor for this before?",
+    options:["Yes — same issue","No — first time","Yes — different issue"],
+    x:900,  y:500, outputs:["q5","q5","q5"] },
+  { id:"q5",       type:"menu",    label:"Current medications",   content:"Are you currently taking any medications?",
+    options:["None","Yes — have my details","Yes — I'll provide details"],
+    x:1120, y:500, outputs:["q6","q6","q6"] },
+  { id:"q6",       type:"menu",    label:"Visit type",            content:"How would you like your consultation?",
+    options:["In person","Video call","Phone call"],
+    x:1340, y:500, outputs:["q7","q7","q7"] },
+  { id:"q7",       type:"menu",    label:"Doctor preference",     content:"Any doctor preference?",
+    options:["Any available","Specific doctor","Female doctor","Male doctor"],
+    x:1560, y:500, outputs:["q8","q8","q8","q8"] },
+  { id:"q8",       type:"menu",    label:"Appointment timing",    content:"When do you need the appointment?",
+    options:["Today / ASAP","Tomorrow","This week","Any time"],
+    x:1780, y:500, outputs:["q9","q9","q9","q9"] },
+  { id:"q9",       type:"menu",    label:"Preferred time of day", content:"Preferred time of day?",
+    options:["Morning (8am–12pm)","Afternoon (12–5pm)","Evening (5–7pm)"],
+    x:2000, y:500, outputs:["done","done","done"] },
+  { id:"done",     type:"end",     label:"Booking confirmed",     content:"",                                                        x:2220, y:500, outputs:[] },
+];
+
 const INVOICES = [
   { id:"INV-2026-05", date:"1 May 2026", amount:73500, status:"Paid", plan:"Enterprise" },
   { id:"INV-2026-04", date:"1 Apr 2026", amount:73500, status:"Paid", plan:"Enterprise" },
@@ -829,7 +864,13 @@ function Analytics({ data }) {
 }
 
 /* ─── FLOW BUILDER ────────────────────────────────────────── */
+const FLOW_TEMPLATES = {
+  ecommerce: { label: "E-commerce Bot",     nodes: FLOW_NODES },
+  medical:   { label: "Medical Booking",    nodes: MEDICAL_BOOKING_NODES },
+};
+
 function FlowBuilder({ toast, data, refreshPortal }) {
+  const [template, setTemplate] = useState("ecommerce");
   const [nodes, setNodes] = useState(data?.length ? data : FLOW_NODES);
   const [selected, setSelected] = useState(null);
   const [editForm, setEditForm] = useState({label:"",content:"",type:"message",outputs:[]});
@@ -844,6 +885,16 @@ function FlowBuilder({ toast, data, refreshPortal }) {
   const CANVAS_W = 1040;
   const CANVAS_H = 620;
   useEffect(()=>{ if (data?.length) setNodes(data); },[data]);
+
+  const loadTemplate = (key) => {
+    setTemplate(key);
+    const tpl = FLOW_TEMPLATES[key]?.nodes ?? FLOW_NODES;
+    persistFlow(tpl.map(n=>({...n})));
+    setSelected(null);
+    setPreviewLog([]);
+    toast(`Loaded: ${FLOW_TEMPLATES[key]?.label}`);
+  };
+
   const persistFlow = next => {
     setNodes(next);
     portalAction("save_flow", { flowNodes: next }).catch(()=>{});
@@ -988,7 +1039,8 @@ function FlowBuilder({ toast, data, refreshPortal }) {
     toast("Flow laid out");
   };
   const resetFlow = () => {
-    persistFlow(FLOW_NODES.map(n=>({...n})));
+    const tpl = FLOW_TEMPLATES[template]?.nodes ?? FLOW_NODES;
+    persistFlow(tpl.map(n=>({...n})));
     setSelected(null);
     setPreviewLog([]);
     toast("Flow reset to default");
@@ -1050,10 +1102,16 @@ function FlowBuilder({ toast, data, refreshPortal }) {
       return;
     }
     try {
-      const response = await portalAction("publish_flow", { flowNodes: nodes });
+      // Push to CRM approval AND save as the active booking flow
+      const [response] = await Promise.all([
+        portalAction("publish_flow", { flowNodes: nodes }),
+        portalAction("publish_booking_flow", { bookingFlow: nodes, template }),
+      ]);
       const requestNumber = response?.workspace?.lastPublishedFlow?.requestNumber;
       await refreshPortal?.();
-      toast(requestNumber ? `Flow sent to CRM for approval: ${requestNumber}` : "Flow sent to CRM for approval");
+      toast(requestNumber
+        ? `Flow published to booking app & sent to CRM: ${requestNumber}`
+        : "Flow published to booking app");
     } catch (error) {
       toast(error.message || "Could not publish flow", "warning");
     }
@@ -1081,13 +1139,24 @@ function FlowBuilder({ toast, data, refreshPortal }) {
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24,flexWrap:"wrap",gap:12}}>
         <div>
           <div style={{fontFamily:serif,fontSize:30,color:T.text,marginBottom:4}}>Flow Builder</div>
-          <div style={{color:T.muted,fontSize:14}}>Click a node to edit its message content</div>
+          <div style={{color:T.muted,fontSize:14}}>Click a node to edit · Publish pushes to the booking app</div>
         </div>
-        <div style={{display:"flex",gap:8}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          <div style={{display:"flex",alignItems:"center",gap:6,background:T.subtle,borderRadius:8,padding:"4px 8px"}}>
+            <span style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:.5}}>Template:</span>
+            {Object.entries(FLOW_TEMPLATES).map(([key,tpl])=>(
+              <button key={key} onClick={()=>loadTemplate(key)}
+                style={{padding:"4px 12px",borderRadius:6,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
+                  background:template===key?T.accent:"transparent",
+                  color:template===key?"#fff":T.muted}}>
+                {tpl.label}
+              </button>
+            ))}
+          </div>
           <Btn variant="secondary" small onClick={autoLayout}>Auto layout</Btn>
           <Btn variant="secondary" small onClick={resetFlow}>Reset</Btn>
           <Btn variant="secondary" small onClick={()=>setAddModal(true)}>+ Add node</Btn>
-          <Btn small onClick={publishFlow} style={flowWarnings.length?{opacity:.6}:{}}>Publish Flow</Btn>
+          <Btn small onClick={publishFlow} style={flowWarnings.length?{opacity:.6}:{}}>🚀 Publish to Booking App</Btn>
         </div>
       </div>
 

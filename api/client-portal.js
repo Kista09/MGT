@@ -52,6 +52,9 @@ const DEFAULT_WORKSPACE = {
   team: [],
   clientDetails: {},
   billing: { invoice: null, statement: null },
+  bookingFlow: [],
+  bookingFlowTemplate: null,
+  bookingFlowPublishedAt: null,
   flowNodes: [
     { id: 'start', type: 'start', label: 'User sends message', content: '', x: 40, y: 240, outputs: ['menu'] },
     { id: 'menu', type: 'menu', label: 'Main Menu', content: 'Reply with a number:\n1. Book\n2. FAQ\n3. Speak to agent', x: 260, y: 240, outputs: ['book', 'faq', 'agent'] },
@@ -490,6 +493,12 @@ async function updateWorkspace(req, user) {
     case 'save_billing':
       workspace.billing = { ...(workspace.billing || {}), ...(body.billing || {}) };
       await save('Billing updated');
+      break;
+    case 'publish_booking_flow':
+      workspace.bookingFlow = Array.isArray(body.bookingFlow) ? body.bookingFlow : workspace.bookingFlow;
+      workspace.bookingFlowTemplate = body.template || 'ecommerce';
+      workspace.bookingFlowPublishedAt = new Date().toISOString();
+      await save('Booking flow published', { nodes: (workspace.bookingFlow || []).length, template: workspace.bookingFlowTemplate });
       break;
     case 'save_templates':
       workspace.templates = Array.isArray(body.templates) ? body.templates : workspace.templates;
