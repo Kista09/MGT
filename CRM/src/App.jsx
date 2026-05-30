@@ -21,6 +21,7 @@ import PrivateClients from "./views/ConfidentialClients";
 import Presentations from "./views/Presentations";
 import Analytics   from "./views/Analytics";
 import ClientAdmin from "./views/ClientAdminView";
+import InternalForms from "./views/InternalForms";
 import Settings    from "./views/Settings";
 
 function canAccessPrivateClients(user) {
@@ -69,8 +70,9 @@ function AppInner({ onLogout }) {
     presentations:  <Presentations />,
     "private-clients": privateAccess ? <PrivateClients /> : <Clients />,
     analytics:      <Analytics />,
-    "client-admin": <ClientAdmin />,
-    settings:       <Settings />,
+    "client-admin":    <ClientAdmin />,
+    "internal-forms":  <InternalForms />,
+    settings:          <Settings />,
   };
 
   return (

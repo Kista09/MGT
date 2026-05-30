@@ -65,6 +65,7 @@ export const NAV_ITEMS = [
   { id: "private-clients", icon: "P", label: "Private Clients" },
   { id: "analytics",    icon: "A",  label: "Analytics" },
   { id: "client-admin", icon: "C",  label: "Client Admin" },
+  { id: "internal-forms", icon: "F", label: "Internal Forms" },
   { id: "settings",     icon: "S",  label: "Settings"  },
 ];
 
@@ -79,7 +80,7 @@ export const NAV_GROUPS = [
   },
   {
     label: "Admin",
-    items: NAV_ITEMS.filter(item => ["presentations", "private-clients", "analytics", "client-admin", "settings"].includes(item.id)),
+    items: NAV_ITEMS.filter(item => ["presentations", "private-clients", "analytics", "client-admin", "internal-forms", "settings"].includes(item.id)),
   },
 ];
 
