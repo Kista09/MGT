@@ -203,7 +203,7 @@ async function requirePortalUser(req) {
   const storedUser = await readPortalUser(session.email);
   const role = storedUser?.role || session.role || '';
 
-  if (!['admin', 'client_admin', 'client_manager', 'client_viewer'].includes(role)) {
+  if (!['admin', 'normal_client_pool', 'client_admin', 'client_manager', 'client_viewer'].includes(role)) {
     const error = new Error('This session is not enabled for the client portal');
     error.statusCode = 403;
     throw error;

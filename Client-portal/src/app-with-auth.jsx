@@ -51,7 +51,7 @@ const AuthCtx = createContext(null);
 const STORAGE_KEY = "mgucatech_client_access_token";
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://mgucatech.com";
 const ALLOW_LOCAL_CLIENT_AUTH = import.meta.env.VITE_ALLOW_LOCAL_CLIENT_AUTH !== "false";
-const CLIENT_ROLES = new Set(["admin", "client_admin", "client_manager", "client_viewer"]);
+const CLIENT_ROLES = new Set(["admin", "normal_client_pool", "client_admin", "client_manager", "client_viewer"]);
 
 const DEV_USERS = [
   { id:"u1", email:"ayesha@tapartner.co.za", password:"demo123", name:"Ayesha Jacobs", role:"client_admin", clientId:"takealot-partner-store", clientName:"Takealot Partner Store", plan:"Enterprise" },

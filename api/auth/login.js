@@ -112,6 +112,20 @@ module.exports = async (req, res) => {
     return res.status(200).json({ accessToken: makeToken(admin), user: publicUser(admin) });
   }
 
+  if (normalClientPool) {
+    await auditSilently({
+      app: 'client-portal',
+      actor: normalClientPool.name,
+      actorEmail: normalClientPool.email,
+      actorRole: normalClientPool.role,
+      action: 'Login successful',
+      target: 'client_portal',
+      status: 'success',
+      details: 'Normal client pool access',
+    }, req);
+    return res.status(200).json({ accessToken: makeToken(normalClientPool), user: publicUser(normalClientPool) });
+  }
+
   const user = await readPortalUser(email);
   if (!user || !user.portalApproved || user.password !== password) {
     await auditSilently({
