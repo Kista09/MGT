@@ -2592,32 +2592,39 @@ function CAProgBar({ label, value, color }) {
     </div>
   );
 }
-function CAEmpRow({ num, onRemove }) {
-  const [name, setName] = useState("New Employee");
-  const [active, setActive] = useState(new Set());
-  const toggle = (m) => setActive(p => { const n = new Set(p); n.has(m) ? n.delete(m) : n.add(m); return n; });
+function CAEmpRow({ num, emp, onChange, onRemove }) {
+  const toggle = (m) => {
+    const next = new Set(emp.modules);
+    next.has(m) ? next.delete(m) : next.add(m);
+    onChange("modules", next);
+  };
   return (
     <div className="ca-emp-card">
       <div className="ca-emp-head">
         <div className="ca-emp-num">{num}</div>
-        <span className="ca-emp-name">{name || "New Employee"}</span>
+        <span className="ca-emp-name">{emp.name || "New Employee"}</span>
         {onRemove && <button className="ca-emp-rm" onClick={onRemove}>Remove</button>}
       </div>
       <div className="ca-g2" style={{ marginBottom: 10 }}>
-        <div className="ca-field"><label>Full Name <span>*</span></label><input type="text" placeholder="John Nkosi" value={name} onChange={e => setName(e.target.value)} /></div>
-        <div className="ca-field"><label>Work Email <span>*</span></label><input type="email" placeholder="john@company.co.za" /></div>
-        <div className="ca-field"><label>Job Title</label><input type="text" placeholder="e.g. Account Manager" /></div>
-        <div className="ca-field"><label>Access Role</label><select><option value="">Select role…</option>{["Admin","Manager","Standard User","Read-Only","External Reviewer"].map(r => <option key={r}>{r}</option>)}</select></div>
+        <div className="ca-field"><label>Full Name <span>*</span></label><input type="text" placeholder="John Nkosi" value={emp.name} onChange={e => onChange("name", e.target.value)} /></div>
+        <div className="ca-field"><label>Work Email <span>*</span></label><input type="email" placeholder="john@company.co.za" value={emp.email} onChange={e => onChange("email", e.target.value)} /></div>
+        <div className="ca-field"><label>Job Title</label><input type="text" placeholder="e.g. Account Manager" value={emp.title} onChange={e => onChange("title", e.target.value)} /></div>
+        <div className="ca-field"><label>Access Role</label>
+          <select value={emp.role} onChange={e => onChange("role", e.target.value)}>
+            <option value="">Select role…</option>
+            {["Admin","Manager","Standard User","Read-Only","External Reviewer"].map(r => <option key={r}>{r}</option>)}
+          </select>
+        </div>
       </div>
       <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--mt)", marginBottom: 7 }}>Module Access</div>
-      <div className="ca-mod-row">{CA_MODS.map(m => <div key={m} className={`ca-mod${active.has(m) ? " on" : ""}`} onClick={() => toggle(m)}>{m}</div>)}</div>
+      <div className="ca-mod-row">{CA_MODS.map(m => <div key={m} className={`ca-mod${emp.modules.has(m) ? " on" : ""}`} onClick={() => toggle(m)}>{m}</div>)}</div>
     </div>
   );
 }
 
 function ClientAdminPanel({ user, toast, refreshPortal }) {
   const [tab, setTab] = useState("report");
-  const [employees, setEmployees] = useState([{ id: 1, name: "", email: "", title: "", role: "" }]);
+  const [employees, setEmployees] = useState([{ id: 1, name: "", email: "", title: "", role: "", modules: new Set() }]);
   const [nextId, setNextId] = useState(2);
   const [selAccess, setSelAccess] = useState(null);
   const [activeMods, setActiveMods] = useState(new Set());
@@ -2633,7 +2640,7 @@ function ClientAdminPanel({ user, toast, refreshPortal }) {
   // Team List form state
   const [ea, setEa] = useState({ company: user?.clientName || "", dept: "", manager: "", consent: false });
 
-  const addEmp = () => { setEmployees(p => [...p, { id: nextId, name: "", email: "", title: "", role: "" }]); setNextId(p => p + 1); };
+  const addEmp = () => { setEmployees(p => [...p, { id: nextId, name: "", email: "", title: "", role: "", modules: new Set() }]); setNextId(p => p + 1); };
   const removeEmp = (id) => setEmployees(p => p.filter(e => e.id !== id));
   const updateEmp = (id, field, val) => setEmployees(p => p.map(e => e.id === id ? { ...e, [field]: val } : e));
   const toggleMod = (m) => setActiveMods(p => { const n = new Set(p); n.has(m) ? n.delete(m) : n.add(m); return n; });
@@ -2857,7 +2864,15 @@ function ClientAdminPanel({ user, toast, refreshPortal }) {
           </div>
           <CASecHead num="02" title="Team Register"><button className="ca-emp-add" onClick={addEmp}>+ Add Member</button></CASecHead>
           <div style={{ marginBottom: 20 }}>
-            {employees.map((e, i) => <CAEmpRow key={e.id} num={i + 1} onRemove={employees.length > 1 ? () => removeEmp(e.id) : null} />)}
+            {employees.map((e, i) => (
+              <CAEmpRow
+                key={e.id}
+                num={i + 1}
+                emp={e}
+                onChange={(field, val) => updateEmp(e.id, field, val)}
+                onRemove={employees.length > 1 ? () => removeEmp(e.id) : null}
+              />
+            ))}
           </div>
           <div className="ca-notice ca-no" style={{ marginBottom: 14 }}><span className="ca-notice-icon">📋</span><span>I confirm all listed team members are authorised and have been briefed on data confidentiality and acceptable use policies.</span></div>
           <label className={`ca-check${ea.consent ? " on" : ""}`} style={{ display: "flex" }}>
@@ -2866,7 +2881,10 @@ function ClientAdminPanel({ user, toast, refreshPortal }) {
           </label>
           <div className="ca-btn-row">
             <button className="ca-btn-pri" disabled={!ea.consent || submitting} onClick={() => {
-              const empList = employees.map((e, i) => `  ${i + 1}. ${e.name || "—"} | ${e.email || "—"} | ${e.title || "—"} | ${e.role || "—"}`).join("\n");
+              const empList = employees.map((e, i) => {
+                const mods = e.modules.size > 0 ? [...e.modules].join(", ") : "None";
+                return `  ${i + 1}. ${e.name || "—"} | ${e.email || "—"} | ${e.title || "—"} | ${e.role || "—"} | Modules: ${mods}`;
+              }).join("\n");
               submit(
                 `Team portal access: ${ea.company || user?.clientName || "Company"}`,
                 "Team Access",

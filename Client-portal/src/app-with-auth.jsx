@@ -88,7 +88,7 @@ const AUTH = {
     const user = DEV_USERS.find(u => u.email === email && u.password === password);
     if (!user) throw new Error("Invalid email or password");
     const { password: _, ...safeUser } = user;
-    const fakeToken = btoa(JSON.stringify({
+    const payload = JSON.stringify({
       sub: user.id,
       email: user.email,
       name: user.name,
@@ -97,7 +97,10 @@ const AUTH = {
       clientName: user.clientName,
       plan: user.plan,
       exp: Date.now() + 86400000,
-    }));
+    });
+    // Use base64url (matching server's makeToken) so the production API can decode it
+    const fakeToken = btoa(unescape(encodeURIComponent(payload)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     return { accessToken: fakeToken, user: safeUser };
   },
   async me(token) {
@@ -125,10 +128,27 @@ const AUTH = {
     if (!ALLOW_LOCAL_CLIENT_AUTH) throw new Error(remoteError ?? "Session service is unavailable");
     await new Promise(r => setTimeout(r, 200));
     if (!token) throw new Error("No token");
-    const decoded = JSON.parse(atob(token));
+    // Decode: support both old btoa (standard base64) and new base64url tokens
+    let decoded;
+    try {
+      const padded = token + '='.repeat((4 - (token.length % 4)) % 4);
+      const b64 = padded.replace(/-/g, '+').replace(/_/g, '/');
+      decoded = JSON.parse(decodeURIComponent(escape(atob(b64))));
+    } catch {
+      throw new Error("Invalid session token");
+    }
     if (decoded.exp < Date.now()) throw new Error("Token expired");
     const user = DEV_USERS.find(u => u.id === decoded.sub);
     if (!user) throw new Error("User not found");
+    // Re-issue a fresh base64url token so subsequent API calls succeed
+    const freshPayload = JSON.stringify({
+      sub: user.id, email: user.email, name: user.name, role: user.role,
+      clientId: user.clientId, clientName: user.clientName, plan: user.plan,
+      exp: Date.now() + 86400000,
+    });
+    const freshToken = btoa(unescape(encodeURIComponent(freshPayload)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    localStorage.setItem(STORAGE_KEY, freshToken);
     const { password: _, ...safeUser } = user;
     return safeUser;
   },

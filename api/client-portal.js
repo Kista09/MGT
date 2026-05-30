@@ -198,14 +198,17 @@ async function requirePortalUser(req) {
     throw error;
   }
 
-  const role = session.role || '';
+  // Look up stored user first — their saved role is authoritative and handles
+  // old tokens that may be missing the role field entirely.
+  const storedUser = await readPortalUser(session.email);
+  const role = storedUser?.role || session.role || '';
+
   if (!['admin', 'client_admin', 'client_manager', 'client_viewer'].includes(role)) {
     const error = new Error('This session is not enabled for the client portal');
     error.statusCode = 403;
     throw error;
   }
 
-  const storedUser = await readPortalUser(session.email);
   const user = storedUser || {
     id: session.sub,
     email: session.email,
