@@ -2210,8 +2210,9 @@ const STAFF_CATEGORIES = ["salon","medical","mechanic","lawyer","restaurant","ph
 function Team({ toast, data, teamData, onTeamChange }) {
   const [tab, setTab] = useState("portal");
 
-  // Portal team — loaded from workspace, falls back to empty list
+  // Portal team — loaded from workspace, stays in sync when workspace refreshes
   const [members,setMembers]=useState(Array.isArray(teamData) && teamData.length ? teamData : []);
+  useEffect(() => { if (Array.isArray(teamData)) setMembers(teamData); }, [teamData]);
   const [modal,setModal]=useState(false);const[form,setForm]=useState({name:"",email:"",role:"Viewer",notify:[]});
   const rCol={Admin:T.accent,Manager:"#7c3aed",Viewer:T.muted};
 
@@ -3079,6 +3080,13 @@ export default function App({ user = null, onLogout = null }) {
   useEffect(() => {
     refreshPortal();
   }, [refreshPortal]);
+
+  // Auto-refresh every 30s so CRM approvals (team members, requests) appear without a manual reload
+  useEffect(() => {
+    const id = setInterval(refreshPortal, 30000);
+    return () => clearInterval(id);
+  }, [refreshPortal]);
+
   const workspace = portalData?.workspace || {};
 
   const NAV = [
