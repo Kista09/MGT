@@ -2655,8 +2655,10 @@ function CAEmpRow({ num, emp, onChange, onRemove }) {
   );
 }
 
-function ClientAdminPanel({ user, toast, refreshPortal }) {
+function ClientAdminPanel({ user, toast, refreshPortal, teamData }) {
   const [tab, setTab] = useState("report");
+  const [approvedMembers, setApprovedMembers] = useState(Array.isArray(teamData) ? teamData : []);
+  useEffect(() => { if (Array.isArray(teamData)) setApprovedMembers(teamData); }, [teamData]);
   const [employees, setEmployees] = useState([{ id: 1, name: "", email: "", title: "", role: "", password: "", modules: new Set() }]);
   const [nextId, setNextId] = useState(2);
   const [selAccess, setSelAccess] = useState(null);
@@ -2888,6 +2890,28 @@ function ClientAdminPanel({ user, toast, refreshPortal }) {
             <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 26, fontWeight: 700, letterSpacing: "-.02em", color: "var(--tx)" }}>Team <em style={{ color: "var(--o)" }}>Access List.</em></h1>
             <p style={{ fontSize: 13, color: "var(--mt)", marginTop: 5 }}>Register all team members authorised to use the client portal.</p>
           </div>
+
+          {/* Live approved members — auto-updates every 30s */}
+          {approvedMembers.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <CASecHead num="✓" title={`Active Members (${approvedMembers.length})`} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {approvedMembers.map(m => (
+                  <div key={m.id || m.email} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 14px", background: "var(--sf)", border: "1px solid var(--bd)", borderRadius: 8 }}>
+                    <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--obg)", border: "1.5px solid var(--o)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "var(--o)", flexShrink: 0 }}>
+                      {(m.name || m.email || "?")[0].toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>{m.name || m.email}</div>
+                      <div style={{ fontSize: 11, color: "var(--mt)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.email}</div>
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 700, background: "var(--obg)", color: "var(--o)", border: "1px solid var(--o)", borderRadius: 99, padding: "2px 9px", flexShrink: 0 }}>{m.role || "Viewer"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <CASecHead num="01" title="Organisation Details" />
           <div className="ca-g2" style={{ marginBottom: 20 }}>
             <div className="ca-field"><label>Company / Organisation <span>*</span></label><input type="text" placeholder="Your company" value={ea.company} onChange={e => setEa(p => ({ ...p, company: e.target.value }))} /></div>
@@ -3200,7 +3224,7 @@ export default function App({ user = null, onLogout = null }) {
         {view==="billing"    && <Billing toast={showToast}/>}
         {view==="status"     && <Status/>}
         {view==="onboarding"    && <Onboarding toast={showToast} user={user}/>}
-        {view==="client-admin"  && <ClientAdminPanel user={user} toast={showToast} refreshPortal={refreshPortal}/>}
+        {view==="client-admin"  && <ClientAdminPanel user={user} toast={showToast} refreshPortal={refreshPortal} teamData={workspace.team}/>}
       </div>
 
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
