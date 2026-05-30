@@ -965,7 +965,24 @@ export default function ServiceRequests() {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error ?? "Approval failed");
 
-      if (data.action === "flow_approved" || data.action === "request_approved") {
+      if (data.action === "access_granted") {
+        const credNote = data.generatedPassword
+          ? `Portal access granted to ${data.portalUser?.email ?? data.targetEmail}.\nLogin: ${data.portalUser?.email ?? data.targetEmail}\nPassword: ${data.generatedPassword}`
+          : `Portal access approved for ${data.targetEmail ?? request.targetName ?? "user"}.`;
+        dispatch({
+          type: "UPDATE_SERVICE_REQUEST",
+          request: {
+            ...request,
+            status: "Approved",
+            approvedAt: request.approvedAt || approvedAt,
+            approvedBy: request.approvedBy || state.user.name,
+            notes: mergeInternalNotes(request.notes, credNote),
+          },
+        });
+        toast(data.generatedPassword
+          ? `Access granted — password: ${data.generatedPassword}`
+          : "Portal access granted", "ok");
+      } else if (data.action === "flow_approved" || data.action === "request_approved") {
         updateRequestField(request, "status", "Approved");
         toast(data.action === "flow_approved" ? "Flow deployed to production" : "Request approved", "ok");
       } else {

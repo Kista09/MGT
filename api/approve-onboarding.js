@@ -346,7 +346,13 @@ module.exports = async (req, res) => {
         });
       }
 
-      return res.status(200).json({ success: true, action: 'access_granted', targetEmail });
+      return res.status(200).json({
+        success: true,
+        action: 'access_granted',
+        targetEmail,
+        generatedPassword: targetEmail ? password : undefined,
+        portalUser: targetEmail ? { email: targetEmail, name: portalUser.name, clientName: portalUser.clientName } : undefined,
+      });
     }
 
     // 3. Handle all non-Onboarding requests — keyed off category, not onboarding.company,
