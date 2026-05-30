@@ -15,6 +15,11 @@ _fl.rel  = "stylesheet";
 _fl.href = "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600;700&display=swap";
 document.head.appendChild(_fl);
 
+const _fav = document.createElement("link");
+_fav.rel = "icon";
+_fav.href = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💬</text></svg>";
+document.head.appendChild(_fav);
+
 /* ─── tokens ──────────────────────────────────────────────── */
 const T = {
   bg:"#F8F4EF", surface:"#FFFFFF", card:"#FFFFFF",
@@ -49,7 +54,7 @@ const AuthCtx = createContext(null);
  *   const { accessToken, user } = await res.json();
  */
 const STORAGE_KEY = "mgucatech_client_access_token";
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://mgucatech.com";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "https://mgucatech.com";
 const ALLOW_LOCAL_CLIENT_AUTH = import.meta.env.VITE_ALLOW_LOCAL_CLIENT_AUTH !== "false";
 const CLIENT_ROLES = new Set(["admin", "normal_client_pool", "client_admin", "client_manager", "client_viewer"]);
 
@@ -73,11 +78,11 @@ const AUTH = {
       if (res && !res.headers.get("content-type")?.includes("application/json")) res = null;
     }
 
-    if (res) {
+    if (res && res.status !== 404) {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         // The API uses tenantId or clientId; checking both for compatibility
-        if (!data.user?.client_id && !data.user?.clientId && !data.user?.tenantId) throw new Error("This account is not assigned to a client workspace");
+        if (!data.user?.client_id && !data.user?.clientId && !data.user?.tenantId && data.user?.role !== "platform_admin") throw new Error("This account is not assigned to a client workspace");
         if (!CLIENT_ROLES.has(data.user.role)) throw new Error("This account is not enabled for the client portal");
         // Ensure we return accessToken even if the backend calls it 'token'
         return {
@@ -85,9 +90,9 @@ const AUTH = {
           user: data.user,
         };
       }
-      remoteError = data.error ?? "Unable to sign in";
-      // If the server explicitly rejected the login (401), stop and show the error instead of falling back to mock
-      if (res.status === 401) throw new Error(remoteError);
+      remoteError = data.error || data.message || "Unable to sign in";
+      // If the server explicitly rejected the login (4xx), stop and show the error instead of falling back to mock
+      if (res.status >= 400 && res.status < 500) throw new Error(remoteError);
     }
 
     if (!ALLOW_LOCAL_CLIENT_AUTH) throw new Error(remoteError ?? "Sign in service is unavailable");
@@ -121,18 +126,18 @@ const AUTH = {
       if (res && !res.headers.get("content-type")?.includes("application/json")) res = null;
     }
 
-    if (res) {
+    if (res && res.status !== 404) {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         // Align with User schema which uses tenantId
-        if (!CLIENT_ROLES.has(data.role) || (!data.client_id && !data.clientId && !data.tenantId)) {
+        if (!CLIENT_ROLES.has(data.role) || (!data.client_id && !data.clientId && !data.tenantId && data.role !== "platform_admin")) {
           throw new Error("This account is not enabled for the client portal");
         }
         return data;
       }
-      remoteError = data.error ?? "Session expired";
-      // If the server says the token is invalid, don't fall back to mock
-      if (res.status === 401 || res.status === 403) throw new Error(remoteError);
+      remoteError = data.error || data.message || "Session expired";
+      // If the server explicitly rejected the session (4xx), do not fall back to mock
+      if (res.status >= 400 && res.status < 500) throw new Error(remoteError);
     }
 
     if (!ALLOW_LOCAL_CLIENT_AUTH) throw new Error(remoteError ?? "Session service is unavailable");
