@@ -982,6 +982,19 @@ export default function ServiceRequests() {
         toast(data.generatedPassword
           ? `Access granted — password: ${data.generatedPassword}`
           : "Portal access granted", "ok");
+      } else if (data.action === "team_access_granted") {
+        const lines = (data.createdUsers || []).map(u => `${u.email} — password: ${u.generatedPassword}`).join("\n");
+        dispatch({
+          type: "UPDATE_SERVICE_REQUEST",
+          request: {
+            ...request,
+            status: "Approved",
+            approvedAt: request.approvedAt || approvedAt,
+            approvedBy: request.approvedBy || state.user.name,
+            notes: mergeInternalNotes(request.notes, `Team portal accounts created:\n${lines}`),
+          },
+        });
+        toast(`Team access granted — ${data.createdUsers?.length ?? 0} account(s) created`, "ok");
       } else if (data.action === "flow_approved" || data.action === "request_approved") {
         updateRequestField(request, "status", "Approved");
         toast(data.action === "flow_approved" ? "Flow deployed to production" : "Request approved", "ok");

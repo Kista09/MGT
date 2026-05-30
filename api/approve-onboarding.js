@@ -355,8 +355,86 @@ module.exports = async (req, res) => {
       });
     }
 
-    // 3. Handle all non-Onboarding requests — keyed off category, not onboarding.company,
-    //    so Client Portal SRs with onboarding metadata don't fall into the PDF path
+    // 3. Handle Team Access requests — parse employees from description and create portal users
+    if (request.category === 'Team Access') {
+      // Parse lines like: "  1. Name | email | title | role | Password: X | Modules: Y"
+      const memberRe = /^\s*\d+\.\s+([^|]+)\|([^|]+)\|([^|]*)\|([^|]*)\|(?:[^|]*Password:\s*([^|]+))?\|/gim;
+      const members = [];
+      let m;
+      const desc = String(request.description || '');
+      while ((m = memberRe.exec(desc)) !== null) {
+        const empEmail = normalizeEmail((m[2] || '').trim());
+        if (!empEmail || !empEmail.includes('@')) continue;
+        members.push({
+          name: (m[1] || '').trim(),
+          email: empEmail,
+          title: (m[3] || '').trim(),
+          role: (m[4] || '').trim(),
+          password: (m[5] || '').trim() || null,
+        });
+      }
+
+      const clientId = slugify(request.company || company);
+      const createdUsers = [];
+
+      for (const member of members) {
+        const existing = await readPortalUser(member.email);
+        const pwd = member.password || suppliedPassword || makePassword();
+        const portalUser = {
+          id: existing?.id || `portal-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          email: member.email,
+          password: pwd,
+          name: member.name || member.email,
+          role: existing?.role || 'client_viewer',
+          clientId: existing?.clientId || clientId,
+          clientName: existing?.clientName || (request.company || company),
+          plan: existing?.plan || 'Starter',
+          portalApproved: true,
+          approvedAt: new Date().toISOString(),
+          approvedBy,
+          requestId: requestNumber,
+        };
+        await savePortalUser({ ...(existing || {}), ...portalUser });
+        createdUsers.push({ email: member.email, name: member.name, password: pwd });
+
+        await sendEmail({
+          from: 'MgucaTECH <admin@mgucatech.com>',
+          to: [member.email],
+          reply_to: 'admin@mgucatech.com',
+          subject: 'Your MgucaTECH client portal access',
+          html: `
+            <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1A1A1A">
+              <h1 style="color:#0C4A4A">Portal Access Granted</h1>
+              <p>Hi ${escapeHtml(member.name || member.email)},</p>
+              <p>Your access to the MgucaTECH client portal has been approved. Use the credentials below to log in.</p>
+              <table style="margin:20px 0;border-collapse:collapse">
+                <tr><td style="padding:6px 12px;font-weight:700;color:#555">Portal URL</td><td style="padding:6px 12px"><a href="https://client-portal.mgucatech.com">client-portal.mgucatech.com</a></td></tr>
+                <tr style="background:#f5f5f5"><td style="padding:6px 12px;font-weight:700;color:#555">Email</td><td style="padding:6px 12px">${escapeHtml(member.email)}</td></tr>
+                <tr><td style="padding:6px 12px;font-weight:700;color:#555">Password</td><td style="padding:6px 12px;font-family:monospace;font-size:15px">${escapeHtml(pwd)}</td></tr>
+              </table>
+              <p style="color:#888;font-size:12px">Please change your password after your first login.</p>
+              <p><a href="https://client-portal.mgucatech.com" style="display:inline-block;background:#E8561A;color:#fff;text-decoration:none;padding:10px 14px;border-radius:6px;font-weight:700">Open Client Portal</a></p>
+            </div>
+          `,
+        }).catch(() => {});
+      }
+
+      await updateRequestStatus(requestNumber, {
+        status: 'Approved',
+        timeline: [
+          { id: `timeline-${Date.now()}`, time: new Date().toISOString(), type: 'edited', detail: `Team access approved — ${createdUsers.length} portal account(s) created`, actor: approvedBy },
+          ...(request.timeline || []),
+        ],
+      });
+
+      return res.status(200).json({
+        success: true,
+        action: 'team_access_granted',
+        createdUsers: createdUsers.map(u => ({ email: u.email, name: u.name, generatedPassword: u.password })),
+      });
+    }
+
+    // 3b. Handle all other non-Onboarding requests — keyed off category, not onboarding.company
     if (request.category !== 'Onboarding' || request.channel === 'Client Portal') {
       await updateRequestStatus(requestNumber, {
         status: 'Approved',
