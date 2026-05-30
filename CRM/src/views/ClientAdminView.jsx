@@ -236,7 +236,7 @@ export default function ClientAdminView() {
   const removeEmp = (id) => setEmployees(p => p.filter(e => e.id !== id));
   const toggleMod = (m) => setActiveMods(p => { const n = new Set(p); n.has(m) ? n.delete(m) : n.add(m); return n; });
 
-  const submitAdminForm = async (subject, category, description, priority = "Medium") => {
+  const submitAdminForm = async (subject, category, description, priority = "Medium", extra = {}) => {
     setSubmitting(true);
     setError("");
     try {
@@ -244,7 +244,7 @@ export default function ClientAdminView() {
       const res = await fetch(`${CRM_API_BASE}/api/client-portal`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ action: "admin_form_request", subject, category, priority, description }),
+        body: JSON.stringify({ action: "admin_form_request", subject, category, priority, description, ...extra }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Submission failed");
@@ -477,7 +477,8 @@ export default function ClientAdminView() {
               `Grant portal access: ${ga.name || "New user"}`,
               "Access Request",
               `Portal access request submitted from CRM admin panel.\n\nName: ${ga.name}\nEmail: ${ga.email}\nAccess Level: ${selAccess || "Not selected"}\nModules: ${[...activeMods].join(", ") || "None selected"}\nNotification: ${ga.notification || "Not specified"}\nExpiry: ${ga.expiry || "No expiry"}\nNotes: ${ga.notes || "None"}`,
-              "High"
+              "High",
+              { targetEmail: ga.email, targetName: ga.name, targetAccessLevel: selAccess }
             )}>{submitting ? "Submitting…" : "Grant Access →"}</button>
           </div>
         </div>

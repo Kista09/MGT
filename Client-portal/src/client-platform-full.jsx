@@ -2638,10 +2638,10 @@ function ClientAdminPanel({ user, toast, refreshPortal }) {
   const updateEmp = (id, field, val) => setEmployees(p => p.map(e => e.id === id ? { ...e, [field]: val } : e));
   const toggleMod = (m) => setActiveMods(p => { const n = new Set(p); n.has(m) ? n.delete(m) : n.add(m); return n; });
 
-  const submit = async (subject, category, description, priority = "Medium") => {
+  const submit = async (subject, category, description, priority = "Medium", extra = {}) => {
     setSubmitting(true);
     try {
-      const res = await portalAction("create_request", { subject, category, priority, description });
+      const res = await portalAction("create_request", { subject, category, priority, description, ...extra });
       setSuccess({ msg: "Request submitted successfully.", ref: res.request?.requestNumber || res.request?.id });
       if (refreshPortal) refreshPortal();
     } catch (err) {
@@ -2833,7 +2833,8 @@ function ClientAdminPanel({ user, toast, refreshPortal }) {
               `Grant portal access: ${ga.name || "Team member"}`,
               "Access Request",
               `Portal access request submitted from client portal.\n\nName: ${ga.name}\nEmail: ${ga.email}\nAccess Level: ${selAccess || "Not selected"}\nModules: ${[...activeMods].join(", ") || "None selected"}\nNotification: ${ga.notification || "Not specified"}\nExpiry: ${ga.expiry || "No expiry"}\nNotes: ${ga.notes || "None"}`,
-              "High"
+              "High",
+              { targetEmail: ga.email, targetName: ga.name, targetAccessLevel: selAccess }
             )}>{submitting ? "Submitting…" : "Grant Access →"}</button>
           </div>
         </div>

@@ -266,7 +266,87 @@ module.exports = async (req, res) => {
       return res.status(200).json({ success: true, action: 'flow_approved' });
     }
 
-    // 2. Handle all non-Onboarding requests — keyed off category, not onboarding.company,
+    // 2. Handle Access Request (Grant Portal Access) — create portal user and send credentials
+    if (request.category === 'Access Request') {
+      const targetEmail = request.targetEmail || (() => {
+        const m = String(request.description || '').match(/Email:\s*(\S+)/i);
+        return m ? normalizeEmail(m[1]) : null;
+      })();
+      const targetName = request.targetName || (() => {
+        const m = String(request.description || '').match(/Name:\s*([^\n]+)/i);
+        return m ? m[1].trim() : null;
+      })();
+
+      if (targetEmail) {
+        const existingUser = await readPortalUser(targetEmail);
+        const password = suppliedPassword || makePassword();
+        const portalUser = {
+          id: existingUser?.id || `portal-${Date.now()}`,
+          email: targetEmail,
+          password,
+          name: targetName || existingUser?.name || targetEmail,
+          role: existingUser?.role || 'client_viewer',
+          clientId: existingUser?.clientId || request.clientId || slugify(request.company || 'client'),
+          clientName: existingUser?.clientName || request.company || 'MgucaTECH Client',
+          plan: existingUser?.plan || 'Starter',
+          portalApproved: true,
+          approvedAt: new Date().toISOString(),
+          approvedBy,
+          requestId: requestNumber,
+        };
+        await savePortalUser({ ...(existingUser || {}), ...portalUser });
+
+        await sendEmail({
+          from: 'MgucaTECH <admin@mgucatech.com>',
+          to: [targetEmail],
+          reply_to: 'admin@mgucatech.com',
+          subject: 'Your MgucaTECH client portal access',
+          html: `
+            <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1A1A1A">
+              <h1 style="color:#0C4A4A">Portal Access Granted</h1>
+              <p>Hi ${escapeHtml(portalUser.name)},</p>
+              <p>Your access to the MgucaTECH client portal has been approved. Use the credentials below to log in.</p>
+              <table style="margin:20px 0;border-collapse:collapse">
+                <tr><td style="padding:6px 12px;font-weight:700;color:#555">Portal URL</td><td style="padding:6px 12px"><a href="https://client-portal.mgucatech.com">client-portal.mgucatech.com</a></td></tr>
+                <tr style="background:#f5f5f5"><td style="padding:6px 12px;font-weight:700;color:#555">Email</td><td style="padding:6px 12px">${escapeHtml(targetEmail)}</td></tr>
+                <tr><td style="padding:6px 12px;font-weight:700;color:#555">Password</td><td style="padding:6px 12px;font-family:monospace;font-size:15px">${escapeHtml(password)}</td></tr>
+              </table>
+              <p style="color:#888;font-size:12px">Please change your password after your first login.</p>
+              <p><a href="https://client-portal.mgucatech.com" style="display:inline-block;background:#E8561A;color:#fff;text-decoration:none;padding:10px 14px;border-radius:6px;font-weight:700">Open Client Portal</a></p>
+            </div>
+          `,
+        });
+      }
+
+      await updateRequestStatus(requestNumber, {
+        status: 'Approved',
+        timeline: [
+          { id: `timeline-${Date.now()}`, time: new Date().toISOString(), type: 'edited', detail: `Portal access granted to ${targetEmail || 'user'} by ${approvedBy}`, actor: approvedBy },
+          ...(request.timeline || []),
+        ],
+      });
+
+      if (email !== targetEmail) {
+        await sendEmail({
+          from: 'MgucaTECH <admin@mgucatech.com>',
+          to: [email],
+          reply_to: 'admin@mgucatech.com',
+          subject: `Access granted: ${targetName || targetEmail}`,
+          html: `
+            <div style="font-family:Arial,sans-serif;line-height:1.6;color:#1A1A1A">
+              <h1 style="color:#0C4A4A">Access Request Approved</h1>
+              <p>Hi ${escapeHtml(request.requester)},</p>
+              <p>Portal access for <strong>${escapeHtml(targetName || targetEmail)}</strong> has been approved. Login credentials have been sent to ${escapeHtml(targetEmail || 'the user')}.</p>
+              <p><a href="https://client-portal.mgucatech.com" style="display:inline-block;background:#E8561A;color:#fff;text-decoration:none;padding:10px 14px;border-radius:6px;font-weight:700">Open Client Portal</a></p>
+            </div>
+          `,
+        });
+      }
+
+      return res.status(200).json({ success: true, action: 'access_granted', targetEmail });
+    }
+
+    // 3. Handle all non-Onboarding requests — keyed off category, not onboarding.company,
     //    so Client Portal SRs with onboarding metadata don't fall into the PDF path
     if (request.category !== 'Onboarding' || request.channel === 'Client Portal') {
       await updateRequestStatus(requestNumber, {
