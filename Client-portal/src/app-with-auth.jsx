@@ -68,7 +68,7 @@ const AUTH = {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, audience: "client_portal" }),
+        body: JSON.stringify({ email, password }),
       }).catch(() => null);
       if (res && !res.headers.get("content-type")?.includes("application/json")) res = null;
     }
@@ -76,11 +76,18 @@ const AUTH = {
     if (res) {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        if (!data.user?.client_id && !data.user?.clientId) throw new Error("This account is not assigned to a client workspace");
+        // The API uses tenantId or clientId; checking both for compatibility
+        if (!data.user?.client_id && !data.user?.clientId && !data.user?.tenantId) throw new Error("This account is not assigned to a client workspace");
         if (!CLIENT_ROLES.has(data.user.role)) throw new Error("This account is not enabled for the client portal");
-        return data;
+        // Ensure we return accessToken even if the backend calls it 'token'
+        return {
+          accessToken: data.accessToken || data.token,
+          user: data.user,
+        };
       }
       remoteError = data.error ?? "Unable to sign in";
+      // If the server explicitly rejected the login (401), stop and show the error instead of falling back to mock
+      if (res.status === 401) throw new Error(remoteError);
     }
 
     if (!ALLOW_LOCAL_CLIENT_AUTH) throw new Error(remoteError ?? "Sign in service is unavailable");
@@ -117,12 +124,15 @@ const AUTH = {
     if (res) {
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        if (!CLIENT_ROLES.has(data.role) || (!data.client_id && !data.clientId)) {
+        // Align with User schema which uses tenantId
+        if (!CLIENT_ROLES.has(data.role) || (!data.client_id && !data.clientId && !data.tenantId)) {
           throw new Error("This account is not enabled for the client portal");
         }
         return data;
       }
       remoteError = data.error ?? "Session expired";
+      // If the server says the token is invalid, don't fall back to mock
+      if (res.status === 401 || res.status === 403) throw new Error(remoteError);
     }
 
     if (!ALLOW_LOCAL_CLIENT_AUTH) throw new Error(remoteError ?? "Session service is unavailable");
