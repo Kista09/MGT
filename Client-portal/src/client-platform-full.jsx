@@ -25,7 +25,7 @@ const font="'DM Sans',sans-serif";
 const serif="'Cormorant Garamond',Georgia,serif";
 const fmtRand = (v) => `R${Number(v).toLocaleString("en-ZA")}`;
 const BOOK_NOW_URL = import.meta.env.VITE_BOOK_NOW_URL || "https://mgt-app.vercel.app/#book";
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "https://mgucatech.com";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || "https://mgucatech.com";
 const STORAGE_KEY = "mgucatech_client_access_token";
 const bookingUrlFor = (user) => {
   const url = new URL(BOOK_NOW_URL);
@@ -36,16 +36,32 @@ const bookingUrlFor = (user) => {
 const openBookNow = (user) => window.open(bookingUrlFor(user), "_blank", "noopener,noreferrer");
 const portalToken = () => localStorage.getItem(STORAGE_KEY);
 const portalFetch = async (path = "/api/client-portal", options = {}) => {
+  const token = portalToken();
+  if (!token) throw new Error("Session expired. Please sign in again.");
+
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${portalToken() || ""}`,
+      Authorization: `Bearer ${token}`,
       ...(options.headers || {}),
     },
   });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Client portal backend unavailable");
+  
+  const isJson = res.headers.get("content-type")?.includes("application/json");
+  const data = isJson ? await res.json().catch(() => ({})) : {};
+
+  if (!res.ok) {
+    const error = new Error(data.error || `Server Error (${res.status})`);
+    error.status = res.status; // Attach status code to the error
+    
+    if (res.status === 403) {
+      error.message = "Access denied. Your session is invalid for this workspace.";
+    } else if (res.status === 401) {
+      error.message = "Session expired. Please log in again.";
+    }
+    throw error;
+  }
   return data;
 };
 
@@ -1455,18 +1471,11 @@ function Simulator() {
     setMessages(newMessages);
     setLoading(true);
     try {
-      const resp = await fetch("https://api.anthropic.com/v1/messages",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:1000,
-          system:`You are "Takealot Partner Support", a WhatsApp customer service bot for Takealot Partner Store, a South African e-commerce operation. Respond exactly as a WhatsApp bot would: short, friendly, and practical. Max 3-4 sentences unless listing steps.\n\nYour knowledge base:\n${INIT_QA.filter(q=>q.active).map(q=>`Q: ${q.question}\nA: ${q.answer}`).join("\n\n")}\n\nIf the user asks something outside your knowledge, offer to connect them with a human agent. Never break character.`,
-          messages:newMessages
-        })
+      const data = await portalAction("simulate_bot", {
+        messages: newMessages,
+        system: `You are "Takealot Partner Support", a WhatsApp customer service bot...`
       });
-      const data = await resp.json();
-      const text = data.content?.[0]?.text || "Sorry, I couldn't process that. Please try again.";
+      const text = data.reply || "Sorry, I couldn't process that. Please try again.";
       setMessages(p=>[...p,{role:"assistant",content:text}]);
     } catch(e) {
       setMessages(p=>[...p,{role:"assistant",content:"⚠️ Error reaching bot. Please try again."}]);
@@ -3033,6 +3042,11 @@ export default function App({ user = null, onLogout = null }) {
     try {
       setPortalData(await portalFetch("/api/client-portal"));
     } catch (error) {
+      // If the session is dead, force logout to clear invalid tokens
+      if (error.status === 401 || error.status === 403) {
+        if (onLogout) onLogout();
+        return;
+      }
       setPortalError(error.message);
     } finally {
       setPortalLoading(false);
