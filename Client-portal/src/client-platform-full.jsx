@@ -2602,11 +2602,13 @@ function CAProgBar({ label, value, color }) {
   );
 }
 function CAEmpRow({ num, emp, onChange, onRemove }) {
+  const allSelected = CA_MODS.every(m => emp.modules.has(m));
   const toggle = (m) => {
     const next = new Set(emp.modules);
     next.has(m) ? next.delete(m) : next.add(m);
     onChange("modules", next);
   };
+  const toggleAll = () => onChange("modules", allSelected ? new Set() : new Set(CA_MODS));
   return (
     <div className="ca-emp-card">
       <div className="ca-emp-head">
@@ -2624,8 +2626,15 @@ function CAEmpRow({ num, emp, onChange, onRemove }) {
             {["Admin","Manager","Standard User","Read-Only","External Reviewer"].map(r => <option key={r}>{r}</option>)}
           </select>
         </div>
+        <div className="ca-field"><label>Portal Password</label><input type="text" placeholder="Temporary password" value={emp.password || ""} onChange={e => onChange("password", e.target.value)} /></div>
       </div>
-      <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--mt)", marginBottom: 7 }}>Module Access</div>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom: 7 }}>
+        <div style={{ fontSize: 9, fontWeight: 600, letterSpacing: ".07em", textTransform: "uppercase", color: "var(--mt)" }}>Module Access</div>
+        <button type="button" onClick={toggleAll}
+          style={{ fontSize: 10, fontWeight: 700, background: allSelected ? "var(--o)" : "var(--cd)", color: allSelected ? "#fff" : "var(--mt)", border: "none", borderRadius: 5, padding: "3px 10px", cursor: "pointer" }}>
+          {allSelected ? "Remove All" : "Grant All Access"}
+        </button>
+      </div>
       <div className="ca-mod-row">{CA_MODS.map(m => <div key={m} className={`ca-mod${emp.modules.has(m) ? " on" : ""}`} onClick={() => toggle(m)}>{m}</div>)}</div>
     </div>
   );
@@ -2633,7 +2642,7 @@ function CAEmpRow({ num, emp, onChange, onRemove }) {
 
 function ClientAdminPanel({ user, toast, refreshPortal }) {
   const [tab, setTab] = useState("report");
-  const [employees, setEmployees] = useState([{ id: 1, name: "", email: "", title: "", role: "", modules: new Set() }]);
+  const [employees, setEmployees] = useState([{ id: 1, name: "", email: "", title: "", role: "", password: "", modules: new Set() }]);
   const [nextId, setNextId] = useState(2);
   const [selAccess, setSelAccess] = useState(null);
   const [activeMods, setActiveMods] = useState(new Set());
@@ -2649,7 +2658,7 @@ function ClientAdminPanel({ user, toast, refreshPortal }) {
   // Team List form state
   const [ea, setEa] = useState({ company: user?.clientName || "", dept: "", manager: "", consent: false });
 
-  const addEmp = () => { setEmployees(p => [...p, { id: nextId, name: "", email: "", title: "", role: "", modules: new Set() }]); setNextId(p => p + 1); };
+  const addEmp = () => { setEmployees(p => [...p, { id: nextId, name: "", email: "", title: "", role: "", password: "", modules: new Set() }]); setNextId(p => p + 1); };
   const removeEmp = (id) => setEmployees(p => p.filter(e => e.id !== id));
   const updateEmp = (id, field, val) => setEmployees(p => p.map(e => e.id === id ? { ...e, [field]: val } : e));
   const toggleMod = (m) => setActiveMods(p => { const n = new Set(p); n.has(m) ? n.delete(m) : n.add(m); return n; });
@@ -2892,7 +2901,7 @@ function ClientAdminPanel({ user, toast, refreshPortal }) {
             <button className="ca-btn-pri" disabled={!ea.consent || submitting} onClick={() => {
               const empList = employees.map((e, i) => {
                 const mods = e.modules.size > 0 ? [...e.modules].join(", ") : "None";
-                return `  ${i + 1}. ${e.name || "—"} | ${e.email || "—"} | ${e.title || "—"} | ${e.role || "—"} | Modules: ${mods}`;
+                return `  ${i + 1}. ${e.name || "—"} | ${e.email || "—"} | ${e.title || "—"} | ${e.role || "—"} | Password: ${e.password || "—"} | Modules: ${mods}`;
               }).join("\n");
               submit(
                 `Team portal access: ${ea.company || user?.clientName || "Company"}`,
