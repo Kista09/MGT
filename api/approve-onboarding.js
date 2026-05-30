@@ -280,6 +280,8 @@ module.exports = async (req, res) => {
       if (targetEmail) {
         const existingUser = await readPortalUser(targetEmail);
         const password = suppliedPassword || makePassword();
+        const accessLevel = request.targetAccessLevel || '';
+        const isFullAccess = /full.?access/i.test(accessLevel) || /administrator/i.test(accessLevel);
         const portalUser = {
           id: existingUser?.id || `portal-${Date.now()}`,
           email: targetEmail,
@@ -290,6 +292,7 @@ module.exports = async (req, res) => {
           clientName: existingUser?.clientName || request.company || 'MgucaTECH Client',
           plan: existingUser?.plan || 'Starter',
           portalApproved: true,
+          privateClientAccess: isFullAccess,
           approvedAt: new Date().toISOString(),
           approvedBy,
           requestId: requestNumber,

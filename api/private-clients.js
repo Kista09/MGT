@@ -1,4 +1,4 @@
-const { makeToken, readToken, normalizeEmail } = require('../lib/portal');
+const { makeToken, readToken, readPortalUser, normalizeEmail } = require('../lib/portal');
 const { auditSilently } = require('../lib/audit');
 
 const PRIVATE_CLIENTS = [
@@ -90,6 +90,7 @@ function readPrivateSession(req) {
 }
 
 function isPrivateSession(session) {
+  if (session?.privateClientAccess) return true;
   const email = normalizeEmail(session?.email);
   return session?.role === 'private_client'
     ? privateAccount().emails.includes(email)
@@ -108,28 +109,46 @@ module.exports = async (req, res) => {
 
       const account = privateAccount();
       const norm = normalizeEmail(email);
-      if (!account.password || !account.emails.includes(norm) || password !== account.password) {
-        await auditSilently({
-          app: 'crm',
-          actorEmail: norm,
-          actorRole: 'private_client',
-          action: 'Private clients login failed',
-          target: 'Private Clients',
-          status: 'failed',
-          details: 'Invalid private client credentials',
-        }, req);
-        return res.status(401).json({ error: 'Invalid private client credentials' });
-      }
+      const envAuthed = account.password && account.emails.includes(norm) && password === account.password;
 
-      const user = {
-        id: `private-client-${norm.replace(/[^a-z0-9]+/g, '-')}`,
-        email: norm,
-        name: 'OrganicSmith Private Client',
-        role: 'private_client',
-        clientId: null,
-        clientName: 'Private Clients',
-        plan: null,
-      };
+      let user;
+      if (envAuthed) {
+        user = {
+          id: `private-client-${norm.replace(/[^a-z0-9]+/g, '-')}`,
+          email: norm,
+          name: 'OrganicSmith Private Client',
+          role: 'private_client',
+          privateClientAccess: true,
+          clientId: null,
+          clientName: 'Private Clients',
+          plan: null,
+        };
+      } else {
+        // Allow portal users granted full access to use their portal password
+        const portalUser = await readPortalUser(norm).catch(() => null);
+        if (!portalUser?.privateClientAccess || !portalUser?.portalApproved || password !== portalUser.password) {
+          await auditSilently({
+            app: 'crm',
+            actorEmail: norm,
+            actorRole: 'private_client',
+            action: 'Private clients login failed',
+            target: 'Private Clients',
+            status: 'failed',
+            details: 'Invalid private client credentials',
+          }, req);
+          return res.status(401).json({ error: 'Invalid private client credentials' });
+        }
+        user = {
+          id: portalUser.id,
+          email: norm,
+          name: portalUser.name,
+          role: 'private_client',
+          privateClientAccess: true,
+          clientId: portalUser.clientId,
+          clientName: portalUser.clientName,
+          plan: portalUser.plan,
+        };
+      }
       await auditSilently({
         app: 'crm',
         actor: user.name,
