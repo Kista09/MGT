@@ -2207,14 +2207,28 @@ function BotSettings({ toast, data }) {
 
 const STAFF_CATEGORIES = ["salon","medical","mechanic","lawyer","restaurant","pharmacy","general"];
 
-function Team({ toast, data }) {
+function Team({ toast, data, teamData, onTeamChange }) {
   const [tab, setTab] = useState("portal");
 
-  // Portal team
-  const [members,setMembers]=useState([{id:1,name:"Ayesha Jacobs",email:"ayesha@tapartner.co.za",role:"Admin",notify:["escalations","reports"]},{id:2,name:"Owen Petersen",email:"owen@tapartner.co.za",role:"Manager",notify:["escalations"]},{id:3,name:"Naledi Dlamini",email:"naledi@tapartner.co.za",role:"Viewer",notify:[]}]);
-  const [modal,setModal]=useState(false);const[form,setForm]=useState({name:"",email:"",role:"Viewer",notify:[]});const[nextId,setNextId]=useState(4);
+  // Portal team — loaded from workspace, falls back to empty list
+  const [members,setMembers]=useState(Array.isArray(teamData) && teamData.length ? teamData : []);
+  const [modal,setModal]=useState(false);const[form,setForm]=useState({name:"",email:"",role:"Viewer",notify:[]});
   const rCol={Admin:T.accent,Manager:"#7c3aed",Viewer:T.muted};
-  const invite=()=>{if(!form.name.trim()||!form.email.trim())return;setMembers(p=>[...p,{...form,id:nextId}]);setNextId(n=>n+1);setModal(false);setForm({name:"",email:"",role:"Viewer",notify:[]});toast("Invite sent to "+form.email);};
+
+  const saveTeam = async (updated) => {
+    setMembers(updated);
+    if (onTeamChange) onTeamChange(updated);
+    try { await portalAction("save_team", { team: updated }); }
+    catch (e) { toast(e.message || "Save failed", "error"); }
+  };
+
+  const invite=()=>{
+    if(!form.name.trim()||!form.email.trim())return;
+    const next=[...members,{...form,id:`tm-${Date.now()}`}];
+    saveTeam(next);
+    setModal(false);setForm({name:"",email:"",role:"Viewer",notify:[]});
+    toast("Team member added");
+  };
 
   // Service staff
   const BLANK_STAFF = {name:"",specialty:"",phone:"",category:"salon",active:true};
@@ -2296,7 +2310,7 @@ function Team({ toast, data }) {
                   </div>
                   <div style={{display:"flex",gap:8,alignItems:"center"}}>
                     <Pill label={m.role} color={rCol[m.role]||T.muted} bg={`${rCol[m.role]||T.muted}18`}/>
-                    {m.role!=="Admin"&&<button onClick={()=>{setMembers(p=>p.filter(x=>x.id!==m.id));toast("Removed");}} style={{width:30,height:30,borderRadius:8,border:`1.5px solid ${T.redBdr}`,background:T.redBg,cursor:"pointer",color:T.red,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>}
+                    {m.role!=="Admin"&&<button onClick={()=>saveTeam(members.filter(x=>x.id!==m.id))} style={{width:30,height:30,borderRadius:8,border:`1.5px solid ${T.redBdr}`,background:T.redBg,cursor:"pointer",color:T.red,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>}
                   </div>
                 </div>
               </Card>
@@ -3174,7 +3188,7 @@ export default function App({ user = null, onLogout = null }) {
         {view==="requests"   && <ClientRequests portalData={portalData} portalLoading={portalLoading} portalError={portalError} refreshPortal={refreshPortal} toast={showToast}/>}
         {view==="private-clients" && <PrivateClients toast={showToast}/>}
         {view==="calendar"   && <CalendarView toast={showToast} user={user} data={workspace.calendar}/>}
-        {view==="team"       && <Team toast={showToast}/>}
+        {view==="team"       && <Team toast={showToast} teamData={workspace.team} onTeamChange={t => { workspace.team = t; }}/>}
         {view==="billing"    && <Billing toast={showToast}/>}
         {view==="status"     && <Status/>}
         {view==="onboarding"    && <Onboarding toast={showToast} user={user}/>}

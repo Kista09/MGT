@@ -419,6 +419,19 @@ module.exports = async (req, res) => {
         }).catch(() => {});
       }
 
+      // Also update the workspace team list so the portal Team view reflects the new members
+      try {
+        const workspace = await readWorkspace({ email: normalizeEmail(request.email), clientId });
+        const existingTeam = Array.isArray(workspace.team) ? workspace.team : [];
+        for (const u of createdUsers) {
+          if (!existingTeam.find(t => normalizeEmail(t.email) === normalizeEmail(u.email))) {
+            existingTeam.push({ id: `tm-${Date.now()}-${Math.random().toString(36).slice(2)}`, name: u.name, email: u.email, role: u.role || 'Viewer', notify: [] });
+          }
+        }
+        workspace.team = existingTeam;
+        await saveWorkspace({ email: normalizeEmail(request.email), clientId }, workspace);
+      } catch (_) {}
+
       await updateRequestStatus(requestNumber, {
         status: 'Approved',
         timeline: [
