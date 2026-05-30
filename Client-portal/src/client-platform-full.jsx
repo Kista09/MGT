@@ -1746,7 +1746,7 @@ function Onboarding({ toast, user }) {
         </Card>
         <Card style={{padding:16}}>
           <div style={{fontSize:11,color:T.muted,fontWeight:700,textTransform:"uppercase",marginBottom:8}}>Bookings</div>
-            <Btn small onClick={()=>openBookNow(user)}>Open Book Now</Btn>
+            <Btn small onClick={()=>setView("booking")}>Open Book Now</Btn>
         </Card>
       </div>
 
@@ -2160,7 +2160,7 @@ function CalendarView({ toast, user, data }) {
           <div style={{fontFamily:serif,fontSize:30,color:T.text,marginBottom:4}}>Calendar &amp; Hours</div>
           <div style={{color:T.muted,fontSize:14}}>Mark holidays, manage business hours, and open the live booking app.</div>
         </div>
-        <Btn onClick={()=>openBookNow(user)}>Open Book Now</Btn>
+        <Btn onClick={()=>setView("booking")}>Open Book Now</Btn>
       </div>
       <div style={{display:"flex",gap:24,flexWrap:"wrap",alignItems:"flex-start"}}>
         <Card style={{flex:"1 1 320px"}}>
@@ -2210,7 +2210,7 @@ function CalendarView({ toast, user, data }) {
           </div>
           <Input value={bookingUrlFor(user)} onChange={()=>{}} style={{fontSize:12,marginBottom:12}} />
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            <Btn onClick={()=>openBookNow(user)}>Open booking app</Btn>
+            <Btn onClick={()=>setView("booking")}>Open booking app</Btn>
             <Btn variant="secondary" onClick={()=>{navigator.clipboard?.writeText(bookingUrlFor(user));toast("Booking link copied");}}>Copy link</Btn>
           </div>
         </Card>
@@ -2493,8 +2493,8 @@ function Overview({ setView, user, portalData, portalLoading, portalError, refre
         <Card style={{flex:2,minWidth:280}}>
           <div style={{fontFamily:serif,fontSize:20,color:T.text,marginBottom:16}}>Quick Actions</div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(160px,1fr))",gap:12}}>
-            {[{icon:"↗",label:"Open Book Now",external:true},{icon:"💬",label:"Add Q&A response",view:"qa"},{icon:"📅",label:"Update hours",view:"calendar"},{icon:"🤖",label:"Test your bot",view:"simulator"},{icon:"📣",label:"New broadcast",view:"broadcasts"},{icon:"📝",label:"Submit template",view:"templates"},{icon:"📊",label:"View analytics",view:"analytics"}].map(a=>(
-              <div key={a.label} onClick={()=>a.external ? openBookNow(user) : setView(a.view)} style={{padding:"14px",background:T.bg,borderRadius:12,cursor:"pointer",border:`1.5px solid ${T.border}`,transition:"all .15s"}}
+            {[{icon:"📅",label:"Book Now",view:"booking"},{icon:"💬",label:"Add Q&A response",view:"qa"},{icon:"🕐",label:"Update hours",view:"calendar"},{icon:"🤖",label:"Test your bot",view:"simulator"},{icon:"📣",label:"New broadcast",view:"broadcasts"},{icon:"📝",label:"Submit template",view:"templates"},{icon:"📊",label:"View analytics",view:"analytics"}].map(a=>(
+              <div key={a.label} onClick={()=>setView(a.view)} style={{padding:"14px",background:T.bg,borderRadius:12,cursor:"pointer",border:`1.5px solid ${T.border}`,transition:"all .15s"}}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor=T.accent;e.currentTarget.style.background=T.accentBg;}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.background=T.bg;}}>
                 <div style={{fontSize:20,marginBottom:8}}>{a.icon}</div>
@@ -3240,6 +3240,125 @@ function ClientAdminPanel({ user, toast, refreshPortal, portalData }) {
   );
 }
 
+/* ─── BOOKING WIZARD ──────────────────────────────────────── */
+function BookingView({ flow, user, toast, setView }) {
+  const steps = (Array.isArray(flow) ? flow : []).filter(n => n.type === "menu" || n.type === "action");
+  const [stepIdx, setStepIdx] = useState(0);
+  const [answers, setAnswers] = useState([]);
+  const [done, setDone] = useState(null);
+
+  const current = steps[stepIdx];
+
+  useEffect(() => { setStepIdx(0); setAnswers([]); setDone(null); }, [flow]);
+
+  const choose = (option) => {
+    const next = [...answers, { question: current?.label, answer: option }];
+    setAnswers(next);
+    if (current?.label?.toLowerCase().includes("emergency") && option.toLowerCase().includes("er")) {
+      setDone("emergency"); return;
+    }
+    if (stepIdx + 1 >= steps.length) { setDone("booked"); } else { setStepIdx(stepIdx + 1); }
+  };
+
+  if (!steps.length) return (
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:T.muted,padding:40}}>
+      <div style={{fontSize:40}}>📋</div>
+      <div style={{fontWeight:700,fontSize:16,color:T.text}}>No booking flow published yet</div>
+      <div style={{fontSize:13}}>Go to Flow Builder, select the Medical Booking template, then click Publish to Booking App.</div>
+      <button onClick={()=>setView("flows")} style={{marginTop:8,padding:"10px 22px",borderRadius:8,border:"none",background:T.accent,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Open Flow Builder</button>
+    </div>
+  );
+
+  if (done === "emergency") return (
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:40}}>
+      <div style={{maxWidth:420,textAlign:"center"}}>
+        <div style={{fontSize:56,marginBottom:16}}>🚨</div>
+        <div style={{fontFamily:serif,fontSize:26,color:T.red,fontWeight:700,marginBottom:12}}>Go to Emergency</div>
+        <p style={{color:T.muted,lineHeight:1.7,marginBottom:24}}>Please call <strong style={{color:T.text}}>10177</strong> or go to your nearest Emergency Room immediately. Do not wait for a booking.</p>
+        <button onClick={()=>{setStepIdx(0);setAnswers([]);setDone(null);}} style={{padding:"10px 24px",borderRadius:8,border:"none",background:T.red,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>← Start Over</button>
+      </div>
+    </div>
+  );
+
+  if (done === "booked") return (
+    <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",padding:40,overflowY:"auto"}}>
+      <div style={{maxWidth:480,width:"100%",textAlign:"center"}}>
+        <div style={{fontSize:56,marginBottom:16}}>✅</div>
+        <div style={{fontFamily:serif,fontSize:26,color:T.blue,fontWeight:700,marginBottom:8}}>Booking Confirmed</div>
+        <p style={{color:T.muted,fontSize:13,marginBottom:24}}>We'll send a confirmation to {user?.email || "your email"} shortly.</p>
+        <div style={{background:T.subtle,border:`1px solid ${T.border}`,borderRadius:12,padding:"16px 20px",textAlign:"left",marginBottom:24}}>
+          {answers.map((a,i)=>(
+            <div key={i} style={{marginBottom:10}}>
+              <div style={{fontSize:10,fontWeight:800,color:T.muted,textTransform:"uppercase",letterSpacing:.6,marginBottom:2}}>{a.question}</div>
+              <div style={{fontSize:13,fontWeight:600,color:T.text}}>{a.answer}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{display:"flex",gap:10,justifyContent:"center"}}>
+          <button onClick={()=>{setStepIdx(0);setAnswers([]);setDone(null);}} style={{padding:"10px 22px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,color:T.text,fontSize:13,fontWeight:700,cursor:"pointer"}}>Book Again</button>
+          <button onClick={()=>setView("requests")} style={{padding:"10px 22px",borderRadius:8,border:"none",background:T.accent,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>View Requests</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const progress = steps.length > 0 ? ((stepIdx) / steps.length) * 100 : 0;
+
+  return (
+    <div style={{flex:1,display:"flex",flexDirection:"column",overflowY:"auto",background:T.bg}}>
+      {/* Header */}
+      <div style={{background:T.card,borderBottom:`1px solid ${T.border}`,padding:"16px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:40,height:40,borderRadius:10,background:T.accentBg,border:`1.5px solid ${T.accentBdr}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>🏥</div>
+          <div>
+            <div style={{fontWeight:700,fontSize:15,color:T.text}}>Book Appointment</div>
+            <div style={{fontSize:11,color:T.muted}}>Step {stepIdx + 1} of {steps.length}</div>
+          </div>
+        </div>
+        {stepIdx > 0 && (
+          <button onClick={()=>{setStepIdx(stepIdx-1);setAnswers(answers.slice(0,-1));}}
+            style={{padding:"7px 16px",borderRadius:8,border:`1px solid ${T.border}`,background:T.card,color:T.muted,fontSize:13,fontWeight:700,cursor:"pointer"}}>← Back</button>
+        )}
+      </div>
+
+      {/* Progress */}
+      <div style={{height:3,background:T.border,flexShrink:0}}>
+        <div style={{height:"100%",background:T.accent,width:`${progress}%`,transition:"width .3s"}}/>
+      </div>
+
+      <div style={{flex:1,padding:"28px 24px",maxWidth:640,width:"100%",margin:"0 auto"}}>
+        {/* Previous answers */}
+        {answers.length > 0 && (
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:24}}>
+            {answers.map((a,i)=>(
+              <span key={i} style={{background:T.accentBg,border:`1px solid ${T.accentBdr}`,borderRadius:99,padding:"3px 12px",fontSize:12,color:T.accent,fontWeight:600}}>
+                ✓ {a.answer}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Question */}
+        <div style={{fontFamily:serif,fontSize:24,fontWeight:700,color:T.text,marginBottom:6,lineHeight:1.2}}>{current?.content || current?.label}</div>
+        <div style={{fontSize:12,color:T.muted,marginBottom:24}}>Select one option below</div>
+
+        {/* Options */}
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {(current?.options || []).map((opt,i)=>(
+            <button key={i} onClick={()=>choose(opt)}
+              style={{padding:"16px 20px",borderRadius:12,border:`1.5px solid ${T.border}`,background:T.card,color:T.text,fontSize:14,fontWeight:600,cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:14,transition:"all .15s",fontFamily:font}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor=T.accent;e.currentTarget.style.background=T.accentBg;e.currentTarget.style.color=T.accent;}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor=T.border;e.currentTarget.style.background=T.card;e.currentTarget.style.color=T.text;}}>
+              <span style={{width:22,height:22,borderRadius:"50%",border:`1.5px solid ${T.borderDark}`,flexShrink:0,display:"inline-block"}}/>
+              {opt}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── APP ──────────────────────────────────────────────────── */
 export default function App({ user = null, onLogout = null }) {
   const [view, setView] = useState("overview");
@@ -3294,7 +3413,7 @@ export default function App({ user = null, onLogout = null }) {
     { group:"Operations" },
     { id:"requests",   icon:"📋", label:"Service Requests" },
     { id:"private-clients", icon:"P", label:"Private Clients" },
-    { id:"book-now",   icon:"↗", label:"Book Now", external:true },
+    { id:"booking",    icon:"📅", label:"Book Now"               },
     { id:"calendar",   icon:"📅", label:"Calendar"     },
     { id:"team",       icon:"🫂", label:"Team"          },
     { id:"billing",      icon:"💳", label:"Billing"        },
@@ -3389,6 +3508,7 @@ export default function App({ user = null, onLogout = null }) {
         {view==="status"     && <Status/>}
         {view==="onboarding"    && <Onboarding toast={showToast} user={user}/>}
         {view==="client-admin"  && <ClientAdminPanel user={user} toast={showToast} refreshPortal={refreshPortal} portalData={portalData}/>}
+        {view==="booking"       && <BookingView flow={workspace.bookingFlow} user={user} toast={showToast} setView={setView}/>}
       </div>
 
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}
