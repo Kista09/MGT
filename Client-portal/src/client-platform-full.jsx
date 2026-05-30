@@ -2196,44 +2196,165 @@ function BotSettings({ toast, data }) {
   );
 }
 
-function Team({ toast }) {
+const STAFF_CATEGORIES = ["salon","medical","mechanic","lawyer","restaurant","pharmacy","general"];
+
+function Team({ toast, data }) {
+  const [tab, setTab] = useState("portal");
+
+  // Portal team
   const [members,setMembers]=useState([{id:1,name:"Ayesha Jacobs",email:"ayesha@tapartner.co.za",role:"Admin",notify:["escalations","reports"]},{id:2,name:"Owen Petersen",email:"owen@tapartner.co.za",role:"Manager",notify:["escalations"]},{id:3,name:"Naledi Dlamini",email:"naledi@tapartner.co.za",role:"Viewer",notify:[]}]);
   const [modal,setModal]=useState(false);const[form,setForm]=useState({name:"",email:"",role:"Viewer",notify:[]});const[nextId,setNextId]=useState(4);
   const rCol={Admin:T.accent,Manager:"#7c3aed",Viewer:T.muted};
   const invite=()=>{if(!form.name.trim()||!form.email.trim())return;setMembers(p=>[...p,{...form,id:nextId}]);setNextId(n=>n+1);setModal(false);setForm({name:"",email:"",role:"Viewer",notify:[]});toast("Invite sent to "+form.email);};
+
+  // Service staff
+  const BLANK_STAFF = {name:"",specialty:"",phone:"",category:"salon",active:true};
+  const [staff, setStaff] = useState(data?.length ? data : []);
+  const [staffModal, setStaffModal] = useState(false);
+  const [staffForm, setStaffForm] = useState(BLANK_STAFF);
+  const [editingId, setEditingId] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [staffNextId, setStaffNextId] = useState(Date.now());
+
+  const saveStaff = async (updated) => {
+    setSaving(true);
+    try {
+      await portalAction("save_staff", { staff: updated });
+      toast("Service staff updated");
+    } catch (e) { toast(e.message || "Save failed", "error"); }
+    finally { setSaving(false); }
+  };
+
+  const submitStaff = async () => {
+    if (!staffForm.name.trim() || !staffForm.phone.trim()) return;
+    let updated;
+    if (editingId) {
+      updated = staff.map(s => s.id === editingId ? { ...staffForm, id: editingId } : s);
+    } else {
+      updated = [...staff, { ...staffForm, id: staffNextId }];
+      setStaffNextId(p => p + 1);
+    }
+    setStaff(updated);
+    setStaffModal(false);
+    setStaffForm(BLANK_STAFF);
+    setEditingId(null);
+    await saveStaff(updated);
+  };
+
+  const removeStaff = async (id) => {
+    const updated = staff.filter(s => s.id !== id);
+    setStaff(updated);
+    await saveStaff(updated);
+  };
+
+  const toggleActive = async (id) => {
+    const updated = staff.map(s => s.id === id ? { ...s, active: !s.active } : s);
+    setStaff(updated);
+    await saveStaff(updated);
+  };
+
+  const tabBtnStyle = (active) => ({
+    padding:"8px 20px", border:"none", cursor:"pointer", fontFamily:font,
+    fontSize:13, fontWeight:active?700:500, borderRadius:8,
+    background:active ? T.accent : "transparent",
+    color:active ? "#fff" : T.muted,
+    transition:"all .15s",
+  });
+
   return(
     <div style={{padding:"36px 40px",overflowY:"auto",flex:1}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28,flexWrap:"wrap",gap:16}}>
-        <div><div style={{fontFamily:serif,fontSize:30,color:T.text,marginBottom:4}}>Team &amp; Notifications</div><div style={{color:T.muted,fontSize:14}}>{members.length} members</div></div>
-        <Btn onClick={()=>setModal(true)}>+ Invite</Btn>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:24,flexWrap:"wrap",gap:16}}>
+        <div><div style={{fontFamily:serif,fontSize:30,color:T.text,marginBottom:4}}>Team &amp; Staff</div></div>
+        <div style={{display:"flex",gap:6,background:T.subtle,borderRadius:10,padding:4}}>
+          <button style={tabBtnStyle(tab==="portal")} onClick={()=>setTab("portal")}>Portal Team</button>
+          <button style={tabBtnStyle(tab==="staff")} onClick={()=>setTab("staff")}>Service Staff</button>
+        </div>
       </div>
-      <div style={{display:"flex",flexDirection:"column",gap:12,maxWidth:640}}>
-        {members.map(m=>(
-          <Card key={m.id} style={{padding:"16px 20px"}}>
-            <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
-              <Avatar name={m.name} size={42} color={rCol[m.role]||T.muted}/>
-              <div style={{flex:1}}>
-                <div style={{fontWeight:700,fontSize:15,color:T.text}}>{m.name}</div>
-                <div style={{fontSize:12,color:T.muted,marginTop:2}}>{m.email}</div>
-                {m.notify.length>0&&<div style={{display:"flex",gap:5,marginTop:7,flexWrap:"wrap"}}>{m.notify.map(n=><Pill key={n} label={n} color={T.accent} bg={T.accentBg} border={T.accentBdr}/>)}</div>}
-              </div>
-              <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                <Pill label={m.role} color={rCol[m.role]||T.muted} bg={`${rCol[m.role]||T.muted}18`}/>
-                {m.role!=="Admin"&&<button onClick={()=>{setMembers(p=>p.filter(x=>x.id!==m.id));toast("Removed");}} style={{width:30,height:30,borderRadius:8,border:`1.5px solid ${T.redBdr}`,background:T.redBg,cursor:"pointer",color:T.red,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>}
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
-      {modal&&(
-        <Modal title="Invite Team Member" onClose={()=>setModal(false)}>
-          <div style={{display:"flex",flexDirection:"column",gap:16}}>
-            <div><Label>Full Name</Label><Input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
-            <div><Label>Email</Label><Input value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/></div>
-            <div><Label>Role</Label><Select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} options={["Admin","Manager","Viewer"]}/></div>
-            <div style={{display:"flex",gap:8,marginTop:4,justifyContent:"flex-end"}}><Btn variant="secondary" onClick={()=>setModal(false)}>Cancel</Btn><Btn onClick={invite}>Send Invite</Btn></div>
+
+      {/* ── Portal Team ── */}
+      {tab==="portal"&&(
+        <>
+          <div style={{display:"flex",justifyContent:"flex-end",marginBottom:16}}><Btn onClick={()=>setModal(true)}>+ Invite</Btn></div>
+          <div style={{display:"flex",flexDirection:"column",gap:12,maxWidth:640}}>
+            {members.map(m=>(
+              <Card key={m.id} style={{padding:"16px 20px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                  <Avatar name={m.name} size={42} color={rCol[m.role]||T.muted}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,fontSize:15,color:T.text}}>{m.name}</div>
+                    <div style={{fontSize:12,color:T.muted,marginTop:2}}>{m.email}</div>
+                    {m.notify.length>0&&<div style={{display:"flex",gap:5,marginTop:7,flexWrap:"wrap"}}>{m.notify.map(n=><Pill key={n} label={n} color={T.accent} bg={T.accentBg} border={T.accentBdr}/>)}</div>}
+                  </div>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <Pill label={m.role} color={rCol[m.role]||T.muted} bg={`${rCol[m.role]||T.muted}18`}/>
+                    {m.role!=="Admin"&&<button onClick={()=>{setMembers(p=>p.filter(x=>x.id!==m.id));toast("Removed");}} style={{width:30,height:30,borderRadius:8,border:`1.5px solid ${T.redBdr}`,background:T.redBg,cursor:"pointer",color:T.red,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>}
+                  </div>
+                </div>
+              </Card>
+            ))}
           </div>
-        </Modal>
+          {modal&&(
+            <Modal title="Invite Team Member" onClose={()=>setModal(false)}>
+              <div style={{display:"flex",flexDirection:"column",gap:16}}>
+                <div><Label>Full Name</Label><Input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
+                <div><Label>Email</Label><Input value={form.email} onChange={e=>setForm(f=>({...f,email:e.target.value}))}/></div>
+                <div><Label>Role</Label><Select value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))} options={["Admin","Manager","Viewer"]}/></div>
+                <div style={{display:"flex",gap:8,marginTop:4,justifyContent:"flex-end"}}><Btn variant="secondary" onClick={()=>setModal(false)}>Cancel</Btn><Btn onClick={invite}>Send Invite</Btn></div>
+              </div>
+            </Modal>
+          )}
+        </>
+      )}
+
+      {/* ── Service Staff ── */}
+      {tab==="staff"&&(
+        <>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div style={{fontSize:13,color:T.muted}}>{staff.length} staff member{staff.length!==1?"s":""} · shown in booking menu when flow is approved</div>
+            <Btn onClick={()=>{setStaffForm(BLANK_STAFF);setEditingId(null);setStaffModal(true);}}>+ Add Staff</Btn>
+          </div>
+          {staff.length===0&&(
+            <Card style={{padding:32,textAlign:"center",maxWidth:540}}>
+              <div style={{fontSize:32,marginBottom:12}}>💈</div>
+              <div style={{fontWeight:700,fontSize:15,color:T.text,marginBottom:6}}>No service staff yet</div>
+              <div style={{fontSize:13,color:T.muted,lineHeight:1.6,marginBottom:18}}>Add your team members here. They'll appear in the booking menu for customers after you publish and approve your flow.</div>
+              <Btn onClick={()=>{setStaffForm(BLANK_STAFF);setEditingId(null);setStaffModal(true);}}>Add First Staff Member</Btn>
+            </Card>
+          )}
+          <div style={{display:"flex",flexDirection:"column",gap:12,maxWidth:640}}>
+            {staff.map(s=>(
+              <Card key={s.id} style={{padding:"16px 20px",opacity:s.active===false?0.55:1,border:`1.5px solid ${s.active===false?T.border:T.borderDark}`}}>
+                <div style={{display:"flex",alignItems:"center",gap:14,flexWrap:"wrap"}}>
+                  <Avatar name={s.name} size={42} color={T.accent}/>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,fontSize:15,color:T.text}}>{s.name}</div>
+                    <div style={{fontSize:12,color:T.muted,marginTop:2}}>{s.specialty}{s.specialty&&s.phone?" · ":""}{s.phone}</div>
+                    <div style={{marginTop:6}}><Pill label={s.category} color={T.blue} bg={T.blueBg} border={T.blueBdr}/></div>
+                  </div>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    <button onClick={()=>toggleActive(s.id)} style={{padding:"4px 12px",border:`1.5px solid ${s.active!==false?T.accentBdr:T.border}`,borderRadius:20,background:s.active!==false?T.accentBg:"transparent",color:s.active!==false?T.accent:T.muted,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:font}}>{s.active!==false?"Active":"Inactive"}</button>
+                    <button onClick={()=>{setStaffForm({name:s.name,specialty:s.specialty||"",phone:s.phone||"",category:s.category||"salon",active:s.active!==false});setEditingId(s.id);setStaffModal(true);}} style={{width:30,height:30,borderRadius:8,border:`1.5px solid ${T.border}`,background:"transparent",cursor:"pointer",color:T.muted,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✎</button>
+                    <button onClick={()=>removeStaff(s.id)} style={{width:30,height:30,borderRadius:8,border:`1.5px solid ${T.redBdr}`,background:T.redBg,cursor:"pointer",color:T.red,fontSize:14,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+          {staffModal&&(
+            <Modal title={editingId?"Edit Staff Member":"Add Staff Member"} onClose={()=>setStaffModal(false)}>
+              <div style={{display:"flex",flexDirection:"column",gap:14}}>
+                <div><Label>Full Name *</Label><Input value={staffForm.name} onChange={e=>setStaffForm(f=>({...f,name:e.target.value}))} placeholder="e.g. Lerato Maseko"/></div>
+                <div><Label>Specialty / Role</Label><Input value={staffForm.specialty} onChange={e=>setStaffForm(f=>({...f,specialty:e.target.value}))} placeholder="e.g. Hair Stylist"/></div>
+                <div><Label>Phone *</Label><Input value={staffForm.phone} onChange={e=>setStaffForm(f=>({...f,phone:e.target.value}))} placeholder="+27 21 555 1001"/></div>
+                <div><Label>Service Category</Label><Select value={staffForm.category} onChange={e=>setStaffForm(f=>({...f,category:e.target.value}))} options={STAFF_CATEGORIES}/></div>
+                <div style={{display:"flex",gap:8,marginTop:4,justifyContent:"flex-end"}}>
+                  <Btn variant="secondary" onClick={()=>setStaffModal(false)}>Cancel</Btn>
+                  <Btn onClick={submitStaff} disabled={saving}>{saving?"Saving…":editingId?"Save Changes":"Add Member"}</Btn>
+                </div>
+              </div>
+            </Modal>
+          )}
+        </>
       )}
     </div>
   );

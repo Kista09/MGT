@@ -48,6 +48,7 @@ const DEFAULT_WORKSPACE = {
     { id: 2, name: 'handoff_notice', category: 'UTILITY', status: 'DRAFT', lang: 'English', body: 'Hi {{1}}, a MgucaTECH team member will assist you shortly.', vars: ['name'], uses: 0 },
   ],
   broadcasts: [],
+  staff: [],
   flowNodes: [
     { id: 'start', type: 'start', label: 'User sends message', content: '', x: 40, y: 240, outputs: ['menu'] },
     { id: 'menu', type: 'menu', label: 'Main Menu', content: 'Reply with a number:\n1. Book\n2. FAQ\n3. Speak to agent', x: 260, y: 240, outputs: ['book', 'faq', 'agent'] },
@@ -467,6 +468,10 @@ async function updateWorkspace(req, user) {
     case 'save_contacts':
       workspace.contacts = Array.isArray(body.contacts) ? body.contacts : workspace.contacts;
       await save('Contacts saved', { count: workspace.contacts.length });
+      break;
+    case 'save_staff':
+      workspace.staff = Array.isArray(body.staff) ? body.staff : workspace.staff;
+      await save('Service staff updated', { count: workspace.staff.length });
       break;
     case 'save_templates':
       workspace.templates = Array.isArray(body.templates) ? body.templates : workspace.templates;
