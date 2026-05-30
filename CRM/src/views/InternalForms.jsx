@@ -1,9 +1,142 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { C, font, CONSULTANT_ROLES, INDUSTRIES } from "../constants";
 import { useApp } from "../context";
 import { inputStyle, selectStyle } from "../components/Modal";
 import SegmentTabs from "../components/SegmentTabs";
 import { generateId } from "../utils";
+
+const STATUS_COLORS = {
+  New:        { color: C.muted,   bg: C.subtle   },
+  "In Progress": { color: C.accent, bg: C.accentBg },
+  Approved:   { color: C.success, bg: C.successBg },
+  Resolved:   { color: C.success, bg: C.successBg },
+  Closed:     { color: C.muted,   bg: C.subtle   },
+  Qualified:  { color: C.blue,    bg: C.blueBg   },
+  Verified:   { color: C.success, bg: C.successBg },
+  Rejected:   { color: C.red,     bg: C.redBg    },
+  Critical:   { color: "#fff",    bg: C.red       },
+};
+
+const statusPill = (s = "New") => {
+  const t = STATUS_COLORS[s] || { color: C.muted, bg: C.subtle };
+  return (
+    <span style={{ display:"inline-block", padding:"2px 9px", borderRadius:99, fontSize:11,
+      fontWeight:700, color:t.color, background:t.bg, whiteSpace:"nowrap" }}>{s}</span>
+  );
+};
+
+/* ─── SUBMISSIONS PANEL ────────────────────────────────────── */
+function SubmissionsPanel({ requests, title = "Submissions", statusOptions }) {
+  const { dispatch, navigate } = useApp();
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("All");
+
+  const filtered = useMemo(() => requests.filter(r => {
+    const q = search.toLowerCase();
+    const matchSearch = !q || `${r.subject} ${r.company} ${r.email} ${r.owner}`.toLowerCase().includes(q);
+    const matchStatus = filterStatus === "All" || r.status === filterStatus;
+    return matchSearch && matchStatus;
+  }), [requests, search, filterStatus]);
+
+  const updateStatus = (request, status) => {
+    dispatch({ type: "UPDATE_SERVICE_REQUEST", request: { ...request, status } });
+  };
+
+  if (requests.length === 0) return (
+    <div style={{ textAlign:"center", padding:"32px 0", color:C.muted, fontSize:13 }}>
+      No submissions yet — use the form above to create one.
+    </div>
+  );
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
+        marginBottom:14, paddingTop:24, borderTop:`1px solid ${C.border}`, gap:12, flexWrap:"wrap" }}>
+        <div style={{ fontSize:13, fontWeight:700 }}>{title} <span style={{ color:C.muted, fontWeight:400 }}>({filtered.length})</span></div>
+        <div style={{ display:"flex", gap:8 }}>
+          <input value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search…" style={{ ...inputStyle, width:180, padding:"6px 10px", fontSize:12 }} />
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+            style={{ ...selectStyle, fontSize:12, padding:"6px 10px" }}>
+            <option value="All">All statuses</option>
+            {(statusOptions || ["New","In Progress","Resolved","Closed"]).map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:1,
+        border:`1px solid ${C.border}`, borderRadius:10, overflow:"hidden" }}>
+        {filtered.slice(0, 30).map((r, i) => (
+          <div key={r.id} style={{ display:"grid", gridTemplateColumns:"1fr 140px 120px 120px",
+            gap:12, padding:"11px 14px", background: i % 2 === 0 ? C.card : C.cream,
+            alignItems:"center", fontSize:13 }}>
+            <div>
+              <div style={{ fontWeight:600, color:C.text, marginBottom:2,
+                overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+                {r.subject}
+              </div>
+              <div style={{ fontSize:11, color:C.muted }}>
+                {r.company || r.email || "—"} · {r.createdAt ? new Date(r.createdAt).toLocaleDateString("en-ZA") : "—"} · {r.owner || "Unassigned"}
+              </div>
+            </div>
+            {statusPill(r.status)}
+            <select value={r.status} onChange={e => updateStatus(r, e.target.value)}
+              style={{ ...selectStyle, fontSize:11, padding:"4px 6px" }}>
+              {(statusOptions || ["New","In Progress","Resolved","Closed"]).map(s => <option key={s}>{s}</option>)}
+            </select>
+            <button onClick={() => navigate("requests")}
+              style={{ background:C.accentBg, border:`1px solid ${C.accentDim}`, color:C.accent,
+                borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+              View SR →
+            </button>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div style={{ padding:18, color:C.muted, fontSize:13, textAlign:"center" }}>
+            No results match your filter.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ─── CLIENT SUBMISSIONS LIST ──────────────────────────────── */
+function ClientSubmissionsList() {
+  const { state, navigate } = useApp();
+  const clients = useMemo(() =>
+    state.clients.filter(c => c.source === "Internal Intake"),
+  [state.clients]);
+
+  if (clients.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div style={{ fontSize:13, fontWeight:700, marginBottom:14, paddingTop:24, borderTop:`1px solid ${C.border}` }}>
+        Clients from Intake <span style={{ color:C.muted, fontWeight:400 }}>({clients.length})</span>
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:1,
+        border:`1px solid ${C.border}`, borderRadius:10, overflow:"hidden" }}>
+        {clients.map((c, i) => (
+          <div key={c.id} style={{ display:"grid", gridTemplateColumns:"1fr 120px 120px 100px",
+            gap:12, padding:"11px 14px", background: i % 2 === 0 ? C.card : C.cream,
+            alignItems:"center", fontSize:13 }}>
+            <div>
+              <div style={{ fontWeight:600, color:C.text }}>{c.name}</div>
+              <div style={{ fontSize:11, color:C.muted }}>{c.contact} · {c.email} · {c.tag || "—"}</div>
+            </div>
+            <span style={{ fontSize:11, fontWeight:700, color:C.muted }}>{c.plan}</span>
+            {statusPill(c.status)}
+            <button onClick={() => navigate("client-detail", c.id)}
+              style={{ background:C.accentBg, border:`1px solid ${C.accentDim}`, color:C.accent,
+                borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, cursor:"pointer" }}>
+              Open →
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 const SECTORS = [
   "Retail","Grocery","Sports","E-Commerce","Financial Services","Logistics",
@@ -85,7 +218,11 @@ function SuccessBanner({ message, onClose }) {
 
 /* ─── CLIENT INTAKE FORM ───────────────────────────────────── */
 function ClientIntake() {
-  const { state, dispatch, toast } = useApp();
+  const { state, dispatch, toast, navigate } = useApp();
+  const intakeSRs = useMemo(() =>
+    (state.serviceRequests ?? []).filter(r => r.category === "Onboarding" && r.channel === "Internal")
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)),
+  [state.serviceRequests]);
   const blank = { company:"", contact:"", email:"", phone:"", sector:"", country:"South Africa",
     website:"", referral:"", plan:"Growth", notes:"", consultant:"" };
   const [form, setForm] = useState(blank);
@@ -165,6 +302,12 @@ function ClientIntake() {
         <ClearBtn onClick={() => setForm(blank)} />
         <SubmitBtn onClick={submit} label="Create Client & Log Intake →" />
       </div>
+      <ClientSubmissionsList />
+      <SubmissionsPanel
+        requests={intakeSRs}
+        title="Intake Requests"
+        statusOptions={["New","Qualified","Approved","In Setup","Live","Closed"]}
+      />
     </div>
   );
 }
@@ -172,6 +315,10 @@ function ClientIntake() {
 /* ─── KYC / FICA FORM ──────────────────────────────────────── */
 function KycForm() {
   const { state, dispatch, toast } = useApp();
+  const kycSRs = useMemo(() =>
+    (state.serviceRequests ?? []).filter(r => r.category === "Compliance" && r.channel === "Internal")
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)),
+  [state.serviceRequests]);
   const blank = { company:"", contact:"", email:"", idType:"SA National ID", idNumber:"",
     taxNumber:"", sourceOfFunds:"", riskLevel:"Low", pepStatus:"No", notes:"", consultant:"" };
   const [form, setForm] = useState(blank);
@@ -247,6 +394,11 @@ function KycForm() {
         <ClearBtn onClick={() => setForm(blank)} />
         <SubmitBtn onClick={submit} label="Submit KYC Record →" />
       </div>
+      <SubmissionsPanel
+        requests={kycSRs}
+        title="KYC / FICA Records"
+        statusOptions={["New","In Progress","Verified","Rejected","Closed"]}
+      />
     </div>
   );
 }
@@ -254,6 +406,10 @@ function KycForm() {
 /* ─── SERVICE SCOPE FORM ───────────────────────────────────── */
 function ServiceScope() {
   const { state, dispatch, toast } = useApp();
+  const scopeSRs = useMemo(() =>
+    (state.serviceRequests ?? []).filter(r => r.category === "Operations" && r.channel === "Internal" && !r.subject.startsWith("Handover:"))
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)),
+  [state.serviceRequests]);
   const blank = { clientId:"", services:[], timeline:"4–6 weeks", budget:"", setupFee:"",
     monthly:"", requirements:"", deliverables:"", consultant:"" };
   const [form, setForm] = useState(blank);
@@ -336,6 +492,11 @@ function ServiceScope() {
         <ClearBtn onClick={() => setForm(blank)} />
         <SubmitBtn onClick={submit} label="Log Service Scope →" />
       </div>
+      <SubmissionsPanel
+        requests={scopeSRs}
+        title="Scope Records"
+        statusOptions={["Qualified","Proposal Sent","Approved","In Setup","Build","Testing","Live","Closed"]}
+      />
     </div>
   );
 }
@@ -343,6 +504,10 @@ function ServiceScope() {
 /* ─── INCIDENT REPORT FORM ─────────────────────────────────── */
 function IncidentReport() {
   const { state, dispatch, toast } = useApp();
+  const incidentSRs = useMemo(() =>
+    (state.serviceRequests ?? []).filter(r => r.category === "Technical" && r.channel === "Internal")
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)),
+  [state.serviceRequests]);
   const blank = { clientId:"", type:"Bot Outage", severity:"Medium", title:"", description:"",
     detectedAt: new Date().toISOString().slice(0, 16), resolvedAt:"", impact:"", rootCause:"", actions:"" };
   const [form, setForm] = useState(blank);
@@ -414,6 +579,11 @@ function IncidentReport() {
         <ClearBtn onClick={() => setForm(blank)} />
         <SubmitBtn onClick={submit} label="Log Incident →" />
       </div>
+      <SubmissionsPanel
+        requests={incidentSRs}
+        title="Incident Log"
+        statusOptions={["New","In Progress","Resolved","Closed"]}
+      />
     </div>
   );
 }
@@ -421,6 +591,10 @@ function IncidentReport() {
 /* ─── CONSULTANT HANDOVER FORM ─────────────────────────────── */
 function ConsultantHandover() {
   const { state, dispatch, toast } = useApp();
+  const handoverSRs = useMemo(() =>
+    (state.serviceRequests ?? []).filter(r => r.category === "Operations" && r.channel === "Internal" && r.subject.startsWith("Handover:"))
+      .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)),
+  [state.serviceRequests]);
   const blank = { clientId:"", fromConsultant:"", toConsultant:"", handoverDate: new Date().toISOString().slice(0,10),
     openRequests:"", pendingActions:"", keyContacts:"", contractNotes:"", billingNotes:"", additionalNotes:"" };
   const [form, setForm] = useState(blank);
@@ -501,21 +675,36 @@ function ConsultantHandover() {
         <ClearBtn onClick={() => setForm(blank)} />
         <SubmitBtn onClick={submit} label="Submit Handover →" />
       </div>
+      <SubmissionsPanel
+        requests={handoverSRs}
+        title="Handover History"
+        statusOptions={["New","In Progress","Approved","Closed"]}
+      />
     </div>
   );
 }
 
 /* ─── MAIN VIEW ────────────────────────────────────────────── */
-const TABS = [
-  { id: "intake",    label: "Client Intake"       },
-  { id: "kyc",       label: "KYC / FICA"          },
-  { id: "scope",     label: "Service Scope"        },
-  { id: "incident",  label: "Incident Report"      },
-  { id: "handover",  label: "Consultant Handover"  },
-];
-
 export default function InternalForms() {
+  const { state } = useApp();
   const [tab, setTab] = useState("intake");
+
+  const srs = state.serviceRequests ?? [];
+  const counts = {
+    intake:   srs.filter(r => r.category === "Onboarding" && r.channel === "Internal").length,
+    kyc:      srs.filter(r => r.category === "Compliance" && r.channel === "Internal").length,
+    scope:    srs.filter(r => r.category === "Operations" && r.channel === "Internal" && !r.subject?.startsWith("Handover:")).length,
+    incident: srs.filter(r => r.category === "Technical"  && r.channel === "Internal").length,
+    handover: srs.filter(r => r.category === "Operations" && r.channel === "Internal" && r.subject?.startsWith("Handover:")).length,
+  };
+
+  const tabs = [
+    { id: "intake",   label: "Client Intake",      count: counts.intake   || undefined },
+    { id: "kyc",      label: "KYC / FICA",          count: counts.kyc      || undefined },
+    { id: "scope",    label: "Service Scope",       count: counts.scope    || undefined },
+    { id: "incident", label: "Incident Report",     count: counts.incident || undefined },
+    { id: "handover", label: "Consultant Handover", count: counts.handover || undefined },
+  ];
 
   const descriptions = {
     intake:   "Capture new client information and create a client record + onboarding request.",
@@ -540,7 +729,7 @@ export default function InternalForms() {
         <div style={{ color: C.muted, fontSize: 14 }}>{descriptions[tab]}</div>
       </div>
 
-      <SegmentTabs tabs={TABS} value={tab} onChange={setTab} />
+      <SegmentTabs tabs={tabs} value={tab} onChange={setTab} />
 
       <div style={{ maxWidth: 800, marginTop: 24,
         background: C.card, border: `1px solid ${C.border}`,
