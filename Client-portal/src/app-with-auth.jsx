@@ -87,8 +87,17 @@ const AUTH = {
     await new Promise(r => setTimeout(r, 350));
     const user = DEV_USERS.find(u => u.email === email && u.password === password);
     if (!user) throw new Error("Invalid email or password");
-    const fakeToken = btoa(JSON.stringify({ sub: user.id, exp: Date.now() + 86400000 }));
     const { password: _, ...safeUser } = user;
+    const fakeToken = btoa(JSON.stringify({
+      sub: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      clientId: user.clientId,
+      clientName: user.clientName,
+      plan: user.plan,
+      exp: Date.now() + 86400000,
+    }));
     return { accessToken: fakeToken, user: safeUser };
   },
   async me(token) {
