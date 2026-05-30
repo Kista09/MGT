@@ -91,8 +91,8 @@ const AUTH = {
         };
       }
       remoteError = data.error || data.message || "Unable to sign in";
-      // If the server explicitly rejected the login (4xx), stop and show the error instead of falling back to mock
-      if (res.status >= 400 && res.status < 500) throw new Error(remoteError);
+      // Only hard-block the dev fallback when local auth is explicitly disabled
+      if (!ALLOW_LOCAL_CLIENT_AUTH && res.status >= 400 && res.status < 500) throw new Error(remoteError);
     }
 
     if (!ALLOW_LOCAL_CLIENT_AUTH) throw new Error(remoteError ?? "Sign in service is unavailable");
@@ -136,8 +136,8 @@ const AUTH = {
         return data;
       }
       remoteError = data.error || data.message || "Session expired";
-      // If the server explicitly rejected the session (4xx), do not fall back to mock
-      if (res.status >= 400 && res.status < 500) throw new Error(remoteError);
+      // Only hard-block the dev fallback when local auth is explicitly disabled
+      if (!ALLOW_LOCAL_CLIENT_AUTH && res.status >= 400 && res.status < 500) throw new Error(remoteError);
     }
 
     if (!ALLOW_LOCAL_CLIENT_AUTH) throw new Error(remoteError ?? "Session service is unavailable");
