@@ -2655,25 +2655,58 @@ function CAEmpRow({ num, emp, onChange, onRemove }) {
   );
 }
 
-function ClientAdminPanel({ user, toast, refreshPortal, teamData }) {
+function ClientAdminPanel({ user, toast, refreshPortal, portalData }) {
+  const workspace = portalData?.workspace || {};
   const [tab, setTab] = useState("report");
-  const [approvedMembers, setApprovedMembers] = useState(Array.isArray(teamData) ? teamData : []);
-  useEffect(() => { if (Array.isArray(teamData)) setApprovedMembers(teamData); }, [teamData]);
-  const [employees, setEmployees] = useState([{ id: 1, name: "", email: "", title: "", role: "", password: "", modules: new Set() }]);
-  const [nextId, setNextId] = useState(2);
-  const [selAccess, setSelAccess] = useState(null);
-  const [activeMods, setActiveMods] = useState(new Set());
-  const [success, setSuccess] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
 
-  // Client Details form state
-  const [cd, setCd] = useState({ firstName: "", lastName: "", company: user?.clientName || "", sector: "", email: user?.email || "", phone: "", city: "", idType: "", idNumber: "", notes: "", consent: false });
+  // Live team members — syncs on every workspace refresh (30s)
+  const [approvedMembers, setApprovedMembers] = useState(Array.isArray(workspace.team) ? workspace.team : []);
+  useEffect(() => { if (Array.isArray(workspace.team)) setApprovedMembers(workspace.team); }, [workspace.team]);
+
+  // My Report — live analytics from workspace
+  const analytics = workspace.analytics || {};
+  const lastMsg = analytics.messages?.slice(-1)[0];
+  const totalMsgs = lastMsg?.msgs ?? 0;
+  const avgResolution = analytics.resolution?.length
+    ? Math.round(analytics.resolution.reduce((s, r) => s + (r.rate || 0), 0) / analytics.resolution.length)
+    : null;
+  const topQ = analytics.topQuestions?.[0];
+
+  // My Details — load from workspace.clientDetails, sync on refresh
+  const savedDetails = workspace.clientDetails || {};
+  const [cd, setCd] = useState({
+    firstName: savedDetails.firstName || "", lastName: savedDetails.lastName || "",
+    company: savedDetails.company || user?.clientName || "",
+    sector: savedDetails.sector || "", email: savedDetails.email || user?.email || "",
+    phone: savedDetails.phone || "", whatsapp: savedDetails.whatsapp || "",
+    city: savedDetails.city || "", country: savedDetails.country || "",
+    idType: savedDetails.idType || "", idNumber: savedDetails.idNumber || "",
+    taxNumber: savedDetails.taxNumber || "", notes: savedDetails.notes || "", consent: false,
+  });
+  useEffect(() => {
+    const d = workspace.clientDetails || {};
+    setCd(p => ({ ...p,
+      firstName: d.firstName || p.firstName, lastName: d.lastName || p.lastName,
+      company: d.company || p.company, sector: d.sector || p.sector,
+      email: d.email || p.email, phone: d.phone || p.phone,
+      whatsapp: d.whatsapp || p.whatsapp, city: d.city || p.city,
+      country: d.country || p.country, idType: d.idType || p.idType,
+      idNumber: d.idNumber || p.idNumber, taxNumber: d.taxNumber || p.taxNumber,
+    }));
+  }, [workspace.clientDetails]);
 
   // Grant Access form state
   const [ga, setGa] = useState({ name: "", email: "", notification: "", expiry: "", notes: "", consent: false });
 
   // Team List form state
   const [ea, setEa] = useState({ company: user?.clientName || "", dept: "", manager: "", consent: false });
+
+  const [employees, setEmployees] = useState([{ id: 1, name: "", email: "", title: "", role: "", password: "", modules: new Set() }]);
+  const [nextId, setNextId] = useState(2);
+  const [selAccess, setSelAccess] = useState(null);
+  const [activeMods, setActiveMods] = useState(new Set());
+  const [success, setSuccess] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const addEmp = () => { setEmployees(p => [...p, { id: nextId, name: "", email: "", title: "", role: "", password: "", modules: new Set() }]); setNextId(p => p + 1); };
   const removeEmp = (id) => setEmployees(p => p.filter(e => e.id !== id));
@@ -2720,18 +2753,23 @@ function ClientAdminPanel({ user, toast, refreshPortal, teamData }) {
         <div className="ca-page">
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 24 }}>
             <div>
-              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--o)", marginBottom: 5 }}>Client Performance Report · April 2026</div>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--o)", marginBottom: 5 }}>Client Performance Report · {new Date().toLocaleString("en-ZA",{month:"long",year:"numeric"})}</div>
               <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 28, fontWeight: 700, letterSpacing: "-.02em", lineHeight: 1.1, color: "var(--tx)" }}>Monthly <em style={{ color: "var(--o)" }}>Review.</em></h1>
-              <p style={{ fontSize: 13, color: "var(--mt)", marginTop: 5 }}>{company} · 01–30 April 2026</p>
+              <p style={{ fontSize: 13, color: "var(--mt)", marginTop: 5 }}>{company} · {new Date().toLocaleString("en-ZA",{month:"long",year:"numeric"})}</p>
             </div>
             <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
-              <span className="ca-pill ca-pm">RPT-2026-APR-019</span>
-              <span className="ca-pill ca-po">Cape Town</span>
-              <span className="ca-pill ca-pb">Financial Services</span>
+              <span className="ca-pill ca-pm">Active</span>
+              {cd.city && <span className="ca-pill ca-po">{cd.city}</span>}
+              {cd.sector && <span className="ca-pill ca-pb">{cd.sector}</span>}
             </div>
           </div>
           <div className="ca-g4" style={{ marginBottom: 24 }}>
-            {[["Active Users","12","▲ +2 MoM","ca-up"],["Sessions","847","▲ +18%","ca-up"],["Uptime","99.8%","— stable","ca-neu"],["CSAT Score","4.7/5","▲ +0.2","ca-up"]].map(([l,v,c,cls]) => (
+            {[
+              ["Team Members", approvedMembers.length || "—", approvedMembers.length > 0 ? `▲ ${approvedMembers.length} active` : "None added yet", "ca-up"],
+              ["Messages", totalMsgs ? totalMsgs.toLocaleString("en-ZA") : "—", totalMsgs ? "Latest period" : "No data yet", totalMsgs ? "ca-up" : "ca-neu"],
+              ["Resolution Rate", avgResolution ? `${avgResolution}%` : "—", avgResolution ? "— avg" : "No data yet", avgResolution ? "ca-up" : "ca-neu"],
+              ["Top Question", topQ ? `${topQ.pct}%` : "—", topQ ? topQ.q.slice(0,20) : "No data yet", topQ ? "ca-up" : "ca-neu"],
+            ].map(([l,v,c,cls]) => (
               <div key={l} className="ca-kpi"><div className="ca-kpi-lbl">{l}</div><div className="ca-kpi-val" style={{ fontSize: 20 }}>{v}</div><div className={`ca-kpi-ch ${cls}`}>{c}</div></div>
             ))}
           </div>
@@ -2801,20 +2839,35 @@ function ClientAdminPanel({ user, toast, refreshPortal, teamData }) {
           <div className="ca-g2" style={{ marginBottom: 20 }}>
             <div className="ca-field"><label>First Name <span>*</span></label><input type="text" placeholder="e.g. Sarah" value={cd.firstName} onChange={e => setCd(p => ({ ...p, firstName: e.target.value }))} /></div>
             <div className="ca-field"><label>Last Name <span>*</span></label><input type="text" placeholder="e.g. Dlamini" value={cd.lastName} onChange={e => setCd(p => ({ ...p, lastName: e.target.value }))} /></div>
-            <div className="ca-field"><label>Company / Practice Name</label><input type="text" placeholder="e.g. Meridian Holdings" defaultValue={company} /></div>
-            <div className="ca-field"><label>Sector <span>*</span></label><select><option value="">Select sector…</option>{["Healthcare","Financial Services","Retail","Education","Legal","Real Estate","Other"].map(s => <option key={s}>{s}</option>)}</select></div>
-            <div className="ca-field"><label>Email Address <span>*</span></label><input type="email" placeholder="sarah@company.co.za" defaultValue={user?.email || ""} /></div>
-            <div className="ca-field"><label>Phone Number <span>*</span></label><input type="tel" placeholder="+27 82 000 0000" /></div>
-            <div className="ca-field"><label>WhatsApp Number</label><input type="tel" placeholder="If different from phone" /></div>
-            <div className="ca-field"><label>City</label><input type="text" placeholder="e.g. Cape Town" /></div>
-            <div className="ca-field"><label>Country</label><select><option value="">Select…</option>{["South Africa","Botswana","Namibia","Zimbabwe","Kenya","Nigeria","United Kingdom","United States"].map(s => <option key={s}>{s}</option>)}</select></div>
+            <div className="ca-field"><label>Company / Practice Name</label><input type="text" placeholder="e.g. Meridian Holdings" value={cd.company} onChange={e => setCd(p => ({ ...p, company: e.target.value }))} /></div>
+            <div className="ca-field"><label>Sector <span>*</span></label>
+              <select value={cd.sector} onChange={e => setCd(p => ({ ...p, sector: e.target.value }))}>
+                <option value="">Select sector…</option>
+                {["Healthcare","Financial Services","Retail","Education","Legal","Real Estate","Other"].map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="ca-field"><label>Email Address <span>*</span></label><input type="email" placeholder="sarah@company.co.za" value={cd.email} onChange={e => setCd(p => ({ ...p, email: e.target.value }))} /></div>
+            <div className="ca-field"><label>Phone Number <span>*</span></label><input type="tel" placeholder="+27 82 000 0000" value={cd.phone} onChange={e => setCd(p => ({ ...p, phone: e.target.value }))} /></div>
+            <div className="ca-field"><label>WhatsApp Number</label><input type="tel" placeholder="If different from phone" value={cd.whatsapp} onChange={e => setCd(p => ({ ...p, whatsapp: e.target.value }))} /></div>
+            <div className="ca-field"><label>City</label><input type="text" placeholder="e.g. Cape Town" value={cd.city} onChange={e => setCd(p => ({ ...p, city: e.target.value }))} /></div>
+            <div className="ca-field"><label>Country</label>
+              <select value={cd.country} onChange={e => setCd(p => ({ ...p, country: e.target.value }))}>
+                <option value="">Select…</option>
+                {["South Africa","Botswana","Namibia","Zimbabwe","Kenya","Nigeria","United Kingdom","United States"].map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
           </div>
           <CASecHead num="02" title="Identity Verification" />
           <div className="ca-notice ca-no" style={{ marginBottom: 14 }}><span className="ca-notice-icon">🔒</span><span>All identity information is encrypted and stored in compliance with POPIA. Never shared with third parties without written consent.</span></div>
           <div className="ca-g2" style={{ marginBottom: 20 }}>
-            <div className="ca-field"><label>ID / Document Type <span>*</span></label><select><option value="">Select…</option>{["SA National ID Card","Passport","Driver's Licence","Company Registration No.","Trust Deed No."].map(s => <option key={s}>{s}</option>)}</select></div>
-            <div className="ca-field"><label>Document Number <span>*</span></label><input type="text" placeholder="Enter exactly as it appears" /></div>
-            <div className="ca-field"><label>Tax / VAT Number</label><input type="text" placeholder="Optional" /></div>
+            <div className="ca-field"><label>ID / Document Type <span>*</span></label>
+              <select value={cd.idType} onChange={e => setCd(p => ({ ...p, idType: e.target.value }))}>
+                <option value="">Select…</option>
+                {["SA National ID Card","Passport","Driver's Licence","Company Registration No.","Trust Deed No."].map(s => <option key={s}>{s}</option>)}
+              </select>
+            </div>
+            <div className="ca-field"><label>Document Number <span>*</span></label><input type="text" placeholder="Enter exactly as it appears" value={cd.idNumber} onChange={e => setCd(p => ({ ...p, idNumber: e.target.value }))} /></div>
+            <div className="ca-field"><label>Tax / VAT Number</label><input type="text" placeholder="Optional" value={cd.taxNumber} onChange={e => setCd(p => ({ ...p, taxNumber: e.target.value }))} /></div>
           </div>
           <CASecHead num="03" title="Declaration & Consent" />
           <div className="ca-notice ca-no" style={{ marginBottom: 14 }}><span className="ca-notice-icon">📋</span><span>I confirm the information provided is accurate and consent to MgucaTech Solutions storing and processing my personal data in accordance with POPIA.</span></div>
@@ -2824,12 +2877,13 @@ function ClientAdminPanel({ user, toast, refreshPortal, teamData }) {
           </label>
           <div className="ca-btn-row">
             <button className="ca-btn-ghost" onClick={() => setCd(p => ({ ...p, consent: false }))}>Clear</button>
-            <button className="ca-btn-pri" disabled={!cd.consent || submitting} onClick={() => submit(
-              `Client details update: ${cd.firstName} ${cd.lastName}`.trim(),
-              "Client Details",
-              `Client details submission from client portal.\n\nName: ${cd.firstName} ${cd.lastName}\nCompany: ${cd.company}\nSector: ${cd.sector}\nEmail: ${cd.email}\nPhone: ${cd.phone}\nCity: ${cd.city}\nID Type: ${cd.idType}\nID Number: ${cd.idNumber}\nNotes: ${cd.notes || "None"}`,
-              "Medium"
-            )}>{submitting ? "Submitting…" : "Save Details →"}</button>
+            <button className="ca-btn-pri" disabled={!cd.consent || submitting} onClick={async () => {
+              const details = { firstName:cd.firstName, lastName:cd.lastName, company:cd.company, sector:cd.sector, email:cd.email, phone:cd.phone, whatsapp:cd.whatsapp, city:cd.city, country:cd.country, idType:cd.idType, idNumber:cd.idNumber, taxNumber:cd.taxNumber };
+              await portalAction("save_client_details", { details }).catch(() => {});
+              submit(`Client details update: ${cd.firstName} ${cd.lastName}`.trim(), "Client Details",
+                `Client details submission.\n\nName: ${cd.firstName} ${cd.lastName}\nCompany: ${cd.company}\nSector: ${cd.sector}\nEmail: ${cd.email}\nPhone: ${cd.phone}\nCity: ${cd.city}\nCountry: ${cd.country}\nID Type: ${cd.idType}\nID Number: ${cd.idNumber}\nTax No: ${cd.taxNumber || "—"}`,
+                "Medium");
+            }}>{submitting ? "Submitting…" : "Save Details →"}</button>
           </div>
         </div>
       )}
@@ -2842,6 +2896,28 @@ function ClientAdminPanel({ user, toast, refreshPortal, teamData }) {
             <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 26, fontWeight: 700, letterSpacing: "-.02em", color: "var(--tx)" }}>Grant Portal <em style={{ color: "var(--o)" }}>Access.</em></h1>
             <p style={{ fontSize: 13, color: "var(--mt)", marginTop: 5 }}>Authorise a team member's access to selected portal modules.</p>
           </div>
+
+          {/* Live access list — auto-updates every 30s */}
+          {approvedMembers.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <CASecHead num="✓" title={`Current Access (${approvedMembers.length})`} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {approvedMembers.map(m => (
+                  <div key={m.id || m.email} style={{ display: "flex", alignItems: "center", gap: 12, padding: "9px 14px", background: "var(--sf)", border: "1px solid var(--bd)", borderRadius: 8 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--obg)", border: "1.5px solid var(--o)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "var(--o)", flexShrink: 0 }}>
+                      {(m.name || m.email || "?")[0].toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>{m.name || m.email}</div>
+                      <div style={{ fontSize: 11, color: "var(--mt)" }}>{m.email}</div>
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 700, background: "var(--obg)", color: "var(--o)", border: "1px solid var(--o)", borderRadius: 99, padding: "2px 9px", flexShrink: 0 }}>{m.role || "Viewer"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <CASecHead num="01" title="User Identification" />
           <div className="ca-g2" style={{ marginBottom: 20 }}>
             <div className="ca-field"><label>Full Name <span>*</span></label><input type="text" placeholder="Team member name" value={ga.name} onChange={e => setGa(p => ({ ...p, name: e.target.value }))} /></div>
@@ -2954,15 +3030,23 @@ function ClientAdminPanel({ user, toast, refreshPortal, teamData }) {
       )}
 
       {/* Invoice */}
-      {tab === "invoice" && (
+      {tab === "invoice" && (() => {
+        const inv = workspace.billing?.invoice;
+        const invNum = inv?.number || "INV-2026-052";
+        const invStatus = inv?.status || "UNPAID";
+        const invDue = inv?.dueDate || "28 June 2026";
+        const invIssued = inv?.issueDate || "29 May 2026";
+        const invLines = inv?.lines || [["1","WhatsApp Automation – Monthly Licence","1","R 2,500.00","—","R 2,500.00"],["2","Booking Workflow – Setup & Configuration","1","R 3,200.00","—","R 3,200.00"],["3","Client Portal – Monthly Access Fee","1","R 1,800.00","5%","R 1,710.00"],["4","Analytics Dashboard Module","1","R 1,400.00","—","R 1,400.00"],["5","CRM Integration – Professional Tier","1","R 2,000.00","—","R 2,000.00"],["6","Dedicated Support Hours (×3)","3","R 450.00","—","R 1,350.00"]];
+        const invTotal = inv?.total || "R 13,880.50";
+        return (
         <div className="ca-page">
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 24 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--o)", marginBottom: 5 }}>Tax Invoice</div>
-              <h1 style={{ fontFamily: "'DM Mono',monospace", fontSize: 24, fontWeight: 700, letterSpacing: ".02em", color: "var(--tx)" }}>INV-2026-052</h1>
-              <p style={{ fontSize: 12, color: "var(--mt)", marginTop: 5 }}>Issue Date: 29 May 2026 · Due: 28 June 2026 · VAT Reg: 4180123456</p>
+              <h1 style={{ fontFamily: "'DM Mono',monospace", fontSize: 24, fontWeight: 700, letterSpacing: ".02em", color: "var(--tx)" }}>{invNum}</h1>
+              <p style={{ fontSize: 12, color: "var(--mt)", marginTop: 5 }}>Issue Date: {invIssued} · Due: {invDue} · VAT Reg: 4180123456</p>
             </div>
-            <span className="ca-pill ca-pr" style={{ fontSize: 11, padding: "5px 14px" }}>UNPAID</span>
+            <span className="ca-pill ca-pr" style={{ fontSize: 11, padding: "5px 14px" }}>{invStatus}</span>
           </div>
           <div className="ca-ic-grid">
             <div className="ca-ic"><div className="ca-ic-head">Billed To</div><div className="ca-ic-body">
@@ -3001,18 +3085,28 @@ function ClientAdminPanel({ user, toast, refreshPortal, teamData }) {
           </div>
           <p style={{ fontSize: 11, color: "var(--ft)" }}>Tax invoice as defined by VAT Act 89/1991. E&amp;OE. Late payments attract 2% monthly interest. Queries within 7 days of issue.</p>
         </div>
-      )}
+        );
+      })()}
 
       {/* Statement */}
-      {tab === "statement" && (
+      {tab === "statement" && (() => {
+        const st = workspace.billing?.statement;
+        const stRef = st?.ref || "ST-2026-0047";
+        const stPeriod = st?.period || "01 April – 30 April 2026";
+        const stStatus = st?.status || "BALANCE DUE";
+        const stOpening = st?.opening || "R 4,250";
+        const stCharges = st?.charges || "R 8,900";
+        const stPayments = st?.payments || "R 4,250";
+        const stBalance = st?.balance || "R 8,900";
+        return (
         <div className="ca-page">
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 14, marginBottom: 24 }}>
             <div>
               <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: ".1em", textTransform: "uppercase", color: "var(--o)", marginBottom: 5 }}>Account Statement</div>
-              <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 24, fontWeight: 700, letterSpacing: "-.02em", color: "var(--tx)" }}>01 April – 30 April 2026</h1>
-              <p style={{ fontSize: 12, color: "var(--mt)", marginTop: 5 }}>Ref: ST-2026-0047 · Account: MGT-2024-019 · Generated: 29 May 2026</p>
+              <h1 style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", fontSize: 24, fontWeight: 700, letterSpacing: "-.02em", color: "var(--tx)" }}>{stPeriod}</h1>
+              <p style={{ fontSize: 12, color: "var(--mt)", marginTop: 5 }}>Ref: {stRef} · Account: MGT-2024-019 · Generated: {new Date().toLocaleDateString("en-ZA")}</p>
             </div>
-            <span className="ca-pill ca-pr" style={{ fontSize: 11, padding: "5px 14px" }}>BALANCE DUE</span>
+            <span className="ca-pill ca-pr" style={{ fontSize: 11, padding: "5px 14px" }}>{stStatus}</span>
           </div>
           <div className="ca-ic-grid">
             <div className="ca-ic"><div className="ca-ic-head">Client Details</div><div className="ca-ic-body">
@@ -3020,16 +3114,16 @@ function ClientAdminPanel({ user, toast, refreshPortal, teamData }) {
               <CAStatRow label="Location" value="Cape Town, SA" /><CAStatRow label="Account" value="MGT-2024-019" />
             </div></div>
             <div className="ca-ic"><div className="ca-ic-head">Statement Info</div><div className="ca-ic-body">
-              <CAStatRow label="Reference" value="ST-2026-0047" /><CAStatRow label="Period" value="April 2026" />
-              <CAStatRow label="Currency" value="ZAR" /><CAStatRow label="Status" value="Balance Due" />
+              <CAStatRow label="Reference" value={stRef} /><CAStatRow label="Period" value={stPeriod} />
+              <CAStatRow label="Currency" value="ZAR" /><CAStatRow label="Status" value={stStatus} />
             </div></div>
           </div>
           <CASecHead num="SUM" title="Account Summary" />
           <div className="ca-g4" style={{ marginBottom: 24 }}>
-            <div className="ca-kpi"><div className="ca-kpi-lbl">Opening Balance</div><div className="ca-kpi-val" style={{ fontSize: 16 }}>R 4,250</div></div>
-            <div className="ca-kpi"><div className="ca-kpi-lbl">Charges</div><div className="ca-kpi-val" style={{ fontSize: 16, color: "var(--o)" }}>R 8,900</div></div>
-            <div className="ca-kpi"><div className="ca-kpi-lbl">Payments</div><div className="ca-kpi-val" style={{ fontSize: 16, color: "var(--gn)" }}>R 4,250</div></div>
-            <div className="ca-kpi" style={{ borderColor: "rgba(180,35,24,.35)", background: "rgba(180,35,24,.04)" }}><div className="ca-kpi-lbl">Balance Due</div><div className="ca-kpi-val" style={{ fontSize: 16, color: "var(--rd)" }}>R 8,900</div></div>
+            <div className="ca-kpi"><div className="ca-kpi-lbl">Opening Balance</div><div className="ca-kpi-val" style={{ fontSize: 16 }}>{stOpening}</div></div>
+            <div className="ca-kpi"><div className="ca-kpi-lbl">Charges</div><div className="ca-kpi-val" style={{ fontSize: 16, color: "var(--o)" }}>{stCharges}</div></div>
+            <div className="ca-kpi"><div className="ca-kpi-lbl">Payments</div><div className="ca-kpi-val" style={{ fontSize: 16, color: "var(--gn)" }}>{stPayments}</div></div>
+            <div className="ca-kpi" style={{ borderColor: "rgba(180,35,24,.35)", background: "rgba(180,35,24,.04)" }}><div className="ca-kpi-lbl">Balance Due</div><div className="ca-kpi-val" style={{ fontSize: 16, color: "var(--rd)" }}>{stBalance}</div></div>
           </div>
           <CASecHead num="TXN" title="Transaction History" />
           <div className="ca-tbl-wrap" style={{ marginBottom: 22 }}>
@@ -3059,7 +3153,8 @@ function ClientAdminPanel({ user, toast, refreshPortal, teamData }) {
           </div>
           <p style={{ fontSize: 11, color: "var(--ft)", marginTop: 10 }}>Queries: admin@mgucatech.com · WhatsApp: +27 60 000 0000 · Terms: 30 days from invoice date.</p>
         </div>
-      )}
+        );
+      })()}
 
       {success && (
         <div className="ca-ov" onClick={() => setSuccess(null)}>
@@ -3224,7 +3319,7 @@ export default function App({ user = null, onLogout = null }) {
         {view==="billing"    && <Billing toast={showToast}/>}
         {view==="status"     && <Status/>}
         {view==="onboarding"    && <Onboarding toast={showToast} user={user}/>}
-        {view==="client-admin"  && <ClientAdminPanel user={user} toast={showToast} refreshPortal={refreshPortal} teamData={workspace.team}/>}
+        {view==="client-admin"  && <ClientAdminPanel user={user} toast={showToast} refreshPortal={refreshPortal} portalData={portalData}/>}
       </div>
 
       {toast&&<Toast msg={toast.msg} type={toast.type} onDone={()=>setToast(null)}/>}

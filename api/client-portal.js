@@ -50,6 +50,8 @@ const DEFAULT_WORKSPACE = {
   broadcasts: [],
   staff: [],
   team: [],
+  clientDetails: {},
+  billing: { invoice: null, statement: null },
   flowNodes: [
     { id: 'start', type: 'start', label: 'User sends message', content: '', x: 40, y: 240, outputs: ['menu'] },
     { id: 'menu', type: 'menu', label: 'Main Menu', content: 'Reply with a number:\n1. Book\n2. FAQ\n3. Speak to agent', x: 260, y: 240, outputs: ['book', 'faq', 'agent'] },
@@ -480,6 +482,14 @@ async function updateWorkspace(req, user) {
     case 'save_team':
       workspace.team = Array.isArray(body.team) ? body.team : workspace.team;
       await save('Portal team updated', { count: workspace.team.length });
+      break;
+    case 'save_client_details':
+      workspace.clientDetails = { ...(workspace.clientDetails || {}), ...(body.details || {}) };
+      await save('Client details saved');
+      break;
+    case 'save_billing':
+      workspace.billing = { ...(workspace.billing || {}), ...(body.billing || {}) };
+      await save('Billing updated');
       break;
     case 'save_templates':
       workspace.templates = Array.isArray(body.templates) ? body.templates : workspace.templates;
